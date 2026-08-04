@@ -928,6 +928,9 @@
   z-index: 2;
   top: 12px;
   right: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 5px 8px;
   border-radius: 999px;
   color: var(--muted);
@@ -937,8 +940,11 @@
   backdrop-filter: blur(8px);
 }
 
-.traversal-alias span {
-  color: var(--acid);
+.traversal-alias-arrow {
+  display: block;
+  flex: 0 0 auto;
+  color: color-mix(in srgb, var(--acid) 82%, var(--muted));
+  transform: translateY(1px);
 }
 
 .query-suggestion-popover {

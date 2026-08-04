@@ -38,8 +38,10 @@ import { HistoryPage } from "./features/history/HistoryPage";
 import { QueryPage } from "./features/query/QueryPage";
 import { isMutationQuery } from "./features/query/query-utils";
 import {
+  createFreshQueryWorkspace,
   createQueryTab,
   loadQueryWorkspace,
+  nextAvailableQuerySequence,
   saveQueryWorkspace,
   type QueryState,
   type QueryTabState,
@@ -166,7 +168,10 @@ export default function App() {
 
   const addQueryTab = useCallback(
     (initialQuery = "") => {
-      queryTabSequence.current += 1;
+      queryTabSequence.current = nextAvailableQuerySequence(
+        queryTabs,
+        queryTabSequence.current,
+      );
       const tab = createQueryTab(
         queryTabSequence.current,
         settings.defaultResultMode,
@@ -177,7 +182,12 @@ export default function App() {
       setActiveQueryTabId(tab.id);
       setView("query");
     },
-    [activeConnectionId, activeQueryTab.connectionId, settings.defaultResultMode],
+    [
+      activeConnectionId,
+      activeQueryTab.connectionId,
+      queryTabs,
+      settings.defaultResultMode,
+    ],
   );
 
   const rememberClosedQueryTabs = useCallback((tabs: QueryTabState[]) => {
@@ -246,14 +256,13 @@ export default function App() {
         });
       }
       if (queryTabs.length === 1) {
-        queryTabSequence.current += 1;
-        const replacement = createQueryTab(
-          queryTabSequence.current,
+        const replacement = createFreshQueryWorkspace(
           settings.defaultResultMode,
           closing?.connectionId || activeConnectionId,
         );
-        setQueryTabs([replacement]);
-        setActiveQueryTabId(replacement.id);
+        queryTabSequence.current = replacement.sequence;
+        setQueryTabs(replacement.tabs);
+        setActiveQueryTabId(replacement.activeTabId);
         return;
       }
       const index = queryTabs.findIndex((tab) => tab.id === id);

@@ -99,6 +99,29 @@ export function createQueryTab(
   };
 }
 
+export function createFreshQueryWorkspace(
+  defaultMode: AppSettings["defaultResultMode"],
+  connectionId: string,
+): { tabs: QueryTabState[]; activeTabId: string; sequence: number } {
+  const tab = createQueryTab(1, defaultMode, connectionId);
+  return { tabs: [tab], activeTabId: tab.id, sequence: 1 };
+}
+
+export function nextAvailableQuerySequence(
+  tabs: QueryTabState[],
+  currentSequence: number,
+): number {
+  const usedSequences = new Set(
+    tabs.flatMap((tab) => {
+      const match = /^Query\s+(\d+)$/i.exec(tab.title);
+      return match ? [Number(match[1])] : [];
+    }),
+  );
+  let sequence = Math.max(0, Math.floor(currentSequence)) + 1;
+  while (usedSequences.has(sequence)) sequence += 1;
+  return sequence;
+}
+
 export function loadQueryWorkspace(
   defaultMode: AppSettings["defaultResultMode"],
   fallbackConnectionId: string,

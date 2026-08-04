@@ -23,6 +23,7 @@ import {
   Layers3,
   LoaderCircle,
   MoreHorizontal,
+  MoveRight,
   Play,
   Plus,
   RefreshCw,
@@ -1444,7 +1445,14 @@ export function QueryPage({
           />
           {activeConnection && (
             <span className="traversal-alias">
-              g <span>→</span> {activeConnection.traversalSource}
+              g
+              <MoveRight
+                className="traversal-alias-arrow"
+                size={16}
+                strokeWidth={1.5}
+                aria-hidden="true"
+              />
+              {activeConnection.traversalSource}
             </span>
           )}
           <QueryHints
