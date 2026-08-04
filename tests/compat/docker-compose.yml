@@ -1,0 +1,15 @@
+services:
+  janusgraph-ws:
+    image: docker.io/janusgraph/janusgraph:${JANUSGRAPH_VERSION:-1.1.0}
+    environment:
+      JANUS_PROPS_TEMPLATE: inmemory
+    ports:
+      - "18182:8182"
+
+  janusgraph-http:
+    image: docker.io/janusgraph/janusgraph:${JANUSGRAPH_VERSION:-1.1.0}
+    environment:
+      JANUS_PROPS_TEMPLATE: inmemory
+      gremlinserver.channelizer: org.apache.tinkerpop.gremlin.server.channel.HttpChannelizer
+    ports:
+      - "18183:8182"
