@@ -24,6 +24,8 @@ function transientProfile(input: SaveConnectionInput): ConnectionProfile {
 }
 
 export class ConnectionService {
+  private readonly passwordCache = new Map<string, string>();
+
   constructor(
     private readonly repository: ConnectionRepository,
     private readonly credentialVault: CredentialVault,
@@ -44,12 +46,18 @@ export class ConnectionService {
           ? await this.credentialVault.encrypt(input.password)
           : null;
 
+    if (input.password !== undefined) {
+      if (input.password) this.passwordCache.set(id, input.password);
+      else this.passwordCache.delete(id);
+    }
+
     await this.gremlinService.closeConnection(id);
     return this.repository.save(id, input, passwordCipher);
   }
 
   async remove(id: string): Promise<void> {
     await this.gremlinService.closeConnection(id);
+    this.passwordCache.delete(id);
     this.repository.remove(id);
   }
 
@@ -77,6 +85,10 @@ export class ConnectionService {
 
     const stored = this.repository.find(id);
     if (!stored?.passwordCipher) return "";
-    return this.credentialVault.decrypt(stored.passwordCipher);
+    const cached = this.passwordCache.get(id);
+    if (cached !== undefined) return cached;
+    const password = await this.credentialVault.decrypt(stored.passwordCipher);
+    this.passwordCache.set(id, password);
+    return password;
   }
 }

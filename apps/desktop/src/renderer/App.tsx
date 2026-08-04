@@ -5685,23 +5685,17 @@ function SettingsPage({
                     "Connection passwords are protected by the operating system credential store.",
                   )
                 : t(
-                    "系统密钥设施不可用，当前使用仅限本机用户访问的 AES-256-GCM 本地加密。",
-                    "The OS credential store is unavailable. AES-256-GCM local encryption restricted to this user is active.",
+                    "当前使用仅限本机用户访问的 AES-256-GCM 本地加密，不会访问系统钥匙串。",
+                    "AES-256-GCM local encryption restricted to this user is active. The system credential store is not accessed.",
                   )}
           </p>
           {security && (
             <span className={`security-mode ${security.mode}`}>
               {security.mode === "os"
                 ? t("系统密钥设施")
-                : t("本地加密回退")}
+                : t("本地加密", "Local encryption")}
             </span>
           )}
-          <small>
-            {t(
-              "当 macOS Keychain、Windows DPAPI 或 Linux Secret Service 不可用时，自动使用当前用户目录中的 AES-256-GCM 密钥，避免连接配置失效。",
-              "When OS secure storage is unavailable, an AES-256-GCM key restricted to the current user keeps connections usable.",
-            )}
-          </small>
         </div>
       </section>
       </div>

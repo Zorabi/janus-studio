@@ -47,8 +47,9 @@ ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ pnpm build
 
 应用移动目录、重新打包或 macOS Keychain 授权变化后，旧版 `safeStorage`
 密文可能无法继续解密。此时进入“连接管理”编辑对应连接并重新输入一次密码；
-新密码会写入带版本标记的凭据格式。系统密钥设施可用时仍优先使用它，否则自动
-使用权限限制为当前操作系统用户的 AES-256-GCM 本地密钥。
+新密码会写入带版本标记的凭据格式。macOS 默认完全禁用 Keychain 访问并使用权限
+限制为当前用户的 AES-256-GCM 本地密钥，避免未永久授权时反复弹出系统密码框；
+Windows 与 Linux 在系统密钥设施不可用时自动使用相同的本地回退方案。
 
 ## 工作区结构
 

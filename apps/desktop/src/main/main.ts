@@ -173,7 +173,7 @@ app.whenReady().then(() => {
   const schemaJobRepository = new SchemaJobRepository(database);
   const forceLocalCredentialVault =
     process.env.JGO_FORCE_LOCAL_CREDENTIAL_VAULT === "1" ||
-    (process.platform === "darwin" && process.env.JGO_ENABLE_MACOS_KEYCHAIN !== "1");
+    process.platform === "darwin";
   const credentialVault = new CredentialVault(
     join(app.getPath("userData"), "credential-vault.key"),
     forceLocalCredentialVault,

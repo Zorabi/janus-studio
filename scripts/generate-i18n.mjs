@@ -98,7 +98,14 @@ try {
   dictionaries = {};
 }
 for (const [locale, language] of Object.entries(targets)) {
-  const dictionary = { ...(dictionaries[locale] ?? {}) };
+  const existingDictionary = dictionaries[locale] ?? {};
+  const dictionary = Object.fromEntries(
+    keys.flatMap((key) =>
+      Object.hasOwn(existingDictionary, key)
+        ? [[key, existingDictionary[key]]]
+        : [],
+    ),
+  );
   const missingKeys = keys.filter((key) => !dictionary[key]);
   const batches = Array.from(
     { length: Math.ceil(missingKeys.length / 20) },

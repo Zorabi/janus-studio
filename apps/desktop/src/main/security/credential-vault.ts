@@ -1,5 +1,5 @@
 import type { SecurityStorageStatus } from "@janusgraph/domain";
-import { safeStorage } from "electron";
+import type { SafeStorage } from "electron";
 import {
   createCipheriv,
   createDecipheriv,
@@ -24,9 +24,10 @@ export class CredentialVault {
   }
 
   async encrypt(password: string): Promise<Uint8Array> {
-    if (!this.forceLocal && safeStorage.isEncryptionAvailable()) {
+    const osStorage = this.forceLocal ? null : await this.osStorage();
+    if (osStorage?.isEncryptionAvailable()) {
       try {
-        const cipher = safeStorage.encryptString(password);
+        const cipher = osStorage.encryptString(password);
         this.lastMode = "os";
         return Buffer.concat([HEADER, Buffer.from([OS_STORAGE]), cipher]);
       } catch {
@@ -64,7 +65,7 @@ export class CredentialVault {
           throw new Error("当前隔离运行环境不允许访问操作系统密钥设施");
         }
         try {
-          const password = safeStorage.decryptString(body);
+          const password = (await this.osStorage()).decryptString(body);
           this.lastMode = "os";
           return password;
         } catch {
@@ -99,7 +100,7 @@ export class CredentialVault {
       throw new Error("当前隔离运行环境不允许读取迁移前的系统凭据");
     }
     try {
-      const password = safeStorage.decryptString(payload);
+      const password = (await this.osStorage()).decryptString(payload);
       this.lastMode = "os";
       return password;
     } catch {
@@ -113,7 +114,9 @@ export class CredentialVault {
     const fallbackKeyPresent = await stat(this.fallbackKeyPath)
       .then(() => true)
       .catch(() => false);
-    const osEncryptionAvailable = !this.forceLocal && safeStorage.isEncryptionAvailable();
+    const osEncryptionAvailable = this.forceLocal
+      ? false
+      : (await this.osStorage()).isEncryptionAvailable();
     const mode = osEncryptionAvailable ? this.lastMode : "local-fallback";
     return {
       mode,
@@ -122,8 +125,12 @@ export class CredentialVault {
       description:
         mode === "os"
           ? "密码由操作系统密钥设施保护"
-          : "密码由当前用户目录中的 AES-256-GCM 本地密钥保护",
+          : "密码由当前用户目录中的 AES-256-GCM 本地密钥保护，不访问系统钥匙串",
     };
+  }
+
+  private async osStorage(): Promise<SafeStorage> {
+    return (await import("electron")).safeStorage;
   }
 
   private async localKey(create = true): Promise<Buffer | null> {

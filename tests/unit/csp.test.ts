@@ -9,3 +9,12 @@ test("allows blob-backed graph images without broadening script permissions", as
   assert.match(policy, /img-src[^;]*\bblob:/);
   assert.doesNotMatch(policy, /script-src[^;]*\bblob:/);
 });
+
+test("keeps Electron cookie encryption disabled for the local macOS vault", async () => {
+  const forgeConfig = await readFile("apps/desktop/forge.config.ts", "utf8");
+
+  assert.match(
+    forgeConfig,
+    /\[FuseV1Options\.EnableCookieEncryption\]: false/,
+  );
+});

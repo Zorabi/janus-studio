@@ -82,7 +82,10 @@ const config: ForgeConfig = {
     new FusesPlugin({
       version: FuseVersion.V1,
       [FuseV1Options.RunAsNode]: false,
-      [FuseV1Options.EnableCookieEncryption]: true,
+      // Observatory does not persist authenticated web sessions. Keeping this
+      // fuse enabled makes Chromium initialize macOS Keychain independently of
+      // the app's local AES credential vault and can trigger password prompts.
+      [FuseV1Options.EnableCookieEncryption]: false,
       [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
       [FuseV1Options.EnableNodeCliInspectArguments]: false,
       [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,

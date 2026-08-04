@@ -108,7 +108,7 @@
 - 不得因为常规开发验证而自动启动应用或访问真实连接。
 - 用户明确反感反复弹出 macOS 钥匙串密码请求。除非用户明确要求启动或进行真实连接验证，否则只执行类型检查、测试和打包。
 - 凭据读取必须使用会话缓存，不能在每次渲染、查询或 Schema 操作时重复解密。
-- macOS `safeStorage` 或钥匙串不可用时，应使用项目已有的本地加密回退策略，并向用户明确说明状态；不能让保存连接或查询直接失效。
+- macOS 始终使用仅限当前用户访问的 AES-256-GCM 本地凭据库；不得初始化 `safeStorage`、Keychain 或 Electron Cookie Encryption Fuse。Windows/Linux 可优先使用系统密钥设施，不可用时回退到本地加密。
 - 日志、错误提示和测试输出中不得打印密码、解密密钥或完整认证 Header。
 
 ## 6. 最近完成的修正
@@ -124,7 +124,8 @@
 - 已移除不可靠的相邻顶点展开/收起功能及相关状态和测试代码。
 - 拓扑导出通过 Electron 主进程保存 PNG、JPG、SVG 和 JSON，并提供渲染、编码、保存三个阶段的加载反馈。
 - 拓扑图片导出会计算全部已渲染顶点、关系、曲线、自环和标签边界，不受当前相机平移缩放影响；箭头按关系 Label 着色并随导出比例增强可见度。
-- i18n 消息目录已生成到每种语言 557 条。
+- macOS 凭据存储已完全隔离系统钥匙串：`safeStorage` 延迟加载、Cookie Encryption Fuse 关闭，并使用会话密码缓存避免重复解密。
+- i18n 消息目录已生成到每种语言 531 条，并会在生成时清理已从源码移除的废弃文案。
 
 ## 7. 开发与验证命令
 
@@ -139,7 +140,7 @@ pnpm build
 ```
 
 - `pnpm typecheck`：全部 workspace TypeScript 检查。
-- `pnpm test`：当前 28 项测试，其中 24 项本地通过，4 项真实 JanusGraph 集成测试在未配置环境时跳过。
+- `pnpm test`：当前 30 项测试，其中 26 项本地通过，4 项真实 JanusGraph 集成测试在未配置环境时跳过。
 - `pnpm build`：Electron Forge 生产打包。
 - macOS ARM64 打包输出：
   `apps/desktop/out/JanusGraph Observatory-darwin-arm64/JanusGraph Observatory.app`。
@@ -158,7 +159,7 @@ pnpm build
 ## 9. 当前验证状态
 
 - 最近一次 `pnpm typecheck`：通过。
-- 最近一次 `pnpm test`：28 项，24 通过，4 个真实环境测试跳过，0 失败。
+- 最近一次 `pnpm test`：30 项，26 通过，4 个真实环境测试跳过，0 失败。
 - 最近一次 `pnpm build`：通过。
 - 最近一次打包时间：2026-08-04。
 - 最近一次任务未启动应用，未触发钥匙串和真实 JanusGraph 连接。
