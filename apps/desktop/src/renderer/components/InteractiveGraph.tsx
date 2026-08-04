@@ -58,6 +58,25 @@ type DragState = {
 };
 
 type Camera = { x: number; y: number; scale: number };
+type GraphExportFormat = "png" | "jpg" | "svg" | "json";
+type GraphExportPhase = "rendering" | "encoding" | "saving";
+
+function blobAsBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error ?? new Error("Unable to read image data"));
+    reader.onload = () => {
+      const value = typeof reader.result === "string" ? reader.result : "";
+      const separator = value.indexOf(",");
+      if (separator < 0) {
+        reject(new Error("Unable to encode image data"));
+        return;
+      }
+      resolve(value.slice(separator + 1));
+    };
+    reader.readAsDataURL(blob);
+  });
+}
 
 function scalarCaption(value: unknown): string | null {
   if (value === undefined || value === null) return null;
@@ -138,6 +157,10 @@ function signatureHash(value: string): string {
     hash = Math.imul(hash, 16777619);
   }
   return (hash >>> 0).toString(36);
+}
+
+function edgeMarkerId(label: string): string {
+  return `interactive-graph-arrow-${signatureHash(label)}`;
 }
 
 function initialPositions(
@@ -354,6 +377,8 @@ export function InteractiveGraph({
   edgeLabelFields,
   detailStatus = "idle",
   detailError = "",
+  onExportComplete,
+  onExportError,
 }: {
   model: GraphModel;
   selection: GraphSelection;
@@ -369,6 +394,8 @@ export function InteractiveGraph({
   edgeLabelFields: string;
   detailStatus?: "idle" | "loading" | "error";
   detailError?: string;
+  onExportComplete?: (path: string) => void;
+  onExportError?: (message: string) => void;
 }) {
   const { repulsion, linkDistance, centerStrength, damping } =
     layoutConfiguration.force;
@@ -386,6 +413,10 @@ export function InteractiveGraph({
   const [search, setSearch] = useState("");
   const [layoutSaved, setLayoutSaved] = useState(false);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [exportState, setExportState] = useState<{
+    format: GraphExportFormat;
+    phase: GraphExportPhase;
+  } | null>(null);
   const visibleNodes = useMemo(
     () => model.nodes.slice(0, nodeLimit),
     [model.nodes, nodeLimit],
@@ -742,18 +773,109 @@ export function InteractiveGraph({
     window.setTimeout(() => setLayoutSaved(false), 1_500);
   };
 
+  const graphExportFrame = () => {
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+    const include = (
+      point: Point,
+      horizontalPadding = 0,
+      topPadding = horizontalPadding,
+      bottomPadding = topPadding,
+    ) => {
+      minX = Math.min(minX, point.x - horizontalPadding);
+      maxX = Math.max(maxX, point.x + horizontalPadding);
+      minY = Math.min(minY, point.y - topPadding);
+      maxY = Math.max(maxY, point.y + bottomPadding);
+    };
+
+    visibleNodes.forEach((node) => {
+      const position = positions[node.id];
+      if (!position) return;
+      const caption = graphCaption(node, vertexLabelFields);
+      const halfLabelWidth = showLabels
+        ? Math.min(115, Math.max(32, caption.length * 3.7 + 10))
+        : 34;
+      include(position, halfLabelWidth, 36, showLabels ? 68 : 36);
+    });
+    visibleEdges.forEach((edge, index) => {
+      const from = positions[edge.from];
+      const to = positions[edge.to];
+      if (!from || !to) return;
+      const control = controls[edge.id] ?? defaultControl(from, to, index);
+      const caption = graphCaption(edge, edgeLabelFields);
+      const halfLabelWidth = showLabels
+        ? Math.min(105, Math.max(23, caption.length * 3.6 + 8))
+        : 12;
+      include(from, 36);
+      include(to, 36);
+      include(
+        control,
+        halfLabelWidth,
+        edge.from === edge.to ? 96 : showLabels ? 40 : 18,
+        24,
+      );
+    });
+
+    if (![minX, minY, maxX, maxY].every(Number.isFinite)) {
+      return { x: 0, y: 0, width: 960, height: 560 };
+    }
+    const padding = 72;
+    return {
+      x: minX - padding,
+      y: minY - padding,
+      width: Math.max(320, maxX - minX + padding * 2),
+      height: Math.max(240, maxY - minY + padding * 2),
+    };
+  };
+
   const serializedSvg = () => {
     const source = svgRef.current;
     if (!source) return null;
+    const frame = graphExportFrame();
+    const aspect = frame.width / frame.height;
+    const outputWidth = aspect >= 1
+      ? 2400
+      : Math.max(640, Math.round(2400 * aspect));
+    const outputHeight = aspect >= 1
+      ? Math.max(640, Math.round(2400 / aspect))
+      : 2400;
     const clone = source.cloneNode(true) as SVGSVGElement;
     clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-    clone.setAttribute("width", "1920");
-    clone.setAttribute("height", "1120");
+    clone.setAttribute("width", String(outputWidth));
+    clone.setAttribute("height", String(outputHeight));
+    clone.setAttribute(
+      "viewBox",
+      `${frame.x} ${frame.y} ${frame.width} ${frame.height}`,
+    );
+    clone.setAttribute("preserveAspectRatio", "xMidYMid meet");
+    clone.querySelector<SVGGElement>(".graph-world")?.removeAttribute("transform");
+    const markerSize = Math.min(
+      52,
+      Math.max(
+        22,
+        Math.max(frame.width / outputWidth, frame.height / outputHeight) * 20,
+      ),
+    );
+    clone.querySelectorAll<SVGMarkerElement>("marker.graph-arrow").forEach((marker) => {
+      marker.setAttribute("markerWidth", markerSize.toFixed(2));
+      marker.setAttribute("markerHeight", markerSize.toFixed(2));
+    });
+    const background = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    background.setAttribute("x", String(frame.x));
+    background.setAttribute("y", String(frame.y));
+    background.setAttribute("width", String(frame.width));
+    background.setAttribute("height", String(frame.height));
+    background.setAttribute("fill", "#0d100e");
+    background.setAttribute("class", "export-background");
+    clone.prepend(background);
     const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
     style.textContent = `
       svg { background: #0d100e; font-family: ui-monospace, monospace; }
       .edge-hit,.edge-handle { display:none; }
-      .edge-line { fill:none; stroke:var(--edge-color,#829087); stroke-width:2; }
+      .edge-line { fill:none; stroke:var(--edge-color,#829087); stroke-width:2.4; }
+      .graph-arrow path { stroke:#0d100e; stroke-width:.9; stroke-linejoin:round; paint-order:stroke fill; }
       .edge-label-background { fill:#111612; stroke:var(--edge-color,#829087); stroke-width:1; }
       .graph-edge text { fill:var(--edge-color,#d7dfd8); font-size:12px; font-weight:650; text-anchor:middle; }
       .graph-node circle { fill:color-mix(in srgb,var(--node-color,#c8ff55) 17%,#111612); stroke:var(--node-color,#c8ff55); stroke-width:2; }
@@ -762,66 +884,117 @@ export function InteractiveGraph({
       .node-label { fill:#eef1eb; font-size:12px; text-anchor:middle; }
     `;
     clone.prepend(style);
-    return new XMLSerializer().serializeToString(clone);
+    return {
+      source: new XMLSerializer().serializeToString(clone),
+      width: outputWidth,
+      height: outputHeight,
+    };
   };
 
-  const downloadBlob = (blob: Blob, extension: string) => {
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `janusgraph-topology-${Date.now()}.${extension}`;
-    anchor.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+  const reportExportError = (error: unknown) => {
+    onExportError?.(error instanceof Error ? error.message : String(error));
   };
 
-  const exportSvg = () => {
-    const source = serializedSvg();
-    if (!source) return;
-    downloadBlob(new Blob([source], { type: "image/svg+xml" }), "svg");
+  const saveGraphFile = async (
+    content: string,
+    format: GraphExportFormat,
+  ) => {
+    if (!window.janusGraphDesktop) {
+      throw new Error(t("桌面文件服务不可用", "Desktop file service is unavailable"));
+    }
+    setExportState((current) => ({
+      format: current?.format ?? format,
+      phase: "saving",
+    }));
+    const path = await window.janusGraphDesktop.files.saveGraphFile({
+      suggestedName: `janusgraph-topology-${Date.now()}.${format}`,
+      format,
+      content,
+    });
+    if (path) onExportComplete?.(path);
+  };
+
+  const exportSvg = async () => {
+    setExportState({ format: "svg", phase: "rendering" });
+    try {
+      const source = serializedSvg();
+      if (!source) throw new Error(t("拓扑画布不可用", "Graph canvas is unavailable"));
+      await saveGraphFile(source.source, "svg");
+    } catch (error) {
+      reportExportError(error);
+    } finally {
+      setExportState(null);
+    }
   };
 
   const exportRaster = (format: "png" | "jpeg") => {
+    const exportFormat = format === "jpeg" ? "jpg" : "png";
+    setExportState({ format: exportFormat, phase: "rendering" });
     const source = serializedSvg();
-    if (!source) return;
+    if (!source) {
+      reportExportError(new Error(t("拓扑画布不可用", "Graph canvas is unavailable")));
+      setExportState(null);
+      return;
+    }
     const sourceUrl = URL.createObjectURL(
-      new Blob([source], { type: "image/svg+xml;charset=utf-8" }),
+      new Blob([source.source], { type: "image/svg+xml;charset=utf-8" }),
     );
     const image = new Image();
     image.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = 1920;
-      canvas.height = 1120;
-      const context = canvas.getContext("2d");
-      if (!context) {
+      void (async () => {
+        setExportState({ format: exportFormat, phase: "encoding" });
+        const canvas = document.createElement("canvas");
+        canvas.width = source.width;
+        canvas.height = source.height;
+        const context = canvas.getContext("2d");
+        if (!context) throw new Error(t("无法创建图片画布", "Unable to create image canvas"));
+        context.fillStyle = "#0d100e";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        const blob = await new Promise<Blob>((resolve, reject) => {
+          canvas.toBlob((value) => {
+            if (value) resolve(value);
+            else reject(new Error(t("无法生成拓扑图图片", "Unable to generate graph image")));
+          }, `image/${format}`, format === "jpeg" ? 0.92 : undefined);
+        });
+        await saveGraphFile(
+          await blobAsBase64(blob),
+          exportFormat,
+        );
+      })().catch(reportExportError).finally(() => {
         URL.revokeObjectURL(sourceUrl);
-        return;
-      }
-      context.fillStyle = "#0d100e";
-      context.fillRect(0, 0, canvas.width, canvas.height);
-      context.drawImage(image, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob((blob) => {
-        if (blob) downloadBlob(blob, format === "jpeg" ? "jpg" : "png");
-        URL.revokeObjectURL(sourceUrl);
-      }, `image/${format}`, format === "jpeg" ? 0.92 : undefined);
+        setExportState(null);
+      });
     };
-    image.onerror = () => URL.revokeObjectURL(sourceUrl);
+    image.onerror = () => {
+      URL.revokeObjectURL(sourceUrl);
+      reportExportError(new Error(t("无法解析拓扑图画布", "Unable to render graph canvas")));
+      setExportState(null);
+    };
     image.src = sourceUrl;
   };
 
-  const exportJson = () => {
-    const content = JSON.stringify({
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      layout: layoutMode,
-      camera,
-      positions: Object.fromEntries(
-        visibleNodes.map((node) => [node.id, positions[node.id]]),
-      ),
-      controls,
-      nodes: visibleNodes,
-      edges: visibleEdges,
-    }, (_key, value) => typeof value === "bigint" ? String(value) : value, 2);
-    downloadBlob(new Blob([content], { type: "application/json" }), "json");
+  const exportJson = async () => {
+    setExportState({ format: "json", phase: "rendering" });
+    try {
+      const content = JSON.stringify({
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        layout: layoutMode,
+        camera,
+        positions: Object.fromEntries(
+          visibleNodes.map((node) => [node.id, positions[node.id]]),
+        ),
+        controls,
+        nodes: visibleNodes,
+        edges: visibleEdges,
+      }, (_key, value) => typeof value === "bigint" ? String(value) : value, 2);
+      await saveGraphFile(content, "json");
+    } catch (error) {
+      reportExportError(error);
+    } finally {
+      setExportState(null);
+    }
   };
 
   const zoomAtCenter = (factor: number) => {
@@ -888,6 +1061,14 @@ export function InteractiveGraph({
       indexedLabelColor(index),
     ]),
   );
+  const exportPhaseIndex = exportState
+    ? { rendering: 0, encoding: 1, saving: 2 }[exportState.phase]
+    : -1;
+  const exportPhaseLabel = exportState?.phase === "rendering"
+    ? t("正在渲染拓扑画布", "Rendering graph canvas")
+    : exportState?.phase === "encoding"
+      ? t("正在编码图片", "Encoding image")
+      : t("等待选择保存位置", "Waiting for save location");
 
   const stage = (
     <div
@@ -982,9 +1163,20 @@ export function InteractiveGraph({
             title={t("下载拓扑图", "Download graph")}
             aria-haspopup="menu"
             aria-expanded={exportMenuOpen}
+            aria-busy={Boolean(exportState)}
+            disabled={Boolean(exportState)}
           >
-            <Download size={15} />
-            <ChevronDown size={13} />
+            {exportState ? (
+              <>
+                <LoaderCircle className="spin" size={15} />
+                <span>{exportState.format.toUpperCase()}</span>
+              </>
+            ) : (
+              <>
+                <Download size={15} />
+                <ChevronDown size={13} />
+              </>
+            )}
           </button>
           {exportMenuOpen && (
             <div className="graph-export-menu" role="menu">
@@ -996,14 +1188,30 @@ export function InteractiveGraph({
                 <FileImage size={16} />
                 <span><strong>JPG</strong><small>{t("适合分享的压缩图片", "Compressed image for sharing")}</small></span>
               </button>
-              <button type="button" role="menuitem" onClick={() => { setExportMenuOpen(false); exportSvg(); }}>
+              <button type="button" role="menuitem" onClick={() => { setExportMenuOpen(false); void exportSvg(); }}>
                 <FileImage size={16} />
                 <span><strong>SVG</strong><small>{t("可缩放矢量图", "Scalable vector image")}</small></span>
               </button>
-              <button type="button" role="menuitem" onClick={() => { setExportMenuOpen(false); exportJson(); }}>
+              <button type="button" role="menuitem" onClick={() => { setExportMenuOpen(false); void exportJson(); }}>
                 <FileJson size={16} />
                 <span><strong>JSON</strong><small>{t("图数据与布局坐标", "Graph data and layout coordinates")}</small></span>
               </button>
+            </div>
+          )}
+          {exportState && (
+            <div className="graph-export-progress" role="status" aria-live="polite">
+              <header>
+                <LoaderCircle className="spin" size={16} />
+                <span>
+                  <strong>{t(`正在生成 ${exportState.format.toUpperCase()}`, `Generating ${exportState.format.toUpperCase()}`)}</strong>
+                  <small>{exportPhaseLabel}</small>
+                </span>
+              </header>
+              <div className="graph-export-progress-track" aria-hidden="true">
+                {[0, 1, 2].map((step) => (
+                  <i key={step} className={step <= exportPhaseIndex ? "is-active" : ""} />
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -1077,20 +1285,33 @@ export function InteractiveGraph({
         }}
       >
         <defs>
-          <marker
-            id="interactive-graph-arrow"
-            viewBox="0 0 12 12"
-            refX="11"
-            refY="6"
-            markerWidth="22"
-            markerHeight="22"
-            markerUnits="userSpaceOnUse"
-            orient="auto"
-          >
-            <path d="M 1.5 1.5 L 11 6 L 1.5 10.5 L 3.6 6 Z" />
-          </marker>
+          {[...new Set(visibleEdges.map((edge) => edge.label))].map((label) => {
+            const color = graphLabelColors.get(`E:${label}`) ?? labelColor(label);
+            return (
+              <marker
+                key={label}
+                id={edgeMarkerId(label)}
+                className="graph-arrow"
+                viewBox="0 0 12 12"
+                refX="10.8"
+                refY="6"
+                markerWidth="22"
+                markerHeight="22"
+                markerUnits="userSpaceOnUse"
+                orient="auto"
+              >
+                <path
+                  d="M 1 1 L 11 6 L 1 11 L 3.4 6 Z"
+                  fill={color}
+                  stroke="#0d100e"
+                  strokeWidth="0.75"
+                  strokeLinejoin="round"
+                />
+              </marker>
+            );
+          })}
         </defs>
-        <g transform={`translate(${camera.x} ${camera.y}) scale(${camera.scale})`}>
+        <g className="graph-world" transform={`translate(${camera.x} ${camera.y}) scale(${camera.scale})`}>
         <g className="edge-layer">
           {visibleEdges.map((edge, index) => {
             const from = positions[edge.from];
@@ -1138,7 +1359,7 @@ export function InteractiveGraph({
                 <path
                   className="edge-line"
                   d={path}
-                  markerEnd="url(#interactive-graph-arrow)"
+                  markerEnd={`url(#${edgeMarkerId(edge.label)})`}
                 />
                 <circle className="edge-handle" cx={control.x} cy={control.y} r="7" />
                 {showLabels && (

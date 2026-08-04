@@ -548,7 +548,15 @@
     "下载拓扑图": "下載拓樸圖",
     "已收起当前顶点的相邻元素": "已收起目前頂點的相鄰元素",
     "按当前可见顶点 ID、关系 ID 与方向、布局模式和参数识别相同图，并恢复顶点位置、关系控制点与缩放视角": "依目前可見頂點 ID、關係 ID 與方向、佈局模式和參數識別相同圖，並恢復頂點位置、關係控制點與縮放視角",
-    "适合分享的压缩图片": "適合分享的壓縮圖片"
+    "适合分享的压缩图片": "適合分享的壓縮圖片",
+    "拓扑画布不可用": "拓樸畫布不可用",
+    "无法创建图片画布": "無法建立圖片畫布",
+    "无法解析拓扑图画布": "無法解析拓樸圖畫布",
+    "无法生成拓扑图图片": "無法產生拓樸圖圖片",
+    "桌面文件服务不可用": "桌面文件服務不可用",
+    "等待选择保存位置": "等待選擇儲存位置",
+    "正在编码图片": "正在編碼圖片",
+    "正在渲染拓扑画布": "正在渲染拓樸畫布"
   },
   "ja-JP": {
     "安全存储": "安全な保管",
@@ -1099,7 +1107,15 @@
     "下载拓扑图": "トポロジ マップをダウンロードする",
     "已收起当前顶点的相邻元素": "現在の頂点の隣接する要素が折りたたまれています",
     "按当前可见顶点 ID、关系 ID 与方向、布局模式和参数识别相同图，并恢复顶点位置、关系控制点与缩放视角": "現在表示されている頂点 ID、リレーションシップ ID と方向、レイアウト モード、パラメータによって同じグラフを識別し、頂点の位置、リレーションシップ コントロール ポイント、およびズーム パースペクティブを復元します。",
-    "适合分享的压缩图片": "共有に適した圧縮画像"
+    "适合分享的压缩图片": "共有に適した圧縮画像",
+    "拓扑画布不可用": "トポロジ キャンバスは使用できません",
+    "无法创建图片画布": "画像キャンバスを作成できません",
+    "无法解析拓扑图画布": "トポロジ マップ キャンバスを解析できません",
+    "无法生成拓扑图图片": "トポロジ マップ イメージを生成できません",
+    "桌面文件服务不可用": "デスクトップ ファイル サービスは利用できません",
+    "等待选择保存位置": "保存場所の選択を待っています",
+    "正在编码图片": "エンコード画像",
+    "正在渲染拓扑画布": "トポロジ キャンバスのレンダリング"
   },
   "ko-KR": {
     "编辑器中的 g 会映射到此服务器 Traversal Source。": "편집기의 g는 이 서버 Traversal Source에 매핑됩니다.",
@@ -1650,7 +1666,15 @@
     "下载拓扑图": "토폴로지 맵 다운로드",
     "已收起当前顶点的相邻元素": "현재 정점의 인접한 요소가 축소되었습니다.",
     "按当前可见顶点 ID、关系 ID 与方向、布局模式和参数识别相同图，并恢复顶点位置、关系控制点与缩放视角": "현재 표시되는 정점 ID, 관계 ID 및 방향, 레이아웃 모드 및 매개변수로 동일한 그래프를 식별하고 정점 위치, 관계 제어점 및 확대/축소 관점을 복원합니다.",
-    "适合分享的压缩图片": "공유에 적합한 압축 이미지"
+    "适合分享的压缩图片": "공유에 적합한 압축 이미지",
+    "拓扑画布不可用": "토폴로지 캔버스를 사용할 수 없습니다.",
+    "无法创建图片画布": "그림 캔버스를 만들 수 없습니다",
+    "无法解析拓扑图画布": "토폴로지 맵 캔버스를 구문 분석할 수 없습니다.",
+    "无法生成拓扑图图片": "토폴로지 맵 이미지를 생성할 수 없습니다.",
+    "桌面文件服务不可用": "데스크톱 파일 서비스를 사용할 수 없습니다.",
+    "等待选择保存位置": "저장 위치 선택을 기다리는 중",
+    "正在编码图片": "인코딩 이미지",
+    "正在渲染拓扑画布": "토폴로지 캔버스 렌더링"
   },
   "de-DE": {
     "编辑器中的 g 会映射到此服务器 Traversal Source。": "g im Editor wird dieser Server-Traversal-Quelle zugeordnet.",
@@ -2201,7 +2225,15 @@
     "下载拓扑图": "Laden Sie die Topologiekarte herunter",
     "已收起当前顶点的相邻元素": "Die angrenzenden Elemente des aktuellen Scheitelpunkts wurden reduziert",
     "按当前可见顶点 ID、关系 ID 与方向、布局模式和参数识别相同图，并恢复顶点位置、关系控制点与缩放视角": "Identifizieren Sie dasselbe Diagramm anhand der aktuell sichtbaren Scheitelpunkt-IDs, Beziehungs-IDs und -Ausrichtungen, Layoutmodi und Parameter und stellen Sie Scheitelpunktpositionen, Beziehungskontrollpunkte und Zoomperspektiven wieder her",
-    "适合分享的压缩图片": "Komprimierte Bilder, die zum Teilen geeignet sind"
+    "适合分享的压缩图片": "Komprimierte Bilder, die zum Teilen geeignet sind",
+    "拓扑画布不可用": "Topologie-Canvas ist nicht verfügbar",
+    "无法创建图片画布": "Bildleinwand kann nicht erstellt werden",
+    "无法解析拓扑图画布": "Topologiekarten-Canvas kann nicht analysiert werden",
+    "无法生成拓扑图图片": "Das Bild der Topologiekarte kann nicht generiert werden",
+    "桌面文件服务不可用": "Der Desktop-Dateidienst ist nicht verfügbar",
+    "等待选择保存位置": "Warten auf die Auswahl des Speicherorts",
+    "正在编码图片": "Bild kodieren",
+    "正在渲染拓扑画布": "Topologie-Canvas rendern"
   },
   "fr-FR": {
     "安全存储": "stockage sécurisé",
@@ -2752,7 +2784,15 @@
     "下载拓扑图": "Télécharger la carte topologique",
     "已收起当前顶点的相邻元素": "Les éléments adjacents du sommet actuel ont été réduits",
     "按当前可见顶点 ID、关系 ID 与方向、布局模式和参数识别相同图，并恢复顶点位置、关系控制点与缩放视角": "Identifiez le même graphique par les ID de sommet actuellement visibles, les ID de relation et les orientations, les modes de présentation et les paramètres, et restaurez les positions des sommets, les points de contrôle de relation et les perspectives de zoom.",
-    "适合分享的压缩图片": "Images compressées adaptées au partage"
+    "适合分享的压缩图片": "Images compressées adaptées au partage",
+    "拓扑画布不可用": "Le canevas de topologie n'est pas disponible",
+    "无法创建图片画布": "Impossible de créer une toile d'image",
+    "无法解析拓扑图画布": "Impossible d'analyser le canevas de la carte topologique",
+    "无法生成拓扑图图片": "Impossible de générer l'image de la carte topologique",
+    "桌面文件服务不可用": "Le service de fichiers de bureau n'est pas disponible",
+    "等待选择保存位置": "En attente de la sélection de l'emplacement de sauvegarde",
+    "正在编码图片": "Encodage de l'image",
+    "正在渲染拓扑画布": "Canevas de topologie de rendu"
   },
   "es-ES": {
     "安全存储": "almacenamiento seguro",
@@ -3303,7 +3343,15 @@
     "下载拓扑图": "Descargar mapa de topología",
     "已收起当前顶点的相邻元素": "Los elementos adyacentes del vértice actual se han colapsado.",
     "按当前可见顶点 ID、关系 ID 与方向、布局模式和参数识别相同图，并恢复顶点位置、关系控制点与缩放视角": "Identifique el mismo gráfico mediante ID de vértices visibles actualmente, ID y orientaciones de relaciones, modos de diseño y parámetros, y restaure posiciones de vértices, puntos de control de relaciones y perspectivas de zoom.",
-    "适合分享的压缩图片": "Imágenes comprimidas adecuadas para compartir."
+    "适合分享的压缩图片": "Imágenes comprimidas adecuadas para compartir.",
+    "拓扑画布不可用": "El lienzo de topología no está disponible",
+    "无法创建图片画布": "No se puede crear un lienzo de imagen",
+    "无法解析拓扑图画布": "No se puede analizar el lienzo del mapa de topología",
+    "无法生成拓扑图图片": "No se puede generar la imagen del mapa de topología",
+    "桌面文件服务不可用": "El servicio de archivos de escritorio no está disponible",
+    "等待选择保存位置": "Esperando la selección de la ubicación para guardar",
+    "正在编码图片": "Codificación de imagen",
+    "正在渲染拓扑画布": "Lienzo de topología de renderizado"
   },
   "pt-BR": {
     "编辑器中的 g 会映射到此服务器 Traversal Source。": "g no editor mapeia para este servidor Traversal Source.",
@@ -3854,7 +3902,15 @@
     "下载拓扑图": "Baixar mapa de topologia",
     "已收起当前顶点的相邻元素": "Os elementos adjacentes do vértice atual foram recolhidos",
     "按当前可见顶点 ID、关系 ID 与方向、布局模式和参数识别相同图，并恢复顶点位置、关系控制点与缩放视角": "Identifique o mesmo gráfico por IDs de vértices atualmente visíveis, IDs de relacionamento e orientações, modos de layout e parâmetros e restaure posições de vértices, pontos de controle de relacionamento e perspectivas de zoom",
-    "适合分享的压缩图片": "Imagens compactadas adequadas para compartilhamento"
+    "适合分享的压缩图片": "Imagens compactadas adequadas para compartilhamento",
+    "拓扑画布不可用": "A tela de topologia não está disponível",
+    "无法创建图片画布": "Não foi possível criar a tela da imagem",
+    "无法解析拓扑图画布": "Não é possível analisar a tela do mapa de topologia",
+    "无法生成拓扑图图片": "Não foi possível gerar a imagem do mapa de topologia",
+    "桌面文件服务不可用": "O serviço de arquivos da área de trabalho não está disponível",
+    "等待选择保存位置": "Aguardando a seleção do local para salvar",
+    "正在编码图片": "Codificação de imagem",
+    "正在渲染拓扑画布": "Renderizando tela de topologia"
   },
   "it-IT": {
     "编辑器中的 g 会映射到此服务器 Traversal Source。": "g nell'editor viene mappato a questo server Traversal Source.",
@@ -4405,7 +4461,15 @@
     "下载拓扑图": "Scarica la mappa della topologia",
     "已收起当前顶点的相邻元素": "Gli elementi adiacenti dell'attuale vertice sono stati collassati",
     "按当前可见顶点 ID、关系 ID 与方向、布局模式和参数识别相同图，并恢复顶点位置、关系控制点与缩放视角": "Identificare lo stesso grafico in base agli ID dei vertici attualmente visibili, agli ID delle relazioni e agli orientamenti, alle modalità di layout e ai parametri e ripristinare le posizioni dei vertici, i punti di controllo delle relazioni e le prospettive di zoom",
-    "适合分享的压缩图片": "Immagini compresse adatte alla condivisione"
+    "适合分享的压缩图片": "Immagini compresse adatte alla condivisione",
+    "拓扑画布不可用": "Il canvas della topologia non è disponibile",
+    "无法创建图片画布": "Impossibile creare una tela con foto",
+    "无法解析拓扑图画布": "Impossibile analizzare l'area di disegno della mappa topologica",
+    "无法生成拓扑图图片": "Impossibile generare l'immagine della mappa topologica",
+    "桌面文件服务不可用": "Il servizio file desktop non è disponibile",
+    "等待选择保存位置": "In attesa della selezione della posizione di salvataggio",
+    "正在编码图片": "Codifica dell'immagine",
+    "正在渲染拓扑画布": "Canvas della topologia di rendering"
   },
   "ru-RU": {
     "编辑器中的 g 会映射到此服务器 Traversal Source。": "g в редакторе сопоставляется с этим сервером Traversal Source.",
@@ -4956,7 +5020,15 @@
     "下载拓扑图": "Скачать карту топологии",
     "已收起当前顶点的相邻元素": "Соседние элементы текущей вершины свернуты.",
     "按当前可见顶点 ID、关系 ID 与方向、布局模式和参数识别相同图，并恢复顶点位置、关系控制点与缩放视角": "Определите один и тот же граф по видимым в данный момент идентификаторам вершин, идентификаторам связей и ориентациям, режимам компоновки и параметрам, а также восстановите положения вершин, контрольные точки связей и перспективы масштабирования.",
-    "适合分享的压缩图片": "Сжатые изображения, подходящие для обмена"
+    "适合分享的压缩图片": "Сжатые изображения, подходящие для обмена",
+    "拓扑画布不可用": "Холст топологии недоступен.",
+    "无法创建图片画布": "Невозможно создать холст для изображения",
+    "无法解析拓扑图画布": "Невозможно проанализировать холст карты топологии.",
+    "无法生成拓扑图图片": "Невозможно создать изображение карты топологии.",
+    "桌面文件服务不可用": "Служба файлов рабочего стола недоступна",
+    "等待选择保存位置": "Ожидание выбора места сохранения",
+    "正在编码图片": "Кодирование изображения",
+    "正在渲染拓扑画布": "Отрисовка холста топологии"
   },
   "pl-PL": {
     "编辑器中的 g 会映射到此服务器 Traversal Source。": "g w edytorze mapuje do tego serwera Traversal Source.",
@@ -5507,7 +5579,15 @@
     "下载拓扑图": "Pobierz mapę topologii",
     "已收起当前顶点的相邻元素": "Sąsiednie elementy bieżącego wierzchołka zostały zwinięte",
     "按当前可见顶点 ID、关系 ID 与方向、布局模式和参数识别相同图，并恢复顶点位置、关系控制点与缩放视角": "Zidentyfikuj ten sam graf na podstawie aktualnie widocznych identyfikatorów wierzchołków, identyfikatorów relacji i orientacji, trybów układu i parametrów oraz przywróć pozycje wierzchołków, punkty kontrolne relacji i perspektywy powiększenia",
-    "适合分享的压缩图片": "Skompresowane obrazy nadające się do udostępniania"
+    "适合分享的压缩图片": "Skompresowane obrazy nadające się do udostępniania",
+    "拓扑画布不可用": "Kanwa topologii jest niedostępna",
+    "无法创建图片画布": "Nie można utworzyć obszaru roboczego obrazu",
+    "无法解析拓扑图画布": "Nie można przeanalizować obszaru mapy topologii",
+    "无法生成拓扑图图片": "Nie można wygenerować obrazu mapy topologii",
+    "桌面文件服务不可用": "Usługa plików na komputerze stacjonarnym jest niedostępna",
+    "等待选择保存位置": "Oczekiwanie na wybór lokalizacji zapisu",
+    "正在编码图片": "Kodowanie obrazu",
+    "正在渲染拓扑画布": "Renderowanie płótna topologii"
   },
   "tr-TR": {
     "安全存储": "güvenli depolama",
@@ -6058,7 +6138,15 @@
     "下载拓扑图": "Topoloji haritasını indirin",
     "已收起当前顶点的相邻元素": "Mevcut tepe noktasının bitişik öğeleri daraltıldı",
     "按当前可见顶点 ID、关系 ID 与方向、布局模式和参数识别相同图，并恢复顶点位置、关系控制点与缩放视角": "Aynı grafiği şu anda görünür olan köşe kimlikleri, ilişki kimlikleri ve yönelimleri, düzen modları ve parametrelerle tanımlayın ve köşe konumlarını, ilişki kontrol noktalarını ve yakınlaştırma perspektiflerini geri yükleyin",
-    "适合分享的压缩图片": "Paylaşıma uygun sıkıştırılmış görseller"
+    "适合分享的压缩图片": "Paylaşıma uygun sıkıştırılmış görseller",
+    "拓扑画布不可用": "Topoloji tuvali kullanılamıyor",
+    "无法创建图片画布": "Resim tuvali oluşturulamıyor",
+    "无法解析拓扑图画布": "Topoloji haritası tuvali ayrıştırılamıyor",
+    "无法生成拓扑图图片": "Topoloji haritası görüntüsü oluşturulamıyor",
+    "桌面文件服务不可用": "Masaüstü dosya hizmeti kullanılamıyor",
+    "等待选择保存位置": "Kaydetme konumu seçimi bekleniyor",
+    "正在编码图片": "Görüntü kodlanıyor",
+    "正在渲染拓扑画布": "Topoloji tuvali oluşturma"
   },
   "vi-VN": {
     "安全存储": "lưu trữ an toàn",
@@ -6609,6 +6697,14 @@
     "下载拓扑图": "Tải xuống bản đồ cấu trúc liên kết",
     "已收起当前顶点的相邻元素": "Các phần tử liền kề của đỉnh hiện tại đã bị thu gọn",
     "按当前可见顶点 ID、关系 ID 与方向、布局模式和参数识别相同图，并恢复顶点位置、关系控制点与缩放视角": "Xác định cùng một biểu đồ bằng ID đỉnh hiện có, ID mối quan hệ và hướng, chế độ bố cục và tham số, đồng thời khôi phục vị trí đỉnh, điểm kiểm soát mối quan hệ và phối cảnh thu phóng",
-    "适合分享的压缩图片": "Hình ảnh nén phù hợp để chia sẻ"
+    "适合分享的压缩图片": "Hình ảnh nén phù hợp để chia sẻ",
+    "拓扑画布不可用": "Canvas cấu trúc liên kết không có sẵn",
+    "无法创建图片画布": "Không thể tạo canvas ảnh",
+    "无法解析拓扑图画布": "Không thể phân tích cú pháp canvas bản đồ cấu trúc liên kết",
+    "无法生成拓扑图图片": "Không thể tạo hình ảnh bản đồ cấu trúc liên kết",
+    "桌面文件服务不可用": "Dịch vụ tập tin trên máy tính để bàn không khả dụng",
+    "等待选择保存位置": "Đang chờ lựa chọn vị trí lưu",
+    "正在编码图片": "Mã hóa hình ảnh",
+    "正在渲染拓扑画布": "Hiển thị canvas cấu trúc liên kết"
   }
 }

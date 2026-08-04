@@ -92,6 +92,12 @@ export const saveQueryFileSchema = z.object({
   content: z.string().max(5_242_880),
 });
 
+export const saveGraphFileSchema = z.object({
+  suggestedName: z.string().trim().min(1).max(255),
+  format: z.enum(["png", "jpg", "svg", "json"]),
+  content: z.string().max(60_000_000),
+});
+
 export const schemaJobIdSchema = z.string().uuid();
 export const runSchemaJobSchema = z.object({
   connectionId: connectionIdSchema,

@@ -122,7 +122,9 @@
 - 移除编辑器补全选中项和连接上下文中的竖线式强调。
 - Monaco 补全显示时会暂时隐藏“下一步建议”浮层，并移除补全项右侧的详情展开箭头，避免两个建议系统重叠。
 - 已移除不可靠的相邻顶点展开/收起功能及相关状态和测试代码。
-- i18n 消息目录已生成到每种语言 549 条。
+- 拓扑导出通过 Electron 主进程保存 PNG、JPG、SVG 和 JSON，并提供渲染、编码、保存三个阶段的加载反馈。
+- 拓扑图片导出会计算全部已渲染顶点、关系、曲线、自环和标签边界，不受当前相机平移缩放影响；箭头按关系 Label 着色并随导出比例增强可见度。
+- i18n 消息目录已生成到每种语言 557 条。
 
 ## 7. 开发与验证命令
 
@@ -137,7 +139,7 @@ pnpm build
 ```
 
 - `pnpm typecheck`：全部 workspace TypeScript 检查。
-- `pnpm test`：当前 27 项测试，其中 23 项本地通过，4 项真实 JanusGraph 集成测试在未配置环境时跳过。
+- `pnpm test`：当前 28 项测试，其中 24 项本地通过，4 项真实 JanusGraph 集成测试在未配置环境时跳过。
 - `pnpm build`：Electron Forge 生产打包。
 - macOS ARM64 打包输出：
   `apps/desktop/out/JanusGraph Observatory-darwin-arm64/JanusGraph Observatory.app`。
@@ -156,7 +158,7 @@ pnpm build
 ## 9. 当前验证状态
 
 - 最近一次 `pnpm typecheck`：通过。
-- 最近一次 `pnpm test`：27 项，23 通过，4 个真实环境测试跳过，0 失败。
+- 最近一次 `pnpm test`：28 项，24 通过，4 个真实环境测试跳过，0 失败。
 - 最近一次 `pnpm build`：通过。
 - 最近一次打包时间：2026-08-04。
 - 最近一次任务未启动应用，未触发钥匙串和真实 JanusGraph 连接。

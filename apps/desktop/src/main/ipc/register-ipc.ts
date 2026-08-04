@@ -15,6 +15,7 @@ import {
   queryRequestSchema,
   queryExportSchema,
   saveDataFileSchema,
+  saveGraphFileSchema,
   saveResultFileSchema,
   saveQueryFileSchema,
   runSchemaJobSchema,
@@ -121,6 +122,11 @@ export function registerIpcHandlers({
   ipcMain.handle("files:save-result", async (event, rawInput: unknown) => {
     assertTrustedSender(event, window);
     return fileService.saveResultFile(saveResultFileSchema.parse(rawInput));
+  });
+
+  ipcMain.handle("files:save-graph", async (event, rawInput: unknown) => {
+    assertTrustedSender(event, window);
+    return fileService.saveGraphFile(saveGraphFileSchema.parse(rawInput));
   });
 
   ipcMain.handle("files:pick-query", async (event) => {

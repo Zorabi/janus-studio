@@ -123,6 +123,12 @@ export type SaveQueryFileInput = {
   content: string;
 };
 
+export type SaveGraphFileInput = {
+  suggestedName: string;
+  format: "png" | "jpg" | "svg" | "json";
+  content: string;
+};
+
 export type SecurityStorageStatus = {
   mode: "os" | "local-fallback";
   osEncryptionAvailable: boolean;
@@ -179,6 +185,7 @@ export type DesktopApi = {
     pickDataFile(): Promise<PickedDataFile | null>;
     saveDataFile(input: SaveDataFileInput): Promise<string | null>;
     saveResultFile(input: SaveResultFileInput): Promise<string | null>;
+    saveGraphFile(input: SaveGraphFileInput): Promise<string | null>;
     pickQueryFile(): Promise<PickedQueryFile | null>;
     saveQueryFile(input: SaveQueryFileInput): Promise<string | null>;
   };

@@ -2364,17 +2364,9 @@ function QueryPage({
       </nav>
       <section className="query-editor-panel">
         <div className="panel-header">
-          <div>
-            <span className="eyebrow">GREMLIN EDITOR</span>
-            <div className="editor-connection-line">
-              <strong>{activeConnection?.name ?? t("未选择连接")}</strong>
-              {activeConnection && (
-                <small className="editor-connection-context">
-                  {activeConnection.protocol.toUpperCase()} · {activeConnection.clientMode === "sessioned"
-                    ? t("此标签页独立会话", "Private tab session")
-                    : t("独立请求", "Isolated requests")}
-                </small>
-              )}
+          <div className="editor-context">
+            <div className="editor-title-line">
+              <span className="eyebrow">GREMLIN EDITOR</span>
               <small className={`editor-save-status ${query !== savedContent ? "is-dirty" : "is-saved"}`}>
                 {query !== savedContent
                   ? t("未保存更改", "Unsaved changes")
@@ -2382,6 +2374,18 @@ function QueryPage({
                     ? t("已保存", "Saved")
                     : t("空白标签页", "Blank tab")}
               </small>
+            </div>
+            <div className="editor-connection-line">
+              <strong title={activeConnection?.name ?? t("未选择连接")}>
+                {activeConnection?.name ?? t("未选择连接")}
+              </strong>
+              {activeConnection && (
+                <small className="editor-connection-context">
+                  {activeConnection.protocol.toUpperCase()} · {activeConnection.clientMode === "sessioned"
+                    ? t("此标签页独立会话", "Private tab session")
+                    : t("独立请求", "Isolated requests")}
+                </small>
+              )}
             </div>
           </div>
           <div className="editor-actions">
@@ -3063,6 +3067,11 @@ function QueryPage({
                     ? selectionDetail.message
                     : ""
                 }
+                onExportComplete={(path) => notify({
+                  tone: "success",
+                  message: t(`拓扑图已保存到 ${path}`, `Graph saved to ${path}`),
+                })}
+                onExportError={(message) => notify({ tone: "error", message })}
               />
               <ElementInspector
                 selection={selection}

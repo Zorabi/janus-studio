@@ -2,6 +2,7 @@ import type {
   PickedDataFile,
   PickedQueryFile,
   SaveDataFileInput,
+  SaveGraphFileInput,
   SaveResultFileInput,
   SaveQueryFileInput,
 } from "@janusgraph/domain";
@@ -106,6 +107,28 @@ export class FileService {
       stream.destroy();
       throw error;
     }
+  }
+
+  async saveGraphFile(input: SaveGraphFileInput): Promise<string | null> {
+    const labels = {
+      png: "PNG 图片",
+      jpg: "JPEG 图片",
+      svg: "SVG 矢量图",
+      json: "JSON 图数据",
+    } as const;
+    const result = await dialog.showSaveDialog(this.window, {
+      title: "导出拓扑图",
+      defaultPath: input.suggestedName,
+      filters: [{ name: labels[input.format], extensions: [input.format] }],
+    });
+    if (result.canceled || !result.filePath) return null;
+    const binary = input.format === "png" || input.format === "jpg";
+    await writeFile(
+      result.filePath,
+      binary ? Buffer.from(input.content, "base64") : input.content,
+      binary ? undefined : "utf8",
+    );
+    return result.filePath;
   }
 
   async streamQueryResult(

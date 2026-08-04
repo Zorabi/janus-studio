@@ -32,6 +32,7 @@ const desktopApi: DesktopApi = {
     pickDataFile: () => ipcRenderer.invoke("files:pick-data"),
     saveDataFile: (input) => ipcRenderer.invoke("files:save-data", input),
     saveResultFile: (input) => ipcRenderer.invoke("files:save-result", input),
+    saveGraphFile: (input) => ipcRenderer.invoke("files:save-graph", input),
     pickQueryFile: () => ipcRenderer.invoke("files:pick-query"),
     saveQueryFile: (input) => ipcRenderer.invoke("files:save-query", input),
   },
