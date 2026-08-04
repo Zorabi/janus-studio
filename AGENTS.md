@@ -34,6 +34,9 @@
   - `apps/desktop/src/main`：Electron 主进程、IPC、客户端与文件操作。
   - `apps/desktop/src/preload`：安全的渲染进程 API 桥接。
   - `apps/desktop/src/renderer`：React UI、编辑器、拓扑图和设置。
+  - `apps/desktop/src/renderer/features`：按 query、connections、history、schema、transfer、settings 划分的页面与功能模块。
+  - `apps/desktop/src/renderer/components/ui`：跨功能复用的无业务 UI 组件。
+  - `apps/desktop/src/renderer/styles`：按基础、查询工作区、功能页、设置与浮层、主题和最终覆盖拆分的有序样式模块。
   - `packages/domain`：领域类型与契约。
   - `packages/application`：连接、查询和存储应用逻辑。
   - `tests`：单元、集成、兼容与打包应用测试。
@@ -125,6 +128,7 @@
 - 拓扑导出通过 Electron 主进程保存 PNG、JPG、SVG 和 JSON，并提供渲染、编码、保存三个阶段的加载反馈。
 - 拓扑图片导出会计算全部已渲染顶点、关系、曲线、自环和标签边界，不受当前相机平移缩放影响；箭头按关系 Label 着色并随导出比例增强可见度。
 - macOS 凭据存储已完全隔离系统钥匙串：`safeStorage` 延迟加载、Cookie Encryption Fuse 关闭，并使用会话密码缓存避免重复解密。
+- Renderer 已完成首轮生产级无行为拆分：`App.tsx` 仅保留应用壳与跨页面协调，各业务页面进入 `features/*`，共享弹窗和空状态进入 `components/ui`，单体 CSS 按原级联顺序拆为 9 个职责模块。
 - i18n 消息目录已生成到每种语言 531 条，并会在生成时清理已从源码移除的废弃文案。
 
 ## 7. 开发与验证命令
@@ -140,7 +144,7 @@ pnpm build
 ```
 
 - `pnpm typecheck`：全部 workspace TypeScript 检查。
-- `pnpm test`：当前 30 项测试，其中 26 项本地通过，4 项真实 JanusGraph 集成测试在未配置环境时跳过。
+- `pnpm test`：当前 32 项测试，其中 28 项本地通过，4 项真实 JanusGraph 集成测试在未配置环境时跳过。
 - `pnpm build`：Electron Forge 生产打包。
 - macOS ARM64 打包输出：
   `apps/desktop/out/JanusGraph Observatory-darwin-arm64/JanusGraph Observatory.app`。
@@ -159,7 +163,7 @@ pnpm build
 ## 9. 当前验证状态
 
 - 最近一次 `pnpm typecheck`：通过。
-- 最近一次 `pnpm test`：30 项，26 通过，4 个真实环境测试跳过，0 失败。
+- 最近一次 `pnpm test`：32 项，28 通过，4 个真实环境测试跳过，0 失败。
 - 最近一次 `pnpm build`：通过。
 - 最近一次打包时间：2026-08-04。
 - 最近一次任务未启动应用，未触发钥匙串和真实 JanusGraph 连接。

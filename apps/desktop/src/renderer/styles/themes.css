@@ -1,0 +1,162 @@
+/* Final theme pass: kept last so later component refinements cannot reintroduce dark surfaces. */
+:root[data-theme="light"] .app-header {
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--acid) 8%, transparent), transparent 28%),
+    color-mix(in srgb, var(--surface-0) 97%, transparent);
+}
+
+:root[data-theme="light"] .query-editor-panel,
+:root[data-theme="light"] .result-panel,
+:root[data-theme="light"] .surface,
+:root[data-theme="light"] .settings-group,
+:root[data-theme="light"] .connection-profile,
+:root[data-theme="light"] .data-table td,
+:root[data-theme="light"] .history-table td {
+  background: color-mix(in srgb, var(--surface-1) 97%, transparent);
+}
+
+:root[data-theme="light"] .connection-select .select-trigger,
+:root[data-theme="light"] .traversal-alias,
+:root[data-theme="light"] .graph-navigation-hint {
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface-1) 90%, transparent);
+}
+
+:root[data-theme="light"] .query-suggestion-popover {
+  background:
+    radial-gradient(circle at 0 0, color-mix(in srgb, var(--acid) 9%, transparent), transparent 44%),
+    color-mix(in srgb, var(--surface-1) 97%, transparent);
+  box-shadow: 0 24px 72px rgba(25, 32, 23, 0.2);
+}
+
+:root[data-theme="light"] .gremlin-command-backdrop {
+  background: color-mix(in srgb, var(--canvas) 38%, transparent);
+}
+
+:root[data-theme="light"] .gremlin-search-panel,
+:root[data-theme="light"] .gremlin-command-palette,
+:root[data-theme="light"] .gremlin-context-menu,
+:root[data-theme="light"] .query-tab-menu,
+:root[data-theme="light"] .editor-tool-popover,
+:root[data-theme="light"] .data-grid-inspector,
+:root[data-theme="light"] .select-popover {
+  color: var(--bone);
+  background:
+    radial-gradient(circle at 8% -12%, color-mix(in srgb, var(--acid) 8%, transparent), transparent 38%),
+    color-mix(in srgb, var(--surface-1) 98%, transparent);
+  box-shadow: 0 24px 70px rgba(25, 32, 23, 0.2);
+}
+
+:root[data-theme="light"] .json-result,
+:root[data-theme="light"] .raw-result,
+:root[data-theme="light"] .data-grid-inspector-raw {
+  color: var(--bone-soft);
+  background: var(--surface-0);
+}
+
+:root[data-theme="light"] .app-main {
+  background:
+    linear-gradient(color-mix(in srgb, var(--bone) 5%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--bone) 5%, transparent) 1px, transparent 1px),
+    var(--canvas);
+  background-size: 32px 32px;
+}
+
+:root[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--bone) 28%, transparent);
+  background-clip: padding-box;
+}
+
+@media (max-width: 1020px) {
+  .header-context {
+    display: none;
+  }
+
+  .schema-definition-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .index-type-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .app-header {
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  }
+
+  .header-actions {
+    justify-content: flex-end;
+  }
+
+  .graph-layout.has-inspector {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+
+  .transfer-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .connection-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .schema-groups {
+    grid-template-columns: 1fr;
+  }
+}
+
+:root[data-theme="light"] body {
+  background:
+    radial-gradient(circle at 75% -20%, rgba(85, 127, 0, 0.09), transparent 38%),
+    var(--canvas);
+}
+
+:root[data-theme="light"] .app-header,
+:root[data-theme="light"] .query-editor-panel,
+:root[data-theme="light"] .result-panel,
+:root[data-theme="light"] .surface,
+:root[data-theme="light"] .settings-group {
+  background: rgba(255, 255, 255, 0.94);
+}
+
+:root[data-theme="light"] .app-header {
+  background: rgba(248, 249, 244, 0.96);
+}
+
+:root[data-theme="light"] .toast {
+  background: rgba(255, 255, 255, 0.98);
+}
+
+@media (max-height: 760px) {
+  .query-workbench {
+    grid-template-rows: minmax(230px, 42%) minmax(290px, 58%);
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .query-editor-panel {
+    grid-template-rows: 52px minmax(0, 1fr) auto;
+  }
+
+  .result-panel {
+    grid-template-rows: 54px minmax(0, 1fr);
+  }
+
+  .query-editor {
+    padding: 15px 20px;
+    line-height: 1.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+
