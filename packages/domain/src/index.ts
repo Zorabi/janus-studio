@@ -196,5 +196,6 @@ export type DesktopApi = {
     list(connectionId?: string): Promise<SchemaJob[]>;
     run(input: RunSchemaJobInput): Promise<SchemaJob>;
     retry(id: string): Promise<SchemaJob>;
+    dismiss(id: string): Promise<void>;
   };
 };

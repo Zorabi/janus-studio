@@ -43,6 +43,7 @@ const desktopApi: DesktopApi = {
     list: (connectionId) => ipcRenderer.invoke("schema-jobs:list", connectionId),
     run: (input) => ipcRenderer.invoke("schema-jobs:run", input),
     retry: (id) => ipcRenderer.invoke("schema-jobs:retry", id),
+    dismiss: (id) => ipcRenderer.invoke("schema-jobs:dismiss", id),
   },
 };
 

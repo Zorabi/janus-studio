@@ -386,7 +386,7 @@ export default function App() {
   }, [activeQueryTabId, queryTabs]);
 
   useEffect(() => {
-    if (!toast) return;
+    if (!toast || toast.dismissOnly) return;
     const timer = window.setTimeout(() => setToast(null), 4_500);
     return () => window.clearTimeout(timer);
   }, [toast]);
@@ -880,6 +880,7 @@ export default function App() {
             execute={(schemaQuery) =>
               executeFor(activeConnectionId, "schema-console", schemaQuery, {}, false)
             }
+            notify={notify}
           />
         )}
         {view === "transfer" && (
@@ -987,7 +988,12 @@ export default function App() {
         />
       )}
       {toast && (
-        <div className={`toast ${toast.tone}`} role="status" aria-live="polite">
+        <div
+          className={`toast ${toast.tone}`}
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
           {toast.tone === "success" ? (
             <CheckCircle2 size={18} />
           ) : toast.tone === "error" ? (

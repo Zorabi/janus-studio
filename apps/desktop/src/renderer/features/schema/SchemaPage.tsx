@@ -8,12 +8,12 @@ import {
   CircleDot,
   Database,
   GitBranch,
+  History,
   KeyRound,
   Layers3,
   LoaderCircle,
   Plus,
   RefreshCw,
-  RotateCcw,
   Save,
   Search,
   ShieldCheck,
@@ -35,7 +35,8 @@ import {
 import { safeIdentifier, stringLiteral } from "../../lib/gremlin-identifiers";
 import { useTranslate } from "../../lib/i18n";
 import { errorMessage } from "../../lib/presentation";
-import type { QueryState } from "../query/query-workspace";
+import type { QueryState, ToastState } from "../query/query-workspace";
+import { SchemaHistory } from "./SchemaHistory";
 
 function schemaOverviewScripts(connection: ConnectionSummary): Array<{
   label: string;
@@ -398,11 +399,14 @@ function IndexFields({
 export function SchemaPage({
   activeConnection,
   execute,
+  notify,
 }: {
   activeConnection: ConnectionSummary | undefined;
   execute: (query: string) => Promise<QueryExecutionResult>;
+  notify: (toast: ToastState) => void;
 }) {
   const t = useTranslate();
+  const [section, setSection] = useState<"definitions" | "history">("definitions");
   const [state, setState] = useState<QueryState>({ status: "idle" });
   const [kind, setKind] = useState<"property" | "vertex" | "edge" | "index">(
     "property",
@@ -419,12 +423,12 @@ export function SchemaPage({
   const [schemaJobs, setSchemaJobs] = useState<SchemaJob[]>([]);
 
   const refreshJobs = useCallback(async () => {
-    if (!activeConnection || !window.janusGraphDesktop) {
+    if (!window.janusGraphDesktop) {
       setSchemaJobs([]);
       return;
     }
-    setSchemaJobs(await window.janusGraphDesktop.schemaJobs.list(activeConnection.id));
-  }, [activeConnection?.id]);
+    setSchemaJobs(await window.janusGraphDesktop.schemaJobs.list());
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!activeConnection) return;
@@ -468,8 +472,8 @@ export function SchemaPage({
   useEffect(() => {
     if (activeConnection) {
       void refresh();
-      void refreshJobs();
     }
+    void refreshJobs();
   }, [activeConnection?.id]);
 
   const create = async (event: FormEvent<HTMLFormElement>) => {
@@ -583,10 +587,48 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
         action,
         query: lifecycleQuery,
       });
+      notify({
+        tone: "success",
+        message: `${t("Schema 操作已完成", "Schema operation completed")} · ${name} · ${action}`,
+        dismissOnly: true,
+      });
       await refreshJobs();
       await refresh();
     } catch (error) {
       await refreshJobs().catch(() => undefined);
+      setState({ status: "error", message: errorMessage(error) });
+    } finally {
+      setIndexBusy("");
+    }
+  };
+
+  const retrySchemaJob = async (job: SchemaJob) => {
+    if (!window.janusGraphDesktop) return;
+    setIndexBusy(`retry:${job.id}`);
+    try {
+      const completed = await window.janusGraphDesktop.schemaJobs.retry(job.id);
+      notify({
+        tone: "success",
+        message: `${t("Schema 操作已完成", "Schema operation completed")} · ${completed.indexName} · ${completed.action}`,
+        dismissOnly: true,
+      });
+      await refreshJobs();
+      await refresh();
+    } catch (error) {
+      setState({ status: "error", message: errorMessage(error) });
+      await refreshJobs();
+    } finally {
+      setIndexBusy("");
+    }
+  };
+
+  const dismissSchemaJob = async (job: SchemaJob) => {
+    if (!window.janusGraphDesktop) return;
+    setIndexBusy(`dismiss:${job.id}`);
+    try {
+      await window.janusGraphDesktop.schemaJobs.dismiss(job.id);
+      await refreshJobs();
+    } catch (error) {
       setState({ status: "error", message: errorMessage(error) });
     } finally {
       setIndexBusy("");
@@ -620,33 +662,75 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
       <PageHeader
         eyebrow="JANUSGRAPH MANAGEMENT"
         title={t("Schema 管理")}
-        description={t(
-          "结构化展示 Vertex Label、Edge Label、Property Key 和 Graph Index；支持 Composite 与 Mixed Index。",
-          "Inspect Vertex Labels, Edge Labels, Property Keys and Graph Indexes; create Composite and Mixed indexes.",
-        )}
+        description={
+          section === "definitions"
+            ? t(
+                "结构化展示 Vertex Label、Edge Label、Property Key 和 Graph Index；支持 Composite 与 Mixed Index。",
+                "Inspect Vertex Labels, Edge Labels, Property Keys and Graph Indexes; create Composite and Mixed indexes.",
+              )
+            : t(
+                "集中查看本机保存的 Schema 操作状态、耗时与恢复入口。",
+                "Review locally stored Schema operation status, duration and recovery actions.",
+              )
+        }
         actions={
-          <div className="schema-header-actions">
-            <button type="button" className="button text" onClick={saveSchemaSnapshot} disabled={state.status !== "success"}>
-              <Save size={16} />
-              {t("保存快照", "Save snapshot")}
+          section === "definitions" ? (
+            <div className="schema-header-actions">
+              <button type="button" className="button text" onClick={saveSchemaSnapshot} disabled={state.status !== "success"}>
+                <Save size={16} />
+                {t("保存快照", "Save snapshot")}
+              </button>
+              <button type="button" className="button text" onClick={compareSchemaSnapshot} disabled={state.status !== "success"}>
+                <GitBranch size={16} />
+                {t("比较快照", "Compare snapshot")}
+              </button>
+              <button
+                type="button"
+                className="button secondary"
+                onClick={refresh}
+                disabled={!activeConnection || state.status === "loading"}
+              >
+                <RefreshCw className={state.status === "loading" ? "spin" : ""} size={17} />
+                {t("刷新 Schema")}
+              </button>
+            </div>
+          ) : (
+            <button type="button" className="button secondary" onClick={() => void refreshJobs()}>
+              <RefreshCw size={17} />
+              {t("刷新", "Refresh")}
             </button>
-            <button type="button" className="button text" onClick={compareSchemaSnapshot} disabled={state.status !== "success"}>
-              <GitBranch size={16} />
-              {t("比较快照", "Compare snapshot")}
-            </button>
-            <button
-              type="button"
-              className="button secondary"
-              onClick={refresh}
-              disabled={!activeConnection || state.status === "loading"}
-            >
-              <RefreshCw className={state.status === "loading" ? "spin" : ""} size={17} />
-              {t("刷新 Schema")}
-            </button>
-          </div>
+          )
         }
       />
-      {!activeConnection ? (
+      <nav className="schema-section-tabs" aria-label={t("Schema 页面", "Schema pages")}>
+        <button
+          type="button"
+          className={section === "definitions" ? "is-active" : ""}
+          aria-current={section === "definitions" ? "page" : undefined}
+          onClick={() => setSection("definitions")}
+        >
+          <Layers3 size={17} />
+          {t("Schema 定义", "Schema definitions")}
+        </button>
+        <button
+          type="button"
+          className={section === "history" ? "is-active" : ""}
+          aria-current={section === "history" ? "page" : undefined}
+          onClick={() => setSection("history")}
+        >
+          <History size={17} />
+          {t("操作历史", "Operation history")}
+          {schemaJobs.length > 0 && <span>{schemaJobs.length}</span>}
+        </button>
+      </nav>
+      {section === "history" ? (
+        <SchemaHistory
+          jobs={schemaJobs}
+          busy={Boolean(indexBusy)}
+          onRetry={(job) => void retrySchemaJob(job)}
+          onDismiss={(job) => void dismissSchemaJob(job)}
+        />
+      ) : !activeConnection ? (
         <EmptyState
           icon={<Layers3 size={31} />}
           title={t("未选择连接")}
@@ -723,49 +807,6 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
                     onIndexAction={(name, action) => void updateIndex(name, action)}
                     indexBusy={indexBusy}
                   />
-                  {schemaJobs.length > 0 && (
-                    <section className="schema-job-audit" aria-label={t("Schema 任务审计", "Schema job audit")}>
-                      <header>
-                        <div>
-                          <span className="eyebrow">SCHEMA JOBS</span>
-                          <strong>{t("操作记录与恢复", "Operations and recovery")}</strong>
-                        </div>
-                        <button type="button" className="button text" onClick={() => void refreshJobs()}>
-                          <RefreshCw size={15} />{t("刷新", "Refresh")}
-                        </button>
-                      </header>
-                      <div className="schema-job-list">
-                        {schemaJobs.slice(0, 8).map((job) => (
-                          <article key={job.id} data-status={job.status}>
-                            <span className="schema-job-status" />
-                            <div>
-                              <strong>{job.indexName}</strong>
-                              <small>{job.action} · {new Date(job.createdAt).toLocaleString()}</small>
-                              {job.message && <p>{job.message}</p>}
-                            </div>
-                            {(job.status === "failed" || job.status === "interrupted") && (
-                              <button type="button" onClick={async () => {
-                                if (!window.janusGraphDesktop) return;
-                                setIndexBusy(`${job.indexName}:${job.action}`);
-                                try {
-                                  await window.janusGraphDesktop.schemaJobs.retry(job.id);
-                                  await refreshJobs();
-                                  await refresh();
-                                } catch (error) {
-                                  setState({ status: "error", message: errorMessage(error) });
-                                  await refreshJobs();
-                                } finally {
-                                  setIndexBusy("");
-                                }
-                              }}>
-                                <RotateCcw size={14} />{t("重试", "Retry")}
-                              </button>
-                            )}
-                          </article>
-                        ))}
-                      </div>
-                    </section>
-                  )}
                 </>
               )}
             </div>
@@ -1023,4 +1064,3 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
     </div>
   );
 }
-

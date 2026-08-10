@@ -78,6 +78,15 @@
   pointer-events: none;
 }
 
+.edge-label-leader {
+  fill: none;
+  stroke: color-mix(in srgb, var(--edge-color) 58%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
 .graph-edge:hover .edge-line,
 .graph-edge.is-selected .edge-line {
   stroke: var(--edge-color);
@@ -729,5 +738,3 @@
 .history-table tbody tr:hover td {
   background: var(--surface-1);
 }
-
-

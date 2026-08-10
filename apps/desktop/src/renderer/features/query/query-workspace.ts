@@ -50,6 +50,7 @@ export type SavedQuery = {
 export type ToastState = {
   tone: "success" | "error" | "info";
   message: string;
+  dismissOnly?: boolean;
 };
 
 const QUERY_WORKSPACE_STORAGE_KEY = "janusgraph.queryWorkspace.v3";

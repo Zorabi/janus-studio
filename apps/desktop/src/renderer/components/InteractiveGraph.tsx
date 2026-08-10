@@ -37,6 +37,13 @@ import type {
 } from "../lib/result-model";
 import { orderedInspectorEntries, printableValue } from "../lib/result-model";
 import { useTranslate } from "../lib/i18n";
+import {
+  graphEdgeEndpoints,
+  graphEdgeLabelWidth,
+  graphEdgePathMidpoint,
+  graphNodeLabelWidth,
+  resolveGraphEdgeLabelPositions,
+} from "../lib/graph-label-layout";
 import type {
   GraphLayoutConfiguration,
   GraphLayoutMode,
@@ -350,18 +357,6 @@ function defaultControl(from: Point, to: Point, index: number): Point {
   };
 }
 
-function edgeEndpoints(from: Point, to: Point): { start: Point; end: Point } {
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
-  const length = Math.max(Math.hypot(dx, dy), 1);
-  const ux = dx / length;
-  const uy = dy / length;
-  return {
-    start: { x: from.x + ux * 31, y: from.y + uy * 31 },
-    end: { x: to.x - ux * 35, y: to.y - uy * 35 },
-  };
-}
-
 export function InteractiveGraph({
   model,
   selection,
@@ -466,6 +461,47 @@ export function InteractiveGraph({
     ),
   );
   const [controls, setControls] = useState<Record<string, Point>>({});
+  const edgeLabelPositions = useMemo(
+    () =>
+      resolveGraphEdgeLabelPositions(
+        visibleNodes.flatMap((node) => {
+          const position = positions[node.id];
+          return position
+            ? [
+                {
+                  id: node.id,
+                  position,
+                  caption: graphCaption(node, vertexLabelFields),
+                },
+              ]
+            : [];
+        }),
+        visibleEdges.flatMap((edge, index) => {
+          const from = positions[edge.from];
+          const to = positions[edge.to];
+          return from && to
+            ? [
+                {
+                  id: edge.id,
+                  from: edge.from,
+                  to: edge.to,
+                  control: controls[edge.id] ?? defaultControl(from, to, index),
+                  caption: graphCaption(edge, edgeLabelFields),
+                  index,
+                },
+              ]
+            : [];
+        }),
+      ),
+    [
+      controls,
+      edgeLabelFields,
+      positions,
+      vertexLabelFields,
+      visibleEdges,
+      visibleNodes,
+    ],
+  );
   const positionsRef = useRef(positions);
   const velocitiesRef = useRef<Record<string, Point>>({});
   const physicsAlphaRef = useRef(1);
@@ -795,7 +831,7 @@ export function InteractiveGraph({
       if (!position) return;
       const caption = graphCaption(node, vertexLabelFields);
       const halfLabelWidth = showLabels
-        ? Math.min(115, Math.max(32, caption.length * 3.7 + 10))
+        ? graphNodeLabelWidth(caption) / 2
         : 34;
       include(position, halfLabelWidth, 36, showLabels ? 68 : 36);
     });
@@ -804,17 +840,24 @@ export function InteractiveGraph({
       const to = positions[edge.to];
       if (!from || !to) return;
       const control = controls[edge.id] ?? defaultControl(from, to, index);
+      const labelPosition = edgeLabelPositions[edge.id] ?? control;
       const caption = graphCaption(edge, edgeLabelFields);
       const halfLabelWidth = showLabels
-        ? Math.min(105, Math.max(23, caption.length * 3.6 + 8))
+        ? graphEdgeLabelWidth(caption) / 2
         : 12;
       include(from, 36);
       include(to, 36);
       include(
         control,
+        18,
+        edge.from === edge.to ? 96 : 18,
+        18,
+      );
+      include(
+        labelPosition,
         halfLabelWidth,
-        edge.from === edge.to ? 96 : showLabels ? 40 : 18,
-        24,
+        showLabels ? 18 : 12,
+        showLabels ? 18 : 12,
       );
     });
 
@@ -875,6 +918,7 @@ export function InteractiveGraph({
       svg { background: #0d100e; font-family: ui-monospace, monospace; }
       .edge-hit,.edge-handle { display:none; }
       .edge-line { fill:none; stroke:var(--edge-color,#829087); stroke-width:2.4; }
+      .edge-label-leader { fill:none; stroke:var(--edge-color,#829087); stroke-width:1; stroke-dasharray:3 4; opacity:.58; }
       .graph-arrow path { stroke:#0d100e; stroke-width:.9; stroke-linejoin:round; paint-order:stroke fill; }
       .edge-label-background { fill:#111612; stroke:var(--edge-color,#829087); stroke-width:1; }
       .graph-edge text { fill:var(--edge-color,#d7dfd8); font-size:12px; font-weight:650; text-anchor:middle; }
@@ -1321,12 +1365,17 @@ export function InteractiveGraph({
               selection?.kind === "edge" && selection.value.id === edge.id;
             const control =
               controls[edge.id] ?? defaultControl(from, to, index);
-            const edgeCaption = graphCaption(edge, edgeLabelFields);
-            const edgeCaptionWidth = Math.min(
-              210,
-              Math.max(46, edgeCaption.length * 7.2 + 16),
+            const edgePathMidpoint = graphEdgePathMidpoint(
+              from,
+              to,
+              control,
+              edge.from === edge.to,
             );
-            const endpoints = edgeEndpoints(from, to);
+            const edgeLabelPosition =
+              edgeLabelPositions[edge.id] ?? edgePathMidpoint;
+            const edgeCaption = graphCaption(edge, edgeLabelFields);
+            const edgeCaptionWidth = graphEdgeLabelWidth(edgeCaption);
+            const endpoints = graphEdgeEndpoints(from, to);
             const path =
               edge.from === edge.to
                 ? `M ${from.x - 18} ${from.y - 24} Q ${control.x} ${control.y - 80} ${from.x + 18} ${from.y - 24}`
@@ -1364,15 +1413,24 @@ export function InteractiveGraph({
                 <circle className="edge-handle" cx={control.x} cy={control.y} r="7" />
                 {showLabels && (
                   <>
+                    {Math.hypot(
+                      edgeLabelPosition.x - edgePathMidpoint.x,
+                      edgeLabelPosition.y - edgePathMidpoint.y,
+                    ) > 1 && (
+                      <path
+                        className="edge-label-leader"
+                        d={`M ${edgePathMidpoint.x} ${edgePathMidpoint.y} L ${edgeLabelPosition.x} ${edgeLabelPosition.y}`}
+                      />
+                    )}
                     <rect
                       className="edge-label-background"
-                      x={control.x - edgeCaptionWidth / 2}
-                      y={control.y - 31}
+                      x={edgeLabelPosition.x - edgeCaptionWidth / 2}
+                      y={edgeLabelPosition.y - 12}
                       width={edgeCaptionWidth}
                       height="24"
                       rx="8"
                     />
-                    <text x={control.x} y={control.y - 14}>
+                    <text x={edgeLabelPosition.x} y={edgeLabelPosition.y + 5}>
                       {edgeCaption}
                     </text>
                   </>
@@ -1388,10 +1446,7 @@ export function InteractiveGraph({
             const selected =
               selection?.kind === "node" && selection.value.id === node.id;
             const caption = graphCaption(node, vertexLabelFields);
-            const captionWidth = Math.min(
-              230,
-              Math.max(64, caption.length * 7.4 + 20),
-            );
+            const captionWidth = graphNodeLabelWidth(caption);
             return (
               <g
                 key={node.id}

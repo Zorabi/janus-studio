@@ -142,24 +142,24 @@ export const DEFAULT_SETTINGS: AppSettings = {
   graphLayoutConfiguration: {
     force: {
       repulsion: 7200,
-      linkDistance: 172,
+      linkDistance: 208,
       centerStrength: 6,
       damping: 86,
     },
     hierarchical: {
       direction: "top-down",
-      levelGap: 150,
-      nodeGap: 150,
+      levelGap: 200,
+      nodeGap: 170,
     },
     radial: {
-      ringGap: 132,
+      ringGap: 156,
       ringCapacity: 28,
       startAngle: -90,
     },
     grid: {
       columns: 0,
-      columnGap: 150,
-      rowGap: 118,
+      columnGap: 170,
+      rowGap: 150,
     },
   },
   graphVertexLabelFields: "label,id",
@@ -172,8 +172,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   keyboardShortcuts: DEFAULT_KEYBOARD_SHORTCUTS,
 };
 
-const STORAGE_KEY = "janusgraph.settings.v8";
+const STORAGE_KEY = "janusgraph.settings.v9";
 const LEGACY_STORAGE_KEYS = [
+  "janusgraph.settings.v8",
   "janusgraph.settings.v7",
   "janusgraph.settings.v6",
   "janusgraph.settings.v5",
@@ -206,6 +207,13 @@ export function loadSettings(): AppSettings {
       graphCenterStrength?: number;
       graphDamping?: number;
     };
+    const migrateGraphSpacing =
+      currentSettings === null &&
+      localStorage.getItem("janusgraph.settings.v8") !== null;
+    const graphSpacing = (value: unknown, previousDefault: number) =>
+      migrateGraphSpacing && Number(value) === previousDefault
+        ? undefined
+        : value;
     const migrateGraphCaptions = currentSettings === null && legacySettings === undefined;
     return {
       locale: oneOf(
@@ -294,8 +302,11 @@ export function loadSettings(): AppSettings {
             DEFAULT_SETTINGS.graphLayoutConfiguration.force.repulsion,
           ),
           linkDistance: clamp(
-            stored.graphLayoutConfiguration?.force?.linkDistance ?? stored.graphLinkDistance,
-            80,
+            graphSpacing(
+              stored.graphLayoutConfiguration?.force?.linkDistance ?? stored.graphLinkDistance,
+              172,
+            ),
+            DEFAULT_SETTINGS.graphLayoutConfiguration.force.linkDistance,
             320,
             DEFAULT_SETTINGS.graphLayoutConfiguration.force.linkDistance,
           ),
@@ -319,22 +330,31 @@ export function loadSettings(): AppSettings {
             DEFAULT_SETTINGS.graphLayoutConfiguration.hierarchical.direction,
           ),
           levelGap: clamp(
-            stored.graphLayoutConfiguration?.hierarchical?.levelGap,
-            90,
+            graphSpacing(
+              stored.graphLayoutConfiguration?.hierarchical?.levelGap,
+              150,
+            ),
+            DEFAULT_SETTINGS.graphLayoutConfiguration.hierarchical.levelGap,
             280,
             DEFAULT_SETTINGS.graphLayoutConfiguration.hierarchical.levelGap,
           ),
           nodeGap: clamp(
-            stored.graphLayoutConfiguration?.hierarchical?.nodeGap,
-            80,
+            graphSpacing(
+              stored.graphLayoutConfiguration?.hierarchical?.nodeGap,
+              150,
+            ),
+            DEFAULT_SETTINGS.graphLayoutConfiguration.hierarchical.nodeGap,
             260,
             DEFAULT_SETTINGS.graphLayoutConfiguration.hierarchical.nodeGap,
           ),
         },
         radial: {
           ringGap: clamp(
-            stored.graphLayoutConfiguration?.radial?.ringGap,
-            80,
+            graphSpacing(
+              stored.graphLayoutConfiguration?.radial?.ringGap,
+              132,
+            ),
+            DEFAULT_SETTINGS.graphLayoutConfiguration.radial.ringGap,
             240,
             DEFAULT_SETTINGS.graphLayoutConfiguration.radial.ringGap,
           ),
@@ -359,14 +379,20 @@ export function loadSettings(): AppSettings {
             DEFAULT_SETTINGS.graphLayoutConfiguration.grid.columns,
           ),
           columnGap: clamp(
-            stored.graphLayoutConfiguration?.grid?.columnGap,
-            80,
+            graphSpacing(
+              stored.graphLayoutConfiguration?.grid?.columnGap,
+              150,
+            ),
+            DEFAULT_SETTINGS.graphLayoutConfiguration.grid.columnGap,
             260,
             DEFAULT_SETTINGS.graphLayoutConfiguration.grid.columnGap,
           ),
           rowGap: clamp(
-            stored.graphLayoutConfiguration?.grid?.rowGap,
-            70,
+            graphSpacing(
+              stored.graphLayoutConfiguration?.grid?.rowGap,
+              118,
+            ),
+            DEFAULT_SETTINGS.graphLayoutConfiguration.grid.rowGap,
             220,
             DEFAULT_SETTINGS.graphLayoutConfiguration.grid.rowGap,
           ),

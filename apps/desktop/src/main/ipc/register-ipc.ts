@@ -159,4 +159,9 @@ export function registerIpcHandlers({
     assertTrustedSender(event, window);
     return schemaJobService.retry(schemaJobIdSchema.parse(rawId));
   });
+
+  ipcMain.handle("schema-jobs:dismiss", (event, rawId: unknown) => {
+    assertTrustedSender(event, window);
+    schemaJobService.dismiss(schemaJobIdSchema.parse(rawId));
+  });
 }

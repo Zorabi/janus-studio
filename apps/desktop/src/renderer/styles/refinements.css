@@ -1617,6 +1617,10 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .schema-history-toolbar {
+    grid-template-columns: auto minmax(150px, 1fr) minmax(160px, 190px) auto;
+  }
+
   .settings-grid {
     grid-template-columns: 1fr;
   }
@@ -1626,4 +1630,25 @@
   }
 }
 
+@media (max-width: 760px) {
+  .schema-section-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 
+  .schema-section-tabs button {
+    justify-content: center;
+  }
+
+  .schema-history-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .schema-history-toolbar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .schema-history-status {
+    grid-column: 1 / -1;
+  }
+}

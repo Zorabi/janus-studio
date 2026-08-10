@@ -498,7 +498,7 @@ export function SettingsPage({
               </span>
               <input
                 type="range"
-                min="80"
+                min="208"
                 max="320"
                 step="4"
                 value={settings.graphLayoutConfiguration.force.linkDistance}
@@ -573,7 +573,7 @@ export function SettingsPage({
               </span>
               <input
                 type="range"
-                min="90"
+                min="200"
                 max="280"
                 step="5"
                 value={settings.graphLayoutConfiguration.hierarchical.levelGap}
@@ -587,7 +587,7 @@ export function SettingsPage({
               </span>
               <input
                 type="range"
-                min="80"
+                min="170"
                 max="260"
                 step="5"
                 value={settings.graphLayoutConfiguration.hierarchical.nodeGap}
@@ -610,7 +610,7 @@ export function SettingsPage({
                 <strong>{t("圈层间距", "Ring gap")}</strong>
                 <output>{settings.graphLayoutConfiguration.radial.ringGap}px</output>
               </span>
-              <input type="range" min="80" max="240" step="4" value={settings.graphLayoutConfiguration.radial.ringGap} onChange={(event) => updateLayoutConfiguration("radial", { ringGap: Number(event.target.value) })} />
+              <input type="range" min="156" max="240" step="4" value={settings.graphLayoutConfiguration.radial.ringGap} onChange={(event) => updateLayoutConfiguration("radial", { ringGap: Number(event.target.value) })} />
             </label>
             <label className="range-field">
               <span>
@@ -649,14 +649,14 @@ export function SettingsPage({
                 <strong>{t("列间距", "Column gap")}</strong>
                 <output>{settings.graphLayoutConfiguration.grid.columnGap}px</output>
               </span>
-              <input type="range" min="80" max="260" step="5" value={settings.graphLayoutConfiguration.grid.columnGap} onChange={(event) => updateLayoutConfiguration("grid", { columnGap: Number(event.target.value) })} />
+              <input type="range" min="170" max="260" step="5" value={settings.graphLayoutConfiguration.grid.columnGap} onChange={(event) => updateLayoutConfiguration("grid", { columnGap: Number(event.target.value) })} />
             </label>
             <label className="range-field">
               <span>
                 <strong>{t("行间距", "Row gap")}</strong>
                 <output>{settings.graphLayoutConfiguration.grid.rowGap}px</output>
               </span>
-              <input type="range" min="70" max="220" step="5" value={settings.graphLayoutConfiguration.grid.rowGap} onChange={(event) => updateLayoutConfiguration("grid", { rowGap: Number(event.target.value) })} />
+              <input type="range" min="150" max="220" step="5" value={settings.graphLayoutConfiguration.grid.rowGap} onChange={(event) => updateLayoutConfiguration("grid", { rowGap: Number(event.target.value) })} />
             </label>
           </div>
         )}
@@ -882,5 +882,3 @@ export function SettingsPage({
     </div>
   );
 }
-
-

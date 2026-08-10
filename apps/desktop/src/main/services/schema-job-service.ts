@@ -18,35 +18,48 @@ export class SchemaJobService {
   async run(input: RunSchemaJobInput): Promise<SchemaJob> {
     const connection = this.connections.profile(input.connectionId);
     const job = this.repository.create(input, connection.name);
-    const started = performance.now();
-    try {
-      await this.queries.execute({
-        connectionId: input.connectionId,
-        consoleId: `schema-job-${job.id}`,
-        executionId: randomUUID(),
-        query: input.query,
-        bindings: {},
-        recordHistory: false,
-      });
-      return this.repository.finish(job.id, "succeeded", "Operation completed", Math.round(performance.now() - started));
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Schema operation failed";
-      this.repository.finish(job.id, "failed", message, Math.round(performance.now() - started));
-      throw error;
-    } finally {
-      await this.queries.closeConsole(input.connectionId, `schema-job-${job.id}`);
-    }
+    return this.execute(job);
   }
 
   async retry(id: string): Promise<SchemaJob> {
     const previous = this.repository.get(id);
     if (!previous) throw new Error("Schema job not found");
     if (previous.status === "running") throw new Error("Schema job is still running");
-    return this.run({
-      connectionId: previous.connectionId,
-      indexName: previous.indexName,
-      action: previous.action,
-      query: previous.query,
-    });
+    this.connections.profile(previous.connectionId);
+    return this.execute(this.repository.restart(id));
+  }
+
+  dismiss(id: string): void {
+    const job = this.repository.get(id);
+    if (!job) return;
+    if (job.status === "running") throw new Error("Schema job is still running");
+    this.repository.remove(id);
+  }
+
+  private async execute(job: SchemaJob): Promise<SchemaJob> {
+    const started = performance.now();
+    try {
+      await this.queries.execute({
+        connectionId: job.connectionId,
+        consoleId: `schema-job-${job.id}`,
+        executionId: randomUUID(),
+        query: job.query,
+        bindings: {},
+        recordHistory: false,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Schema operation failed";
+      this.repository.finish(job.id, "failed", message, Math.round(performance.now() - started));
+      throw error;
+    } finally {
+      await this.queries.closeConsole(job.connectionId, `schema-job-${job.id}`);
+    }
+    const completed = this.repository.finish(
+      job.id,
+      "succeeded",
+      "Operation completed",
+      Math.round(performance.now() - started),
+    );
+    return completed;
   }
 }

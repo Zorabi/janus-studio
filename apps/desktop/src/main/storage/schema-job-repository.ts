@@ -25,7 +25,7 @@ const toJob = (row: SchemaJobRow): SchemaJob => ({
 export class SchemaJobRepository {
   constructor(private readonly database: DatabaseSync) {}
 
-  list(connectionId?: string, limit = 100): SchemaJob[] {
+  list(connectionId?: string, limit = 500): SchemaJob[] {
     const rows = connectionId
       ? this.database.prepare("SELECT * FROM schema_jobs WHERE connection_id = ? ORDER BY created_at DESC LIMIT ?").all(connectionId, limit)
       : this.database.prepare("SELECT * FROM schema_jobs ORDER BY created_at DESC LIMIT ?").all(limit);
@@ -60,5 +60,18 @@ export class SchemaJobRepository {
     const job = this.get(id);
     if (!job) throw new Error("Schema job not found");
     return job;
+  }
+
+  restart(id: string): SchemaJob {
+    this.database.prepare(
+      "UPDATE schema_jobs SET status = 'running', message = '', duration_ms = 0, updated_at = ? WHERE id = ?",
+    ).run(new Date().toISOString(), id);
+    const job = this.get(id);
+    if (!job) throw new Error("Schema job not found");
+    return job;
+  }
+
+  remove(id: string): void {
+    this.database.prepare("DELETE FROM schema_jobs WHERE id = ?").run(id);
   }
 }
