@@ -1,6 +1,6 @@
 <div align="center">
 
-# JanusGraph Observatory
+# Janus Studio
 
 **面向 JanusGraph 与 Apache TinkerPop 的现代桌面 IDE**
 
@@ -9,13 +9,13 @@
 ![版本](https://img.shields.io/badge/version-0.2.0-9ACD32?style=flat-square)
 ![平台](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-4B5563?style=flat-square)
 ![Electron](https://img.shields.io/badge/Electron-37-47848F?style=flat-square&logo=electron&logoColor=white)
-![协议](https://img.shields.io/badge/license-Apache--2.0-D22128?style=flat-square)
+![协议](https://img.shields.io/badge/license-AGPL--3.0--only-663399?style=flat-square)
 
-<img src="apps/desktop/src/renderer/assets/graph-observatory.png" alt="JanusGraph Observatory 项目视觉图" width="100%" />
+<img src="apps/desktop/src/renderer/assets/janus-studio.png" alt="Janus Studio 项目视觉图" width="100%" />
 
 </div>
 
-JanusGraph Observatory 是一款跨平台桌面工作台，用于连接、查询、可视化和管理
+Janus Studio 是一款跨平台桌面工作台，用于连接、查询、可视化和管理
 JanusGraph 及兼容 Apache TinkerPop 的图数据库。它将 Gremlin 智能编辑器、多种结果视图、
 交互式图谱探索、Schema 工具和本地工作区持久化整合到一个原生桌面应用中。
 
@@ -44,11 +44,11 @@ JanusGraph 及兼容 Apache TinkerPop 的图数据库。它将 Gremlin 智能编
 
 **Gremlin 查询工作台**
 
-![JanusGraph Observatory Gremlin 查询工作台](docs/assets/screenshots/query-workbench.png)
+![Janus Studio Gremlin 查询工作台](docs/assets/screenshots/query-workbench.png)
 
 **偏好设置**
 
-![JanusGraph Observatory 偏好设置](docs/assets/screenshots/preferences.png)
+![Janus Studio 偏好设置](docs/assets/screenshots/preferences.png)
 
 ## 平台支持
 
@@ -164,4 +164,4 @@ JanusGraph Bulk Loading、Hadoop/ETL 或集群侧作业。
 
 ## 开源协议
 
-本项目采用 [Apache License 2.0](LICENSE) 开源。
+本项目采用 [GNU Affero General Public License v3.0 only](LICENSE) 开源。

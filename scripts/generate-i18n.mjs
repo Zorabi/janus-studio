@@ -8,7 +8,7 @@ const execFileAsync = promisify(execFile);
 
 const rendererRoot = new URL("../apps/desktop/src/renderer/", import.meta.url);
 const output = new URL("../apps/desktop/src/renderer/lib/generated-locales.json", import.meta.url);
-const separator = "\n__JGO_SPLIT__\n";
+const separator = "\n__JANUS_STUDIO_SPLIT__\n";
 const targets = {
   "zh-TW": "zh-TW",
   "ja-JP": "ja",
@@ -83,7 +83,7 @@ async function translateBatch(values, language) {
   ], { maxBuffer: 2_000_000 });
   const body = JSON.parse(stdout);
   const translated = body[0].map((part) => part[0]).join("");
-  const parts = translated.split(/\n__JGO_SPLIT__\n/);
+  const parts = translated.split(/\n__JANUS_STUDIO_SPLIT__\n/);
   if (parts.length !== values.length) {
     throw new Error(`Translation boundary mismatch: expected ${values.length}, received ${parts.length}`);
   }

@@ -15,7 +15,7 @@ const packageDirectory = readdirSync(outDirectory, { withFileTypes: true })
 assert.ok(packageDirectory, `No packaged application found for ${process.platform}`);
 
 const macApplication = process.platform === "darwin"
-  ? join(packageDirectory, "JanusGraph Observatory.app")
+  ? join(packageDirectory, "Janus Studio.app")
   : undefined;
 
 if (macApplication) {
@@ -32,12 +32,12 @@ if (macApplication) {
 }
 
 const executable = macApplication
-  ? join(macApplication, "Contents", "MacOS", "JanusGraph Observatory")
+  ? join(macApplication, "Contents", "MacOS", "Janus Studio")
   : process.platform === "win32"
-    ? join(packageDirectory, "JanusGraph Observatory.exe")
-    : join(packageDirectory, "janusgraph-observatory");
+    ? join(packageDirectory, "Janus Studio.exe")
+    : join(packageDirectory, "janus-studio");
 
-const profileDirectory = mkdtempSync(join(tmpdir(), "janusgraph-observatory-e2e-"));
+const profileDirectory = mkdtempSync(join(tmpdir(), "janus-studio-e2e-"));
 const port = 9_337;
 const applicationArgs = [
   `--user-data-dir=${profileDirectory}`,
@@ -48,7 +48,7 @@ const command = process.platform === "linux" ? "xvfb-run" : executable;
 const args = process.platform === "linux" ? ["-a", executable, ...applicationArgs] : applicationArgs;
 const child = spawn(command, args, {
   stdio: ["ignore", "pipe", "pipe"],
-  env: { ...process.env, JGO_FORCE_LOCAL_CREDENTIAL_VAULT: "1" },
+  env: { ...process.env, JANUS_STUDIO_FORCE_LOCAL_CREDENTIAL_VAULT: "1" },
 });
 let diagnostics = "";
 child.stdout.on("data", (chunk) => { diagnostics += chunk.toString(); });
@@ -143,7 +143,7 @@ try {
       connectionCount: audit.connectionCount,
       schemaJobCount: audit.schemaJobCount,
     },
-    { title: "JanusGraph Observatory", shell: true, savedPassword: true, connectionCount: 1, schemaJobCount: 0 },
+    { title: "Janus Studio", shell: true, savedPassword: true, connectionCount: 1, schemaJobCount: 0 },
   );
   assert.equal(audit.securityMode, "local-fallback");
 

@@ -6,7 +6,7 @@ import test from "node:test";
 import { CredentialVault } from "../../apps/desktop/src/main/security/credential-vault";
 
 test("force-local credential vault uses AES without loading OS storage", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "jgo-credential-vault-"));
+  const directory = await mkdtemp(join(tmpdir(), "janus-studio-credential-vault-"));
   const keyPath = join(directory, "credential-vault.key");
 
   try {

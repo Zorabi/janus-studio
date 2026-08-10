@@ -18,12 +18,12 @@ test("round-trips quoted CSV fields", () => {
   });
 });
 
-test("validates Observatory graph archives", () => {
+test("validates Janus Studio graph archives", () => {
   const archive = parseGraphArchive({
     name: "graph.json",
     extension: "json",
     content: JSON.stringify({
-      format: "janusgraph-observatory.graph/v1",
+      format: "janus-studio.graph/v1",
       exportedAt: "2026-08-03T00:00:00.000Z",
       vertices: [{ id: 1, label: "person", properties: { name: "Alice" } }],
       edges: [{ id: "e1", label: "knows", from: 1, to: 2, properties: {} }],
@@ -33,6 +33,18 @@ test("validates Observatory graph archives", () => {
   assert.equal(archive.edges[0]?.to, "2");
   assert.throws(
     () => parseGraphArchive({ name: "bad.json", extension: "json", content: "{}" }),
-    /vertices 与 edges/,
+    /Janus Studio v1/,
+  );
+  assert.throws(
+    () => parseGraphArchive({
+      name: "legacy.json",
+      extension: "json",
+      content: JSON.stringify({
+        format: "janusgraph-observatory.graph/v1",
+        vertices: [],
+        edges: [],
+      }),
+    }),
+    /Janus Studio v1/,
   );
 });

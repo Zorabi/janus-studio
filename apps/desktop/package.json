@@ -1,10 +1,10 @@
 {
   "name": "@janusgraph/desktop",
-  "productName": "JanusGraph Observatory",
+  "productName": "Janus Studio",
   "version": "0.2.0",
   "private": true,
-  "license": "Apache-2.0",
-  "description": "JanusGraph Observatory desktop client",
+  "license": "AGPL-3.0-only",
+  "description": "Janus Studio desktop client",
   "main": ".vite/build/main.js",
   "scripts": {
     "start": "electron-forge start",

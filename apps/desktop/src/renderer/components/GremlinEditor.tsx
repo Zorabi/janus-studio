@@ -625,7 +625,7 @@ export function GremlinEditor({
     if (!editor || matches.length === 0) return;
     const index = currentMatchIndex(matches);
     const match = matches[index < 0 ? 0 : index]!;
-    editor.executeEdits("observatory-find-replace", [{
+    editor.executeEdits("janus-studio-find-replace", [{
       range: match.range,
       text: replaceValue,
       forceMoveMarkers: true,
@@ -638,7 +638,7 @@ export function GremlinEditor({
     const matches = findMatches();
     if (!editor || matches.length === 0) return;
     editor.executeEdits(
-      "observatory-find-replace-all",
+      "janus-studio-find-replace-all",
       matches.slice().reverse().map(({ range }) => ({
         range,
         text: replaceValue,

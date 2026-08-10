@@ -1,8 +1,8 @@
-# JanusGraph Observatory 开发记录与 Agent 约定
+# Janus Studio 开发记录与 Agent 约定
 
 ## 1. 项目定位
 
-- 产品名称：JanusGraph Observatory。
+- 产品名称：Janus Studio。
 - Slogan：`A Modern Desktop IDE for JanusGraph & Apache TinkerPop`。
 - 项目目录：`<repository-root>`。
 - 产品形态：基于 Electron 的 JanusGraph/TinkerPop 跨平台桌面 IDE，目标平台为 macOS、Windows 和 Linux。
@@ -16,7 +16,7 @@
 - 不得使用左侧竖线、边框竖线或 `inset ... 0` 阴影表示当前选中项。选中状态应使用完整卡片背景、完整边框、色彩和轻量阴影表达。
 - 默认字号不能过小；中文、英文和代码字体必须分别考虑阅读体验。
 - 所有页面必须适配窗口缩放，避免文本覆盖、控件越界、错位和不可点击。
-- 下拉框、菜单、弹窗、命令面板、右键菜单必须使用统一的 Observatory 视觉体系，不能回退到浏览器或 Monaco 的默认视觉样式。
+- 下拉框、菜单、弹窗、命令面板、右键菜单必须使用统一的 Janus Studio 视觉体系，不能回退到浏览器或 Monaco 的默认视觉样式。
 - 设置项的二级导航滚动时应保持在可视区域内。
 - 顶部 Slogan 保持单行完整显示，不能随意截断或换行。
 - 所有新增用户可见字符串必须进入 i18n；当前语言为中文时，语言选项名称也应以中文显示。
@@ -147,7 +147,7 @@ pnpm build
 - `pnpm test`：当前 32 项测试，其中 28 项本地通过，4 项真实 JanusGraph 集成测试在未配置环境时跳过。
 - `pnpm build`：Electron Forge 生产打包。
 - macOS ARM64 打包输出：
-  `apps/desktop/out/JanusGraph Observatory-darwin-arm64/JanusGraph Observatory.app`。
+  `apps/desktop/out/Janus Studio-darwin-arm64/Janus Studio.app`。
 - 不要为了验证普通 UI 修改直接运行打包应用；如需启动，必须先得到用户明确要求。
 
 ## 8. 后续修改流程

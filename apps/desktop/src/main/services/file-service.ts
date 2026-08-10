@@ -24,7 +24,7 @@ export class FileService {
       title: "选择图数据文件",
       properties: ["openFile"],
       filters: [
-        { name: "JanusGraph Observatory 图归档", extensions: ["json"] },
+        { name: "Janus Studio 图归档", extensions: ["json"] },
       ],
     });
     const path = result.filePaths[0];
@@ -145,7 +145,7 @@ export class FileService {
     });
     if (result.canceled || !result.filePath) return { path: null, totalCount: 0, durationMs: 0 };
 
-    const temporaryPath = `${result.filePath}.observatory-partial-${randomUUID()}`;
+    const temporaryPath = `${result.filePath}.janus-studio-partial-${randomUUID()}`;
     const stream = createWriteStream(temporaryPath, { encoding: "utf8" });
     let first = true;
     const write = async (value: string) => {

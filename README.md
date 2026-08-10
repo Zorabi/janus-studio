@@ -1,6 +1,6 @@
 <div align="center">
 
-# JanusGraph Observatory
+# Janus Studio
 
 **A Modern Desktop IDE for JanusGraph & Apache TinkerPop**
 
@@ -9,13 +9,13 @@
 ![Version](https://img.shields.io/badge/version-0.2.0-9ACD32?style=flat-square)
 ![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-4B5563?style=flat-square)
 ![Electron](https://img.shields.io/badge/Electron-37-47848F?style=flat-square&logo=electron&logoColor=white)
-![License](https://img.shields.io/badge/license-Apache--2.0-D22128?style=flat-square)
+![License](https://img.shields.io/badge/license-AGPL--3.0--only-663399?style=flat-square)
 
-<img src="apps/desktop/src/renderer/assets/graph-observatory.png" alt="JanusGraph Observatory project artwork" width="100%" />
+<img src="apps/desktop/src/renderer/assets/janus-studio.png" alt="Janus Studio project artwork" width="100%" />
 
 </div>
 
-JanusGraph Observatory is a cross-platform desktop workbench for connecting to,
+Janus Studio is a cross-platform desktop workbench for connecting to,
 querying, visualizing, and managing JanusGraph and Apache TinkerPop-compatible
 graph databases. It combines a Gremlin-aware editor, multiple result views,
 interactive graph exploration, schema tools, and local workspace persistence in
@@ -52,11 +52,11 @@ one native desktop application.
 
 **Gremlin query workbench**
 
-![Gremlin query workbench in JanusGraph Observatory](docs/assets/screenshots/query-workbench.png)
+![Gremlin query workbench in Janus Studio](docs/assets/screenshots/query-workbench.png)
 
 **Preferences**
 
-![Preferences in JanusGraph Observatory](docs/assets/screenshots/preferences.png)
+![Preferences in Janus Studio](docs/assets/screenshots/preferences.png)
 
 ## Platform support
 
@@ -183,4 +183,4 @@ databases, or generated release artifacts.
 
 ## License
 
-Licensed under the [Apache License 2.0](LICENSE).
+Licensed under the [GNU Affero General Public License v3.0 only](LICENSE).

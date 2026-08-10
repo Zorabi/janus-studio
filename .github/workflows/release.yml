@@ -51,7 +51,7 @@ jobs:
           MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
         run: |
           CERTIFICATE_PATH="$RUNNER_TEMP/developer-id.p12"
-          KEYCHAIN_PATH="$RUNNER_TEMP/observatory-signing.keychain-db"
+          KEYCHAIN_PATH="$RUNNER_TEMP/janus-studio-signing.keychain-db"
           KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
           echo "$MACOS_CERTIFICATE_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
@@ -83,7 +83,7 @@ jobs:
           WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         run: |
-          $certificatePath = Join-Path $env:RUNNER_TEMP "observatory.pfx"
+          $certificatePath = Join-Path $env:RUNNER_TEMP "janus-studio.pfx"
           [IO.File]::WriteAllBytes($certificatePath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64))
           "WINDOWS_CERTIFICATE_FILE=$certificatePath" | Out-File -FilePath $env:GITHUB_ENV -Append
           "WINDOWS_CERTIFICATE_PASSWORD=$env:WINDOWS_CERTIFICATE_PASSWORD" | Out-File -FilePath $env:GITHUB_ENV -Append
@@ -96,7 +96,7 @@ jobs:
       - run: pnpm release:checksums
       - uses: actions/upload-artifact@v4
         with:
-          name: janusgraph-observatory-${{ matrix.artifact }}
+          name: janus-studio-${{ matrix.artifact }}
           path: apps/desktop/out/make/**
           if-no-files-found: error
 
@@ -113,5 +113,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          gh release create "$GITHUB_REF_NAME" --title "JanusGraph Observatory $GITHUB_REF_NAME" --generate-notes
+          gh release create "$GITHUB_REF_NAME" --title "Janus Studio $GITHUB_REF_NAME" --generate-notes
           find release-assets -type f -print0 | xargs -0 gh release upload "$GITHUB_REF_NAME" --clobber

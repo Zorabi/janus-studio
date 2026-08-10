@@ -647,7 +647,7 @@ export default function App() {
             <Waypoints size={23} />
           </span>
           <span>
-            <strong>JANUSGRAPH OBSERVATORY</strong>
+            <strong>JANUS STUDIO</strong>
             <small title="A Modern Desktop IDE for JanusGraph & Apache TinkerPop">
               A Modern Desktop IDE for JanusGraph &amp; Apache TinkerPop
             </small>

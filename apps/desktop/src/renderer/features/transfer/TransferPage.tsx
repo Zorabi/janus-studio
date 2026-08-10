@@ -47,7 +47,7 @@ export function TransferPage({
   const [batchSize, setBatchSize] = useState(100);
   const [continueOnError, setContinueOnError] = useState(false);
   const [conflictPolicy, setConflictPolicy] = useState<"append" | "skip">("append");
-  const [identityProperty, setIdentityProperty] = useState("_observatorySourceId");
+  const [identityProperty, setIdentityProperty] = useState("_janusStudioSourceId");
   const [failures, setFailures] = useState<Array<{
     phase: string;
     offset: number;
@@ -295,7 +295,7 @@ rows.size()`,
         return;
       }
       const graphArchive: GraphArchive = {
-        format: "janusgraph-observatory.graph/v1",
+        format: "janus-studio.graph/v1",
         exportedAt: new Date().toISOString(),
         vertices: [...vertices.values()],
         edges: [...edges.values()],
@@ -361,8 +361,8 @@ rows.size()`,
               <strong>{file?.name ?? t("选择图归档 JSON", "Choose a graph archive JSON")}</strong>
               <span>
                 {t(
-                  "支持最高 200 MB 的 Observatory v1 图归档",
-                  "Supports Observatory v1 graph archives up to 200 MB",
+                  "支持最高 200 MB 的 Janus Studio v1 图归档",
+                  "Supports Janus Studio v1 graph archives up to 200 MB",
                 )}
               </span>
             </button>
@@ -371,7 +371,7 @@ rows.size()`,
                 <div className="import-summary">
                   <span>{archive.vertices.length.toLocaleString()} V</span>
                   <span>{archive.edges.length.toLocaleString()} E</span>
-                  <span>OBSERVATORY V1</span>
+                  <span>JANUS STUDIO V1</span>
                 </div>
                 <div className="transfer-preview-list" aria-label={t("归档预览", "Archive preview")}>
                   {archive.vertices.slice(0, 3).map((vertex) => (
@@ -515,5 +515,4 @@ rows.size()`,
     </div>
   );
 }
-
 

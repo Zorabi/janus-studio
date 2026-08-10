@@ -4,7 +4,7 @@ This page overrides the generated Master where noted.
 
 ## Concept
 
-**Graph Observatory** — a scientific instrument crossed with an experimental
+**Janus Studio** — a scientific instrument crossed with an experimental
 editorial spread. The interface should feel precise and operational first, then
 reward exploration with depth, parallax and graph motion.
 

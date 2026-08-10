@@ -16,7 +16,7 @@ export type GraphArchiveEdge = {
 };
 
 export type GraphArchive = {
-  format: "janusgraph-observatory.graph/v1";
+  format: "janus-studio.graph/v1";
   exportedAt: string;
   vertices: GraphArchiveVertex[];
   edges: GraphArchiveEdge[];
@@ -32,11 +32,16 @@ function archiveProperties(value: unknown): Record<string, unknown> {
 
 export function parseGraphArchive(file: PickedDataFile): GraphArchive {
   if (file.extension !== "json") {
-    throw new Error("整图导入仅支持 JanusGraph Observatory JSON 图归档");
+    throw new Error("整图导入仅支持 Janus Studio JSON 图归档");
   }
   const decoded = decodeGraphValue(JSON.parse(file.content));
-  if (!isRecord(decoded) || !Array.isArray(decoded.vertices) || !Array.isArray(decoded.edges)) {
-    throw new Error("文件不是有效的图归档：需要 vertices 与 edges 数组");
+  if (
+    !isRecord(decoded) ||
+    decoded.format !== "janus-studio.graph/v1" ||
+    !Array.isArray(decoded.vertices) ||
+    !Array.isArray(decoded.edges)
+  ) {
+    throw new Error("文件不是有效的 Janus Studio v1 图归档");
   }
   const vertices = decoded.vertices.map((value, index) => {
     if (!isRecord(value) || value.id === undefined || !value.label) {
@@ -67,7 +72,7 @@ export function parseGraphArchive(file: PickedDataFile): GraphArchive {
     };
   });
   return {
-    format: "janusgraph-observatory.graph/v1",
+    format: "janus-studio.graph/v1",
     exportedAt:
       typeof decoded.exportedAt === "string"
         ? decoded.exportedAt

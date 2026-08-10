@@ -41,7 +41,7 @@ const macSignConfig = process.platform === "darwin"
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
-    appBundleId: "com.janusgraph.observatory",
+    appBundleId: "org.dongx.janusgraph.studio",
     ...macSignConfig,
   },
   rebuildConfig: {},
@@ -82,7 +82,7 @@ const config: ForgeConfig = {
     new FusesPlugin({
       version: FuseVersion.V1,
       [FuseV1Options.RunAsNode]: false,
-      // Observatory does not persist authenticated web sessions. Keeping this
+      // Janus Studio does not persist authenticated web sessions. Keeping this
       // fuse enabled makes Chromium initialize macOS Keychain independently of
       // the app's local AES credential vault and can trigger password prompts.
       [FuseV1Options.EnableCookieEncryption]: false,
