@@ -1,10 +1,11 @@
-import { AlertTriangle, LoaderCircle, Table2, X } from "lucide-react";
+import { AlertTriangle, Copy, Hash, LoaderCircle, Table2, X } from "lucide-react";
 import { DataGrid } from "../../components/DataGrid";
 import { EmptyState, IconButton } from "../../components/ui";
 import { useTranslate } from "../../lib/i18n";
 import {
   orderedInspectorEntries,
   printableValue,
+  type ScalarResult,
   type ResultRow,
 } from "../../lib/result-model";
 import type {
@@ -75,7 +76,21 @@ export function ElementInspector({
   );
 }
 
-export function TableResult({ rows, rawItems }: { rows: ResultRow[]; rawItems: unknown[] }) {
+function scalarDisplayValue(scalar: ScalarResult) {
+  if (typeof scalar.value === "number") return scalar.value.toLocaleString();
+  if (typeof scalar.value === "bigint") return scalar.value.toLocaleString();
+  return printableValue(scalar.value);
+}
+
+export function TableResult({
+  rows,
+  rawItems,
+  scalar,
+}: {
+  rows: ResultRow[];
+  rawItems: unknown[];
+  scalar: ScalarResult | null;
+}) {
   const t = useTranslate();
   if (rows.length === 0) {
     return (
@@ -86,7 +101,38 @@ export function TableResult({ rows, rawItems }: { rows: ResultRow[]; rawItems: u
       />
     );
   }
+  if (scalar) {
+    const value = scalarDisplayValue(scalar);
+    const typeLabel = {
+      string: t("文本", "String"),
+      number: t("数字", "Number"),
+      boolean: t("布尔值", "Boolean"),
+      bigint: t("大整数", "Big integer"),
+      null: "Null",
+      undefined: "Undefined",
+    }[scalar.type];
+    return (
+      <div className="scalar-result-stage">
+        <article className="scalar-result-card">
+          <header>
+            <span className="scalar-result-icon"><Hash size={20} /></span>
+            <div>
+              <span className="eyebrow">SCALAR RESULT</span>
+              <strong>{t("单值结果", "Single value")}</strong>
+            </div>
+            <span className="scalar-result-type">{typeLabel}</span>
+          </header>
+          <div className="scalar-result-value" title={value}>{value || "—"}</div>
+          <footer>
+            <span>{t("查询返回了一个标量值，无需使用行列视图。", "The query returned one scalar value; a row-and-column view is unnecessary.")}</span>
+            <button type="button" onClick={() => void navigator.clipboard.writeText(value)}>
+              <Copy size={15} />{t("复制值", "Copy value")}
+            </button>
+          </footer>
+        </article>
+      </div>
+    );
+  }
   return <DataGrid rows={rows} rawItems={rawItems} />;
 }
-
 

@@ -1,5 +1,7 @@
 import type { QueryExecutionResult } from "@janusgraph/domain";
 import type { AppSettings } from "../../lib/settings";
+import type { TraversalAnalysisKind } from "../../lib/traversal-diagnostics";
+import type { DynamicGraphTarget } from "../../lib/dynamic-graph-context";
 import type {
   GraphEdgeModel,
   GraphNodeModel,
@@ -22,12 +24,14 @@ export type QueryState =
   | { status: "loading"; executionId?: string; stopping?: boolean }
   | { status: "cancelled"; message: string }
   | { status: "error"; message: string }
-  | { status: "success"; result: QueryExecutionResult };
+  | { status: "success"; result: QueryExecutionResult; analysisKind?: TraversalAnalysisKind };
 
 export type QueryTabState = {
   id: string;
   title: string;
   connectionId: string;
+  traversalSourceOverride: string;
+  graphBindingOverride: string;
   query: string;
   queryState: QueryState;
   mode: ResultMode;
@@ -67,6 +71,8 @@ type PersistedQueryWorkspace = {
       | "id"
       | "title"
       | "connectionId"
+      | "traversalSourceOverride"
+      | "graphBindingOverride"
       | "query"
       | "mode"
       | "bindingsText"
@@ -88,6 +94,8 @@ export function createQueryTab(
     id: crypto.randomUUID(),
     title: `Query ${sequence}`,
     connectionId,
+    traversalSourceOverride: "",
+    graphBindingOverride: "",
     query,
     queryState: { status: "idle" },
     mode: defaultMode === "auto" ? "table" : defaultMode,
@@ -97,6 +105,20 @@ export function createQueryTab(
     readOnly: false,
     scriptName: "",
     savedContent: "",
+  };
+}
+
+export function createGraphQueryTab(
+  sequence: number,
+  defaultMode: AppSettings["defaultResultMode"],
+  connectionId: string,
+  graph: DynamicGraphTarget,
+): QueryTabState {
+  return {
+    ...createQueryTab(sequence, defaultMode, connectionId),
+    title: graph.name,
+    traversalSourceOverride: graph.traversalSource,
+    graphBindingOverride: graph.graphBinding,
   };
 }
 
@@ -162,6 +184,14 @@ export function loadQueryWorkspace(
           typeof candidate.connectionId === "string"
             ? candidate.connectionId
             : fallbackConnectionId,
+        traversalSourceOverride:
+          typeof candidate.traversalSourceOverride === "string"
+            ? candidate.traversalSourceOverride.slice(0, 160)
+            : "",
+        graphBindingOverride:
+          typeof candidate.graphBindingOverride === "string"
+            ? candidate.graphBindingOverride.slice(0, 160)
+            : "",
         query: typeof candidate.query === "string" ? candidate.query.slice(0, 1_000_000) : "",
         mode,
         queryState: { status: "idle" } as QueryState,
@@ -215,6 +245,8 @@ export function saveQueryWorkspace(
       id,
       title,
       connectionId,
+      traversalSourceOverride,
+      graphBindingOverride,
       query,
       mode,
       bindingsText,
@@ -226,6 +258,8 @@ export function saveQueryWorkspace(
       id,
       title,
       connectionId,
+      traversalSourceOverride,
+      graphBindingOverride,
       query,
       mode,
       bindingsText,

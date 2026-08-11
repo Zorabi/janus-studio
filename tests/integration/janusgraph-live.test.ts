@@ -15,6 +15,8 @@ function profile(protocol: "ws" | "http", port: number, clientMode: "sessionless
     port,
     path: "gremlin",
     username: "",
+    environment: "dev",
+    connectionReadOnly: false,
     clientMode,
     traversalSource: "g",
     graphBinding: "graph",

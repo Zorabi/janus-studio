@@ -1,4 +1,6 @@
+import { isMutationQuery as isApplicationMutationQuery, withTraversalConsoleText } from "@janusgraph/application";
 import type { GraphEdgeModel, GraphNodeModel } from "../../lib/result-model";
+import type { TraversalAnalysisKind } from "../../lib/traversal-diagnostics";
 
 export function parseBindings(bindingsText: string): Record<string, unknown> {
   const value = JSON.parse(bindingsText || "{}") as unknown;
@@ -19,21 +21,17 @@ export function tabTitleFromFileName(fileName: string): string {
 }
 
 export function isMutationQuery(query: string): boolean {
-  const normalized = query
-    .replace(/\/\*[\s\S]*?\*\//g, " ")
-    .replace(/\/\/.*$/gm, " ")
-    .replace(/'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"/g, "''");
-  return /\.(?:addV|addE|mergeV|mergeE|property|drop|sideEffect|write)\s*\(|\.tx\s*\(\)|Management\s*\(/i.test(normalized);
+  return isApplicationMutationQuery(query);
 }
 
 export function withTraversalAnalysis(query: string, step: "explain" | "profile") {
-  const source = query.trim().replace(/;\s*$/, "");
-  if (new RegExp(`\\.${step}\\(\\)\\.next\\(\\)\\.toString\\(\\)$`).test(source)) {
-    return source;
-  }
-  const traversal = source.replace(/\.(?:toList|next|iterate)\s*\(\s*\)\s*$/, "");
-  const analyzed = traversal.endsWith(`.${step}()`) ? traversal : `${traversal}.${step}()`;
-  return `${analyzed}.next().toString()`;
+  return withTraversalConsoleText(query, step);
+}
+
+export function traversalAnalysisKind(query: string): TraversalAnalysisKind | undefined {
+  if (/\.profile\s*\(/i.test(query)) return "profile";
+  if (/\.explain\s*\(/i.test(query)) return "explain";
+  return undefined;
 }
 
 export function configuredPropertyFields(fields: string): string[] {

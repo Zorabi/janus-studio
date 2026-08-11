@@ -6,6 +6,7 @@ import {
   Database,
   Edit3,
   LoaderCircle,
+  LockKeyhole,
   Plus,
   Server,
   Trash2,
@@ -71,9 +72,14 @@ export function ConnectionsPage({
         <div className="connection-grid">
           {connections.map((connection) => {
             const active = connection.id === activeConnectionId;
+            const environmentLabel = connection.environment === "prod"
+              ? t("生产", "Production")
+              : connection.environment === "test"
+                ? t("测试", "Testing")
+                : t("开发", "Development");
             return (
               <article
-                className={`connection-profile ${active ? "is-active" : ""}`}
+                className={`connection-profile environment-${connection.environment} ${active ? "is-active" : ""}`}
                 key={connection.id}
               >
                 <header>
@@ -83,9 +89,20 @@ export function ConnectionsPage({
                   <div>
                     <div className="connection-title-line">
                       <h2>{connection.name}</h2>
-                      {active && (
-                        <span className="badge success">{t("当前连接")}</span>
-                      )}
+                      <div className="connection-badges">
+                        <span className={`badge environment ${connection.environment}`}>
+                          {environmentLabel}
+                        </span>
+                        {connection.connectionReadOnly && (
+                          <span className="badge read-only">
+                            <LockKeyhole size={12} />
+                            {t("只读", "Read-only")}
+                          </span>
+                        )}
+                        {active && (
+                          <span className="badge success">{t("当前连接")}</span>
+                        )}
+                      </div>
                     </div>
                     <code>{connectionEndpoint(connection)}</code>
                   </div>
@@ -94,6 +111,18 @@ export function ConnectionsPage({
                   <div>
                     <dt>{t("协议", "Protocol")}</dt>
                     <dd>{connection.protocol.toUpperCase()}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("环境", "Environment")}</dt>
+                    <dd>{environmentLabel}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("访问模式", "Access mode")}</dt>
+                    <dd>
+                      {connection.connectionReadOnly
+                        ? t("只读保护", "Read-only")
+                        : t("允许写入", "Writes allowed")}
+                    </dd>
                   </div>
                   <div>
                     <dt>Client</dt>

@@ -17,6 +17,50 @@ type CollectedItems = {
   truncated: boolean;
 };
 
+function graphsonRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function consoleValue(value: unknown, depth = 0): string {
+  if (depth > 12) return "...";
+  if (value === null) return "null";
+  if (value === undefined) return "";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") return String(value);
+  if (typeof value === "object") {
+    const rendered = String(value);
+    if (rendered && !/^\[object .+\]$/.test(rendered) && !Array.isArray(value)) return rendered;
+  }
+  const record = graphsonRecord(value);
+  const graphsonType = typeof record?.["@type"] === "string" ? String(record["@type"]) : "";
+  const graphsonValue = record?.["@value"];
+  if (graphsonType === "g:Map" && Array.isArray(graphsonValue)) {
+    const entries: string[] = [];
+    for (let index = 0; index + 1 < graphsonValue.length; index += 2) {
+      entries.push(`${consoleValue(graphsonValue[index], depth + 1)}=${consoleValue(graphsonValue[index + 1], depth + 1)}`);
+    }
+    return `{${entries.join(", ")}}`;
+  }
+  if (graphsonType === "g:Vertex" && graphsonRecord(graphsonValue)?.id !== undefined) {
+    return `v[${consoleValue(graphsonRecord(graphsonValue)!.id, depth + 1)}]`;
+  }
+  if (graphsonType === "g:Edge") {
+    const edge = graphsonRecord(graphsonValue);
+    if (edge?.id !== undefined) return `e[${consoleValue(edge.id, depth + 1)}][${consoleValue(edge.outV, depth + 1)}-${String(edge.label ?? "edge")}->${consoleValue(edge.inV, depth + 1)}]`;
+  }
+  if (graphsonType && graphsonValue !== undefined) return consoleValue(graphsonValue, depth + 1);
+  if (Array.isArray(value)) return `[${value.map((item) => consoleValue(item, depth + 1)).join(", ")}]`;
+  if (value instanceof Map) return `{${Array.from(value, ([key, item]) => `${consoleValue(key, depth + 1)}=${consoleValue(item, depth + 1)}`).join(", ")}}`;
+  if (value instanceof Set) return `[${Array.from(value, (item) => consoleValue(item, depth + 1)).join(", ")}]`;
+  if (record) return `{${Object.entries(record).map(([key, item]) => `${key}=${consoleValue(item, depth + 1)}`).join(", ")}}`;
+  return String(value);
+}
+
+export function gremlinConsoleText(items: unknown[]): string {
+  return items.map((item) => `==>${consoleValue(item)}`).join("\n");
+}
+
 function toSerializable(value: unknown, depth = 0): unknown {
   if (depth > 12) return "[Maximum depth reached]";
   if (
@@ -180,6 +224,7 @@ export class GremlinService {
       executionId,
       durationMs: Math.round(performance.now() - startedAt),
       items: collected.items.map((item) => toSerializable(item)),
+      consoleText: gremlinConsoleText(collected.items),
       truncated: collected.truncated,
       totalCount: collected.totalCount,
     };

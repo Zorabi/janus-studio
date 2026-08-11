@@ -54,12 +54,17 @@ export class SchemaJobRepository {
     return job;
   }
 
-  finish(id: string, status: "succeeded" | "failed", message: string, durationMs: number): SchemaJob {
+  finish(id: string, status: "succeeded" | "failed" | "interrupted", message: string, durationMs: number): SchemaJob {
     this.database.prepare("UPDATE schema_jobs SET status = ?, message = ?, duration_ms = ?, updated_at = ? WHERE id = ?")
       .run(status, message, durationMs, new Date().toISOString(), id);
     const job = this.get(id);
     if (!job) throw new Error("Schema job not found");
     return job;
+  }
+
+  progress(id: string, message: string): void {
+    this.database.prepare("UPDATE schema_jobs SET message = ?, updated_at = ? WHERE id = ? AND status = 'running'")
+      .run(message, new Date().toISOString(), id);
   }
 
   restart(id: string): SchemaJob {

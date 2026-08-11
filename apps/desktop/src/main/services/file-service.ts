@@ -1,10 +1,12 @@
 import type {
   PickedDataFile,
   PickedQueryFile,
+  PickedSchemaFile,
   SaveDataFileInput,
   SaveGraphFileInput,
   SaveResultFileInput,
   SaveQueryFileInput,
+  SaveSchemaFileInput,
 } from "@janusgraph/domain";
 import { dialog, type BrowserWindow } from "electron";
 import { readFile, writeFile } from "node:fs/promises";
@@ -206,6 +208,37 @@ export class FileService {
         { name: "Gremlin", extensions: ["gremlin"] },
         { name: "Groovy", extensions: ["groovy"] },
       ],
+    });
+    if (result.canceled || !result.filePath) return null;
+    await writeFile(result.filePath, input.content, "utf8");
+    return result.filePath;
+  }
+
+  async pickSchemaFile(): Promise<PickedSchemaFile | null> {
+    const result = await dialog.showOpenDialog(this.window, {
+      title: "导入 Schema 定义",
+      properties: ["openFile"],
+      filters: [{ name: "Janus Studio Schema", extensions: ["json"] }],
+    });
+    const path = result.filePaths[0];
+    if (result.canceled || !path) return null;
+    const content = await readFile(path, "utf8");
+    if (Buffer.byteLength(content, "utf8") > 5 * 1024 * 1024) {
+      throw new Error("Schema 文件不能超过 5 MB");
+    }
+    return {
+      name: path.split(/[\\/]/).at(-1) ?? "schema.json",
+      content,
+    };
+  }
+
+  async saveSchemaFile(input: SaveSchemaFileInput): Promise<string | null> {
+    const result = await dialog.showSaveDialog(this.window, {
+      title: "导出 Schema 定义",
+      defaultPath: input.suggestedName.endsWith(".json")
+        ? input.suggestedName
+        : `${input.suggestedName}.json`,
+      filters: [{ name: "Janus Studio Schema", extensions: ["json"] }],
     });
     if (result.canceled || !result.filePath) return null;
     await writeFile(result.filePath, input.content, "utf8");

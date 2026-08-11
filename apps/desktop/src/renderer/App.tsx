@@ -1,14 +1,9 @@
 import { connectionEndpoint } from "@janusgraph/application";
-import type {
-  ConnectionSummary,
-  ConnectionTestReport,
-  QueryExecutionResult,
-  QueryHistoryEntry,
-  SaveConnectionInput,
-} from "@janusgraph/domain";
+import type { ConnectionSummary, ConnectionTestReport, QueryExecutionResult, QueryHistoryEntry, SaveConnectionInput } from "@janusgraph/domain";
 import {
   Activity,
   AlertTriangle,
+  Boxes,
   CheckCircle2,
   Database,
   FileUp,
@@ -34,11 +29,16 @@ import { SelectControl } from "./components/SelectControl";
 import { ConfirmDialog, IconButton } from "./components/ui";
 import { ConnectionDialog } from "./features/connections/ConnectionDialog";
 import { ConnectionsPage } from "./features/connections/ConnectionsPage";
+import { GraphFactoryPage } from "./features/graph-factory/GraphFactoryPage";
 import { HistoryPage } from "./features/history/HistoryPage";
 import { QueryPage } from "./features/query/QueryPage";
-import { isMutationQuery } from "./features/query/query-utils";
+import {
+  isMutationQuery,
+  traversalAnalysisKind,
+} from "./features/query/query-utils";
 import {
   createFreshQueryWorkspace,
+  createGraphQueryTab,
   createQueryTab,
   loadQueryWorkspace,
   nextAvailableQuerySequence,
@@ -54,6 +54,13 @@ import {
   LocaleProvider,
   translate,
 } from "./lib/i18n";
+import {
+  connectionWithGraphContext,
+  dynamicGraphContext,
+  graphContextForConnection,
+  type DynamicGraphContext,
+  type DynamicGraphTarget,
+} from "./lib/dynamic-graph-context";
 import { matchesShortcut, shortcutLabel } from "./lib/keyboard";
 import { errorMessage } from "./lib/presentation";
 import {
@@ -69,6 +76,7 @@ type ViewId =
   | "query"
   | "connections"
   | "history"
+  | "graphFactory"
   | "schema"
   | "transfer"
   | "settings";
@@ -95,6 +103,12 @@ const NAV_ITEMS: Array<{
     label: "执行历史",
     description: "本地查询记录",
     icon: <History size={19} />,
+  },
+  {
+    id: "graphFactory",
+    label: "动态图",
+    description: "ConfiguredGraphFactory 管理",
+    icon: <Boxes size={19} />,
   },
   {
     id: "schema",
@@ -131,6 +145,12 @@ export default function App() {
   const [history, setHistory] = useState<QueryHistoryEntry[]>([]);
   const [deleteHistory, setDeleteHistory] = useState<QueryHistoryEntry | null>(null);
   const [clearHistory, setClearHistory] = useState(false);
+  const [pendingProductionQuery, setPendingProductionQuery] = useState<{
+    tabId: string;
+    queryOverride?: string;
+    bindings: Record<string, unknown>;
+  } | null>(null);
+  const [schemaGraphContext, setSchemaGraphContext] = useState<DynamicGraphContext | null>(null);
   const [initialQueryWorkspace] = useState(() =>
     loadQueryWorkspace(settings.defaultResultMode, activeConnectionId),
   );
@@ -157,6 +177,17 @@ export default function App() {
   const queryConnection = connections.find(
     (connection) => connection.id === activeQueryTab.connectionId,
   );
+  const queryExecutionConnection = queryConnection
+    ? {
+        ...queryConnection,
+        traversalSource:
+          activeQueryTab.traversalSourceOverride || queryConnection.traversalSource,
+        graphBinding:
+          activeQueryTab.graphBindingOverride || queryConnection.graphBinding,
+      }
+    : undefined;
+  const activeSchemaGraphContext = graphContextForConnection(schemaGraphContext, activeConnectionId);
+  const schemaConnection = connectionWithGraphContext(activeConnection, activeSchemaGraphContext);
 
   const updateQueryTab = useCallback(
     (id: string, update: Partial<QueryTabState>) =>
@@ -189,6 +220,26 @@ export default function App() {
       settings.defaultResultMode,
     ],
   );
+
+  const openGraphQueryContext = useCallback((graph: DynamicGraphTarget, connectionId = activeConnectionId) => {
+    queryTabSequence.current = nextAvailableQuerySequence(queryTabs, queryTabSequence.current);
+    const tab = createGraphQueryTab(
+      queryTabSequence.current,
+      settings.defaultResultMode,
+      connectionId,
+      graph,
+    );
+    setQueryTabs((current) => [...current, tab]);
+    setActiveQueryTabId(tab.id);
+    setView("query");
+    setToast({
+      tone: "success",
+      message: tx(
+        `已创建“${graph.name}”查询上下文`,
+        `Created a query context for “${graph.name}”`,
+      ),
+    });
+  }, [activeConnectionId, queryTabs, settings.defaultResultMode, tx]);
 
   const rememberClosedQueryTabs = useCallback((tabs: QueryTabState[]) => {
     if (tabs.length === 0) return;
@@ -324,7 +375,12 @@ export default function App() {
       current.map((tab) =>
         validIds.has(tab.connectionId)
           ? tab
-          : { ...tab, connectionId: fallbackId },
+          : {
+              ...tab,
+              connectionId: fallbackId,
+              traversalSourceOverride: "",
+              graphBindingOverride: "",
+            },
       ),
     );
     setActiveConnectionId((current) => {
@@ -399,27 +455,49 @@ export default function App() {
       bindings: Record<string, unknown> = {},
       recordHistory = true,
       executionId = crypto.randomUUID(),
+      productionConfirmed = false,
+      traversalSource?: string,
     ): Promise<QueryExecutionResult> => {
       if (!window.janusGraphDesktop) throw new Error("桌面 API 未加载");
       if (!connectionId) throw new Error("请先选择连接");
+      const connection = connections.find((candidate) => candidate.id === connectionId);
+      if (connection?.connectionReadOnly && isMutationQuery(nextQuery)) {
+        throw new Error(tx(
+          "连接级只读保护阻止了可能修改图数据或 Schema 的查询。请在连接设置中关闭只读保护后再试。",
+          "Connection-level read-only protection blocked a query that may mutate graph data or schema. Disable it in the connection settings to continue.",
+        ));
+      }
+      if (
+        connection?.environment === "prod" &&
+        isMutationQuery(nextQuery) &&
+        !productionConfirmed
+      ) {
+        throw new Error(tx(
+          "生产环境写操作需要先完成风险确认；当前入口未获得确认，已安全阻止执行。",
+          "Production writes require risk confirmation. This action was blocked because its entry point did not obtain confirmation.",
+        ));
+      }
       const response = await window.janusGraphDesktop.queries.execute({
         connectionId,
         consoleId,
         executionId,
         query: nextQuery,
+        traversalSource,
         bindings,
         recordHistory,
+        productionConfirmed,
       });
       if (recordHistory) void loadHistory();
       return response;
     },
-    [loadHistory],
+    [connections, loadHistory, tx],
   );
 
   const runQuery = useCallback(async (
     tabId = activeQueryTabId,
     queryOverride?: string,
     bindings: Record<string, unknown> = {},
+    productionConfirmed = false,
   ) => {
     const tab = queryTabs.find((candidate) => candidate.id === tabId);
     if (!tab) return;
@@ -436,13 +514,32 @@ export default function App() {
       notify({ tone: "error", message: "请输入 Gremlin 查询语句" });
       return;
     }
-    if (tab.readOnly && isMutationQuery(queryToExecute)) {
+    const mutation = isMutationQuery(queryToExecute);
+    if (tab.readOnly && mutation) {
       notify({
         tone: "error",
         message: tx(
           "只读保护阻止了可能修改图数据或 Schema 的查询，请先关闭当前标签页的只读模式。",
           "Read-only protection blocked a query that may mutate graph data or schema. Disable read-only mode for this tab first.",
         ),
+      });
+      return;
+    }
+    if (connection.connectionReadOnly && mutation) {
+      notify({
+        tone: "error",
+        message: tx(
+          "连接级只读保护阻止了可能修改图数据或 Schema 的查询。请在连接设置中关闭只读保护后再试。",
+          "Connection-level read-only protection blocked a query that may mutate graph data or schema. Disable it in the connection settings to continue.",
+        ),
+      });
+      return;
+    }
+    if (connection.environment === "prod" && mutation && !productionConfirmed) {
+      setPendingProductionQuery({
+        tabId,
+        queryOverride: queryToExecute,
+        bindings,
       });
       return;
     }
@@ -459,10 +556,13 @@ export default function App() {
         bindings,
         true,
         executionId,
+        productionConfirmed,
+        tab.traversalSourceOverride || undefined,
       );
       const graph = buildGraphModel(response.items);
       const preferred = settings.defaultResultMode;
-      const isConsoleReport = /\.(?:profile|explain)\s*\(|\.printSchema\s*\(/i.test(queryToExecute);
+      const analysisKind = traversalAnalysisKind(queryToExecute);
+      const isConsoleReport = Boolean(analysisKind) || /\.printSchema\s*\(/i.test(queryToExecute);
       const nextMode = isConsoleReport
         ? "raw"
         : preferred === "auto"
@@ -477,7 +577,7 @@ export default function App() {
           ? queryToExecute.replace(/\s+/g, " ").slice(0, 28) || tab.title
           : tab.title,
         mode: nextMode,
-        queryState: { status: "success", result: response },
+        queryState: { status: "success", result: response, analysisKind },
       });
       notify({
         tone: "success",
@@ -637,6 +737,12 @@ export default function App() {
   const contextualConnection = view === "query" ? queryConnection : activeConnection;
   const contextualConnectionId =
     view === "query" ? activeQueryTab.connectionId : activeConnectionId;
+  const navigateTo = (nextView: ViewId) => {
+    if (nextView === "schema" && view !== "schema") {
+      setSchemaGraphContext(null);
+    }
+    setView(nextView);
+  };
 
   return (
     <LocaleProvider locale={settings.locale}>
@@ -684,6 +790,8 @@ export default function App() {
                   }
                   updateQueryTab(activeQueryTab.id, {
                     connectionId: id,
+                    traversalSourceOverride: "",
+                    graphBindingOverride: "",
                     queryState: { status: "idle" },
                     selection: null,
                   });
@@ -746,7 +854,7 @@ export default function App() {
               className={view === item.id ? "is-active" : ""}
               aria-current={view === item.id ? "page" : undefined}
               title={tx(item.label)}
-              onClick={() => setView(item.id)}
+              onClick={() => navigateTo(item.id)}
             >
               <span className="nav-icon">{item.icon}</span>
               <span>
@@ -787,7 +895,10 @@ export default function App() {
             onCloseTabsToRight={closeQueryTabsToRight}
             onRestoreClosedTab={restoreClosedQueryTab}
             canRestoreClosedTab={closedQueryTabCount > 0}
-            activeConnection={queryConnection}
+            activeConnection={queryExecutionConnection}
+            schemaCatalogKey={activeQueryTab.traversalSourceOverride
+              ? `${activeQueryTab.connectionId}.${activeQueryTab.traversalSourceOverride}`
+              : activeQueryTab.connectionId}
             query={activeQueryTab.query}
             setQuery={(query) => updateQueryTab(activeQueryTab.id, { query })}
             bindingsText={activeQueryTab.bindingsText}
@@ -816,6 +927,9 @@ export default function App() {
                 nextQuery,
                 bindings,
                 recordHistory,
+                crypto.randomUUID(),
+                false,
+                activeQueryTab.traversalSourceOverride || undefined,
               )
             }
             settings={settings}
@@ -859,6 +973,8 @@ export default function App() {
               }
               updateQueryTab(activeQueryTab.id, {
                 connectionId: restoredConnectionId,
+                traversalSourceOverride: "",
+                graphBindingOverride: "",
                 query: entry.query,
                 queryState: { status: "idle" },
                 selection: null,
@@ -874,12 +990,48 @@ export default function App() {
             onClear={() => setClearHistory(true)}
           />
         )}
+        {view === "graphFactory" && (
+          <GraphFactoryPage
+            activeConnection={activeConnection}
+            execute={(factoryQuery, bindings, productionConfirmed = false) =>
+              executeFor(
+                activeConnectionId,
+                "graph-factory-console",
+                factoryQuery,
+                bindings,
+                false,
+                crypto.randomUUID(),
+                productionConfirmed,
+              )
+            }
+            onUseGraph={openGraphQueryContext}
+            onManageSchema={(graph) => {
+              setSchemaGraphContext(dynamicGraphContext(activeConnectionId, graph));
+              setView("schema");
+            }}
+            notify={notify}
+          />
+        )}
         {view === "schema" && (
           <SchemaPage
-            activeConnection={activeConnection}
-            execute={(schemaQuery) =>
-              executeFor(activeConnectionId, "schema-console", schemaQuery, {}, false)
+            activeConnection={schemaConnection}
+            connectionProfile={activeConnection}
+            graphContext={activeSchemaGraphContext}
+            execute={(schemaQuery, productionConfirmed = false) =>
+              executeFor(
+                activeConnectionId,
+                "schema-console",
+                schemaQuery,
+                {},
+                false,
+                crypto.randomUUID(),
+                productionConfirmed,
+                activeSchemaGraphContext?.traversalSource,
+              )
             }
+            onGraphContextChange={setSchemaGraphContext}
+            onOpenQueryContext={(context) => openGraphQueryContext(context, context.connectionId)}
+            onOpenGraphFactory={() => setView("graphFactory")}
             notify={notify}
           />
         )}
@@ -938,6 +1090,37 @@ export default function App() {
           }}
         />
       )}
+      {pendingProductionQuery && (() => {
+        const pendingTab = queryTabs.find(
+          (tab) => tab.id === pendingProductionQuery.tabId,
+        );
+        const productionConnection = connections.find(
+          (connection) => connection.id === pendingTab?.connectionId,
+        );
+        if (!productionConnection) return null;
+        return (
+          <ConfirmDialog
+            title={tx("确认生产环境写操作", "Confirm Production Write")}
+            description={`${tx("生产连接", "Production connection")} “${productionConnection.name}”. ${tx(
+              "当前 Gremlin 语句可能修改图数据或 Schema；执行前请确认连接与语句均正确。",
+              "This Gremlin statement may mutate graph data or schema; verify the connection and statement before continuing.",
+            )}`}
+            confirmLabel={tx("仍要执行", "Run Anyway")}
+            confirmIcon={<AlertTriangle size={17} />}
+            onCancel={() => setPendingProductionQuery(null)}
+            onConfirm={() => {
+              const pending = pendingProductionQuery;
+              setPendingProductionQuery(null);
+              void runQuery(
+                pending.tabId,
+                pending.queryOverride,
+                pending.bindings,
+                true,
+              );
+            }}
+          />
+        );
+      })()}
       {deleteConnection && (
         <ConfirmDialog
           title={tx("删除连接", "Delete Connection")}

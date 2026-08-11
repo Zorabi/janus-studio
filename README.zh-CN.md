@@ -34,7 +34,7 @@ JanusGraph 及兼容 Apache TinkerPop 的图数据库。它将 Gremlin 智能编
 - **图谱可视化** — 支持力导向、层级、径向和网格布局，可检查元素属性、保存布局，并导出
   PNG、JPG、SVG 或 JSON。
 - **Schema 与数据工具** — 浏览和管理 Label、Property Key、Composite/Mixed Index、
-  Schema 快照、整图归档和查询结果导出。
+  Schema 快照与差异、安全的增量 Schema 导入导出、整图归档和查询结果导出。
 - **桌面端体验** — 跨重启恢复工作区、搜索 SQLite 查询历史、选择 14 种界面语言，并自定义
   主题、字体、密度、图谱渲染和快捷键。
 - **凭据保护** — macOS 使用仅限当前用户访问的 AES-256-GCM 本地凭据库；Windows 和
@@ -118,11 +118,20 @@ apps/desktop/
   src/preload/          安全的渲染进程 API 桥接
   src/renderer/         React UI、Gremlin 编辑器、图画布与设置
 packages/domain/        领域模型与桌面 API 契约
-packages/application/   连接、查询与存储应用逻辑
+packages/application/   与框架无关的应用规则和数据转换
 tests/                  单元、集成、兼容和打包应用测试
 docs/                   架构与发布文档
 design-system/          视觉系统与页面规则
 ```
+
+三个 workspace 是同一产品的架构分层，不是三个独立应用：
+
+- `@janusgraph/domain` 定义与框架无关的领域模型和共享桌面 API 契约。
+- `@janusgraph/application` 存放可复用、可独立测试的应用规则，只依赖 `domain`。
+- `@janusgraph/desktop` 是实际 Electron 应用，依赖前面两个内层 workspace。
+
+依赖方向固定为 `domain ← application ← desktop`。代码应该放在哪一层及具体边界请参阅
+[贡献指南](CONTRIBUTING.zh-CN.md#为什么有三个-workspace)。
 
 项目主要使用 Electron Forge、Vite、React、TypeScript、Monaco Editor、Lucide、
 官方 Gremlin JavaScript Driver 和基于 SQLite 的本地存储。
@@ -150,17 +159,13 @@ JanusGraph Bulk Loading、Hadoop/ETL 或集群侧作业。
 - [设计系统](design-system/janusgraph-desktop/MASTER.md)
 - [工作台设计规则](design-system/janusgraph-desktop/pages/workbench.md)
 - [发布、签名与自动更新](docs/发布与签名.md)
+- [参与贡献指南](CONTRIBUTING.zh-CN.md)
 
 ## 参与贡献
 
-欢迎提交 Issue 和 Pull Request。提交改动前请确保：
-
-1. 所有用户可见文字均进入 i18n，并运行 `pnpm i18n:generate`。
-2. 新增纯逻辑具有对应单元测试。
-3. 已运行 `pnpm typecheck` 和相关测试。
-4. 可能影响生产包时已运行 `pnpm build`。
-
-请保持改动范围清晰，不要提交凭据、证书、本地数据库或生成的发行制品。
+欢迎提交 Issue 和 Pull Request。请先阅读 [CONTRIBUTING.zh-CN.md](CONTRIBUTING.zh-CN.md)，
+其中包含 workspace 边界、开发流程、项目不变量、验证要求、Commit 格式和 Pull Request
+检查清单；同时提供 [英文版](CONTRIBUTING.md)。
 
 ## 开源协议
 

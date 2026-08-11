@@ -20,6 +20,7 @@ import {
   FileJson,
   FolderOpen,
   GitBranch,
+  Hash,
   Layers3,
   LoaderCircle,
   MoreHorizontal,
@@ -67,9 +68,11 @@ import {
   gremlinConsoleOutput,
   mergeGraphModels,
   structuredJsonItems,
+  singleScalarResult,
   type GraphModel,
 } from "../../lib/result-model";
 import type { AppSettings } from "../../lib/settings";
+import { parseTraversalDiagnostics } from "../../lib/traversal-diagnostics";
 import {
   configuredPropertyFields,
   gremlinFileName,
@@ -83,6 +86,7 @@ import {
   QueryHints,
 } from "./QueryHints";
 import { ElementInspector, TableResult } from "./QueryResultDetails";
+import { TraversalDiagnosticsPanel } from "./TraversalDiagnosticsPanel";
 import type {
   QueryState,
   QueryTabState,
@@ -114,6 +118,7 @@ export function QueryPage({
   onRestoreClosedTab,
   canRestoreClosedTab,
   activeConnection,
+  schemaCatalogKey,
   query,
   setQuery,
   bindingsText,
@@ -153,6 +158,7 @@ export function QueryPage({
   onRestoreClosedTab: () => void;
   canRestoreClosedTab: boolean;
   activeConnection: ConnectionSummary | undefined;
+  schemaCatalogKey: string;
   query: string;
   setQuery: (query: string) => void;
   bindingsText: string;
@@ -187,7 +193,7 @@ export function QueryPage({
     if (!activeConnection) return EMPTY_SCHEMA_CATALOG;
     try {
       const stored = JSON.parse(
-        localStorage.getItem(`janusgraph.schemaCatalog.v1.${activeConnection.id}`) ?? "null",
+        localStorage.getItem(`janusgraph.schemaCatalog.v1.${schemaCatalogKey}`) ?? "null",
       ) as GremlinSchemaCatalog | null;
       return stored && Array.isArray(stored.vertexLabels) && Array.isArray(stored.edgeLabels) && Array.isArray(stored.propertyKeys)
         ? stored
@@ -195,9 +201,10 @@ export function QueryPage({
     } catch {
       return EMPTY_SCHEMA_CATALOG;
     }
-  }, [activeConnection?.id]);
+  }, [activeConnection?.id, schemaCatalogKey]);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [monacoSuggestionsOpen, setMonacoSuggestionsOpen] = useState(false);
+  const [diagnosticView, setDiagnosticView] = useState<"diagnostics" | "console">("diagnostics");
   const [parametersOpen, setParametersOpen] = useState(false);
   const [bindingsError, setBindingsError] = useState("");
   const [favoritesOpen, setFavoritesOpen] = useState(false);
@@ -308,8 +315,24 @@ export function QueryPage({
     setRenamingTabId(null);
   };
   const result = queryState.status === "success" ? queryState.result : null;
+  const analysisKind = queryState.status === "success" ? queryState.analysisKind : undefined;
+  const traversalDiagnostic = useMemo(
+    () => result && analysisKind ? parseTraversalDiagnostics(result.items, analysisKind) : null,
+    [analysisKind, result],
+  );
+  const consoleOutput = useMemo(
+    () => result?.consoleText ?? (result ? gremlinConsoleOutput(result.items) : ""),
+    [result],
+  );
+  useEffect(() => {
+    if (analysisKind) setDiagnosticView("diagnostics");
+  }, [analysisKind, result?.executionId]);
   const tableRows = useMemo(
     () => (result ? buildTableRows(result.items) : []),
+    [result],
+  );
+  const scalarResult = useMemo(
+    () => (result ? singleScalarResult(result.items) : null),
     [result],
   );
   const structuredItems = useMemo(
@@ -648,6 +671,7 @@ export function QueryPage({
         connectionId: activeConnection.id,
         executionId: crypto.randomUUID(),
         query,
+        traversalSource: activeConnection.traversalSource,
         bindings: parseBindings(bindingsText),
         suggestedName: `janusgraph-query-complete-${Date.now()}.jsonl`,
         format: "jsonl",
@@ -1500,8 +1524,9 @@ export function QueryPage({
             <span className="eyebrow">QUERY RESULT</span>
             {result ? (
               <strong>
-                {result.totalCount.toLocaleString()} 条 · {result.durationMs} ms
-                {result.truncated ? ` · ${result.items.length.toLocaleString()} 条已载入` : ""}
+                {scalarResult
+                  ? `${t("标量结果", "Scalar result")} · ${result.durationMs} ms`
+                  : `${result.totalCount.toLocaleString()} ${t("条", "rows")} · ${result.durationMs} ms${result.truncated ? ` · ${result.items.length.toLocaleString()} ${t("条已载入", "rows loaded")}` : ""}`}
               </strong>
             ) : (
               <strong>{t("等待执行")}</strong>
@@ -1509,22 +1534,22 @@ export function QueryPage({
           </div>
           <div className="result-toolbar-actions">
             <div className="result-modes" aria-label={t("结果显示方式")}>
-              <button
+              {!analysisKind && <button
               type="button"
               className={mode === "graph" ? "is-active" : ""}
               onClick={() => setMode("graph")}
             >
               <Waypoints size={17} />
               {t("拓扑")}
-              </button>
-              <button
+              </button>}
+              {!analysisKind && <button
               type="button"
               className={mode === "table" ? "is-active" : ""}
               onClick={() => setMode("table")}
             >
-              <Table2 size={17} />
-              {t("表格")}
-              </button>
+              {scalarResult ? <Hash size={17} /> : <Table2 size={17} />}
+              {scalarResult ? t("单值", "Single value") : t("表格")}
+              </button>}
               <button
               type="button"
               className={mode === "json" ? "is-active" : ""}
@@ -1535,13 +1560,24 @@ export function QueryPage({
               </button>
               <button
                 type="button"
-                className={mode === "raw" ? "is-active" : ""}
-                onClick={() => setMode("raw")}
+                className={mode === "raw" && (!analysisKind || diagnosticView === "diagnostics") ? "is-active" : ""}
+                onClick={() => { setMode("raw"); setDiagnosticView("diagnostics"); }}
                 title={t("以 Gremlin Console 行格式查看结果", "Inspect results in Gremlin Console line format")}
               >
-                <Code2 size={17} />
-                {t("控制台", "Console")}
+                {analysisKind === "profile" ? <Activity size={17} /> : analysisKind === "explain" ? <GitBranch size={17} /> : <Code2 size={17} />}
+                {analysisKind ? t("诊断", "Diagnostics") : t("控制台", "Console")}
               </button>
+              {analysisKind && (
+                <button
+                  type="button"
+                  className={mode === "raw" && diagnosticView === "console" ? "is-active" : ""}
+                  onClick={() => { setMode("raw"); setDiagnosticView("console"); }}
+                  title={t("查看 Explain/Profile 的 Gremlin Console 原始输出", "View the raw Gremlin Console output for Explain/Profile")}
+                >
+                  <Code2 size={17} />
+                  {t("控制台", "Console")}
+                </button>
+              )}
               <button
                 type="button"
                 className={mode === "source" ? "is-active" : ""}
@@ -1655,32 +1691,35 @@ export function QueryPage({
               }
             />
           )}
-          {result && mode === "table" && <TableResult rows={tableRows} rawItems={result.items} />}
+          {result && mode === "table" && <TableResult rows={tableRows} rawItems={result.items} scalar={scalarResult} />}
           {result && mode === "json" && (
             <pre className="json-result">
               {JSON.stringify(structuredItems, null, 2)}
             </pre>
           )}
           {result && mode === "raw" && (
-            <div className="raw-result">
-              <header>
-                <div>
-                  <span className="eyebrow">GREMLIN CONSOLE</span>
-                  <strong>{t("控制台原始结果", "Console result")}</strong>
-                </div>
-                <small>{t("每条结果使用 ==> 前缀，Map 以 key=value 形式展示。", "Each result uses the ==> prefix and maps are rendered as key=value pairs.")}</small>
-                <button type="button" onClick={() => {
-                  void navigator.clipboard.writeText(gremlinConsoleOutput(result.items)).then(() => {
-                    notify({ tone: "success", message: t("控制台输出已复制", "Console output copied") });
-                  }).catch((error) => {
-                    notify({ tone: "error", message: errorMessage(error) });
-                  });
-                }}>
-                  <Copy size={15} />
-                  {t("复制控制台输出", "Copy console output")}
-                </button>
-              </header>
-              <pre>{gremlinConsoleOutput(result.items)}</pre>
+            <div className={`console-result-layout ${traversalDiagnostic && diagnosticView === "diagnostics" ? "has-diagnostics" : ""}`}>
+              {traversalDiagnostic && diagnosticView === "diagnostics" && <TraversalDiagnosticsPanel diagnostic={traversalDiagnostic} />}
+              {(!traversalDiagnostic || diagnosticView === "console") && <div className="raw-result">
+                <header>
+                  <div>
+                    <span className="eyebrow">GREMLIN CONSOLE</span>
+                    <strong>Gremlin Console</strong>
+                  </div>
+                  <small>{t("每条结果使用 ==> 前缀，Map 以 key=value 形式展示。", "Each result uses the ==> prefix and maps are rendered as key=value pairs.")}</small>
+                  <button type="button" onClick={() => {
+                    void navigator.clipboard.writeText(consoleOutput).then(() => {
+                      notify({ tone: "success", message: t("控制台输出已复制", "Console output copied") });
+                    }).catch((error) => {
+                      notify({ tone: "error", message: errorMessage(error) });
+                    });
+                  }}>
+                    <Copy size={15} />
+                    {t("复制控制台输出", "Copy console output")}
+                  </button>
+                </header>
+                <pre>{consoleOutput}</pre>
+              </div>}
             </div>
           )}
           {result && mode === "source" && (

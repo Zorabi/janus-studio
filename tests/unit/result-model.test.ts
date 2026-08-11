@@ -7,6 +7,7 @@ import {
   gremlinConsoleOutput,
   mergeGraphModels,
   orderedInspectorEntries,
+  singleScalarResult,
   structuredJsonItems,
   tableColumns,
 } from "../../apps/desktop/src/renderer/lib/result-model.ts";
@@ -51,6 +52,17 @@ test("merges enrichment and flattens table rows deterministically", () => {
     score: 91,
   });
   assert.deepEqual(tableColumns(rows), ["#", "id", "name", "score"]);
+});
+
+test("identifies only a single primitive result as a scalar", () => {
+  assert.deepEqual(singleScalarResult([{ "@type": "g:Int64", "@value": 42 }]), {
+    value: 42,
+    type: "number",
+  });
+  assert.deepEqual(singleScalarResult([false]), { value: false, type: "boolean" });
+  assert.deepEqual(singleScalarResult([null]), { value: null, type: "null" });
+  assert.equal(singleScalarResult([{ count: 42 }]), null);
+  assert.equal(singleScalarResult([1, 2]), null);
 });
 
 test("sorts result columns by pinned metadata and natural alpha-numeric order", () => {

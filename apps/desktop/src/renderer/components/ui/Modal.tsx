@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
 import { type ReactNode, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useTranslate } from "../../lib/i18n";
 import { IconButton } from "./IconButton";
 
@@ -8,7 +9,7 @@ export interface ModalProps {
   eyebrow: string;
   onClose: () => void;
   children: ReactNode;
-  width?: "narrow" | "wide";
+  width?: "narrow" | "wide" | "xwide";
 }
 
 export function Modal({
@@ -28,7 +29,7 @@ export function Modal({
     return () => window.removeEventListener("keydown", close);
   }, [onClose]);
 
-  return (
+  return createPortal(
     <div className="modal-layer" role="presentation" onMouseDown={onClose}>
       <section
         className={`modal-card modal-${width}`}
@@ -48,6 +49,7 @@ export function Modal({
         </header>
         {children}
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }

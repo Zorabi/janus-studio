@@ -1,4 +1,7 @@
-import type { QueryHistoryEntry } from "@janusgraph/domain";
+import type {
+  QueryHistoryEntry,
+  QueryHistoryListInput,
+} from "@janusgraph/domain";
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 
@@ -31,11 +34,39 @@ function toEntry(row: HistoryRow): QueryHistoryEntry {
 export class HistoryRepository {
   constructor(private readonly database: DatabaseSync) {}
 
-  list(limit = 200): QueryHistoryEntry[] {
-    const safeLimit = Math.max(1, Math.min(limit, 1_000));
+  list(input: number | QueryHistoryListInput = 200): QueryHistoryEntry[] {
+    const filters = typeof input === "number" ? { limit: input } : input;
+    const safeLimit = Math.max(1, Math.min(filters.limit ?? 200, 2_000));
+    const safeOffset = Math.max(0, filters.offset ?? 0);
+    const conditions: string[] = [];
+    const parameters: Array<string | number> = [];
+    if (filters.connectionId) {
+      conditions.push("connection_id = ?");
+      parameters.push(filters.connectionId);
+    }
+    if (filters.statuses?.length) {
+      conditions.push(`status IN (${filters.statuses.map(() => "?").join(", ")})`);
+      parameters.push(...filters.statuses);
+    }
+    if (filters.createdFrom) {
+      conditions.push("created_at >= ?");
+      parameters.push(filters.createdFrom);
+    }
+    if (filters.createdTo) {
+      conditions.push("created_at <= ?");
+      parameters.push(filters.createdTo);
+    }
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
     const rows = this.database
-      .prepare("SELECT * FROM query_history ORDER BY created_at DESC LIMIT ?")
-      .all(safeLimit) as HistoryRow[];
+      .prepare(`
+        SELECT id, connection_id, connection_name, query_text, status,
+          duration_ms, result_count, error_message, created_at
+        FROM query_history
+        ${where}
+        ORDER BY created_at DESC
+        LIMIT ? OFFSET ?
+      `)
+      .all(...parameters, safeLimit, safeOffset) as HistoryRow[];
     return rows.map(toEntry);
   }
 

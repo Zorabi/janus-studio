@@ -1,18 +1,23 @@
 import type { SchemaJob, SchemaJobStatus } from "@janusgraph/domain";
 import {
+  AlertTriangle,
+  Check,
   Clock3,
+  Copy,
   History,
   RotateCcw,
   Search,
   Trash2,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { SelectControl } from "../../components/SelectControl";
-import { EmptyState, IconButton } from "../../components/ui";
+import { EmptyState, IconButton, Modal } from "../../components/ui";
 import { useLocale, useTranslate } from "../../lib/i18n";
 import { formatDate } from "../../lib/presentation";
 
 type StatusFilter = "all" | SchemaJobStatus;
+type MessageTooltip = { message: string; left: number; top: number; width: number };
 
 export function SchemaHistory({
   jobs,
@@ -29,6 +34,33 @@ export function SchemaHistory({
   const locale = useLocale();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
+  const [detailJob, setDetailJob] = useState<SchemaJob | null>(null);
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+  const [messageTooltip, setMessageTooltip] = useState<MessageTooltip | null>(null);
+  const showMessageTooltip = (element: HTMLElement, message: string) => {
+    const bounds = element.getBoundingClientRect();
+    const width = Math.min(420, window.innerWidth - 24);
+    const sideLeft = bounds.right + 10;
+    const left = sideLeft + width <= window.innerWidth - 12
+      ? sideLeft
+      : Math.max(12, Math.min(bounds.left, window.innerWidth - width - 12));
+    setMessageTooltip({
+      message,
+      left,
+      top: Math.max(12, Math.min(bounds.top, window.innerHeight - 118)),
+      width,
+    });
+  };
+  useEffect(() => {
+    if (!messageTooltip) return;
+    const dismiss = () => setMessageTooltip(null);
+    window.addEventListener("resize", dismiss);
+    window.addEventListener("scroll", dismiss, true);
+    return () => {
+      window.removeEventListener("resize", dismiss);
+      window.removeEventListener("scroll", dismiss, true);
+    };
+  }, [messageTooltip]);
   const normalizedSearch = search.trim().toLocaleLowerCase();
   const filtered = useMemo(
     () =>
@@ -56,6 +88,7 @@ export function SchemaHistory({
   };
 
   return (
+    <>
     <section className="schema-history-page" aria-label={t("Schema 操作历史", "Schema operation history")}>
       <div className="schema-history-summary">
         <div>
@@ -139,7 +172,20 @@ export function SchemaHistory({
                   </td>
                   <td>
                     <strong>{job.indexName}</strong>
-                    {job.message && <small title={job.message}>{job.message}</small>}
+                    {job.message && (
+                      <button
+                        type="button"
+                        className={`schema-job-message ${job.status === "failed" || job.status === "interrupted" ? "is-error" : ""}`}
+                        onClick={() => { setMessageTooltip(null); setDetailJob(job); setCopyState("idle"); }}
+                        onMouseEnter={(event) => showMessageTooltip(event.currentTarget, job.message)}
+                        onMouseLeave={() => setMessageTooltip(null)}
+                        onFocus={(event) => showMessageTooltip(event.currentTarget, job.message)}
+                        onBlur={() => setMessageTooltip(null)}
+                        aria-label={t("查看完整异常信息", "View full operation details")}
+                      >
+                        <span>{job.message}</span>
+                      </button>
+                    )}
                   </td>
                   <td><code>{job.action}</code></td>
                   <td>{job.connectionName}</td>
@@ -155,7 +201,9 @@ export function SchemaHistory({
                           onClick={() => onRetry(job)}
                         >
                           <RotateCcw size={15} />
-                          {t("重试", "Retry")}
+                          {job.action === "IMPORT_SCHEMA"
+                            ? t("重新生成计划", "Regenerate plan")
+                            : t("重试", "Retry")}
                         </button>
                       )}
                       <IconButton
@@ -175,5 +223,78 @@ export function SchemaHistory({
         </div>
       )}
     </section>
+    {detailJob && (
+      <Modal
+        eyebrow="SCHEMA OPERATION DETAILS"
+        title={detailJob.status === "failed" || detailJob.status === "interrupted"
+          ? t("Schema 异常详情", "Schema Error Details")
+          : t("Schema 操作详情", "Schema Operation Details")}
+        onClose={() => setDetailJob(null)}
+        width="wide"
+      >
+        <div className="schema-job-detail">
+          <header className={detailJob.status === "failed" || detailJob.status === "interrupted" ? "is-error" : ""}>
+            <AlertTriangle size={20} />
+            <div>
+              <strong>{detailJob.indexName}</strong>
+              <small>{detailJob.connectionName} · {detailJob.action} · {formatDate(detailJob.updatedAt, locale)}</small>
+            </div>
+            <span className={`schema-job-badge ${detailJob.status}`}>{statusLabel(detailJob.status)}</span>
+          </header>
+          <section>
+            <div>
+              <span>{t("完整服务端异常", "Full server error")}</span>
+              <button
+                type="button"
+                className="button text"
+                onClick={() => {
+                  void (async () => {
+                    try {
+                      if (window.janusGraphDesktop) {
+                        await window.janusGraphDesktop.runtime.writeClipboard(detailJob.message);
+                      } else if (navigator.clipboard) {
+                        await navigator.clipboard.writeText(detailJob.message);
+                      } else throw new Error("Clipboard API unavailable");
+                      setCopyState("copied");
+                    } catch {
+                      setCopyState("failed");
+                    }
+                  })();
+                }}
+              >
+                {copyState === "copied" ? <Check size={15} /> : <Copy size={15} />}
+                {copyState === "copied"
+                  ? t("已复制", "Copied")
+                  : copyState === "failed"
+                    ? t("复制失败，请重试", "Copy failed, retry")
+                    : t("复制异常", "Copy error")}
+              </button>
+            </div>
+            <pre>{detailJob.message}</pre>
+          </section>
+          {/violates a uniqueness constraint.*SchemaName/i.test(detailJob.message) && (
+            <aside>
+              <AlertTriangle size={17} />
+              <p>{t(
+                "检测到重复 Schema 名称。通常是某个批次已经提交后又从头重试造成的；新版导入脚本会在服务端先检查已有定义，并仅在定义一致时安全跳过。请重新选择 Schema 文件生成新计划后再导入。",
+                "A duplicate Schema name was detected, commonly caused by retrying from batch one after an earlier batch committed. New import plans check server-side definitions and safely skip matching ones. Select the Schema file again to generate a fresh plan before importing.",
+              )}</p>
+            </aside>
+          )}
+        </div>
+      </Modal>
+    )}
+    {messageTooltip && createPortal(
+      <div
+        className="schema-job-message-tooltip"
+        role="tooltip"
+        style={{ left: messageTooltip.left, top: messageTooltip.top, width: messageTooltip.width }}
+      >
+        <span>{messageTooltip.message}</span>
+        <small>{t("点击查看完整异常", "Click to view the full error")}</small>
+      </div>,
+      document.body,
+    )}
+    </>
   );
 }

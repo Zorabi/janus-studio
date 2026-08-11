@@ -18,6 +18,8 @@ export function openApplicationDatabase(path: string): DatabaseSync {
       port INTEGER NOT NULL,
       path TEXT NOT NULL,
       username TEXT NOT NULL,
+      environment TEXT NOT NULL DEFAULT 'dev',
+      connection_read_only INTEGER NOT NULL DEFAULT 0,
       client_mode TEXT NOT NULL DEFAULT 'sessionless',
       traversal_source TEXT NOT NULL,
       graph_binding TEXT NOT NULL,
@@ -51,6 +53,9 @@ export function openApplicationDatabase(path: string): DatabaseSync {
 
     CREATE INDEX IF NOT EXISTS idx_query_history_connection_id
       ON query_history(connection_id, created_at DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_query_history_status_created_at
+      ON query_history(status, created_at DESC);
 
     CREATE TABLE IF NOT EXISTS schema_jobs (
       id TEXT PRIMARY KEY,
@@ -88,8 +93,14 @@ export function openApplicationDatabase(path: string): DatabaseSync {
   if (!connectionColumns.some((column) => column.name === "custom_headers")) {
     database.exec("ALTER TABLE connection_profiles ADD COLUMN custom_headers TEXT NOT NULL DEFAULT '{}'");
   }
+  if (!connectionColumns.some((column) => column.name === "environment")) {
+    database.exec("ALTER TABLE connection_profiles ADD COLUMN environment TEXT NOT NULL DEFAULT 'dev'");
+  }
+  if (!connectionColumns.some((column) => column.name === "connection_read_only")) {
+    database.exec("ALTER TABLE connection_profiles ADD COLUMN connection_read_only INTEGER NOT NULL DEFAULT 0");
+  }
   database.exec("UPDATE schema_jobs SET status = 'interrupted', message = 'Application closed before the operation completed', updated_at = datetime('now') WHERE status = 'running';");
-  database.exec("PRAGMA user_version = 5;");
+  database.exec("PRAGMA user_version = 6;");
 
   return database;
 }

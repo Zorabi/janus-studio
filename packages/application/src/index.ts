@@ -22,6 +22,8 @@ export function normalizeConnectionInput(
     host: input.host.trim(),
     path: input.path.trim() || "/gremlin",
     username: input.username.trim(),
+    environment: input.environment ?? "dev",
+    connectionReadOnly: input.connectionReadOnly ?? false,
     clientMode: input.clientMode ?? "sessionless",
     traversalSource: input.traversalSource.trim() || "g",
     graphBinding: input.graphBinding.trim() || "graph",
@@ -33,4 +35,31 @@ export function normalizeConnectionInput(
 
 export function isSecureConnection(protocol: ConnectionProtocol): boolean {
   return secureProtocols.has(protocol);
+}
+
+export function isMutationQuery(query: string): boolean {
+  const normalized = query
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/\/\/.*$/gm, " ")
+    .replace(/'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"/g, "''");
+  return /\.(?:addV|addE|mergeV|mergeE|property|drop|sideEffect|write|makePropertyKey|makeVertexLabel|makeEdgeLabel|buildIndex|addIndexKey|updateIndex|changeName|setConsistency|setTTL|forceCloseInstance)\s*\(|\bcommit\s*\(|\bConfiguredGraphFactory\s*\.\s*(?:create|close|drop|createConfiguration|updateConfiguration|removeConfiguration|createTemplateConfiguration|updateTemplateConfiguration|removeTemplateConfiguration)\s*\(/i.test(normalized);
+}
+
+export function withTraversalConsoleText(
+  query: string,
+  step: "explain" | "profile",
+): string {
+  const source = query.trim().replace(/;\s*$/, "");
+  const traversal = source
+    .replace(/\.(?:explain|profile)\s*\(\s*\)(?:\.next\s*\(\s*\))?(?:\.toString\s*\(\s*\))?\s*$/i, "")
+    .replace(/\.(?:toList|next|iterate)\s*\(\s*\)\s*$/, "");
+  return step === "profile"
+    ? `${traversal}.profile().next().toString()`
+    : `${traversal}.explain().toString()`;
+}
+
+export function normalizeTraversalConsoleText(query: string): string {
+  if (/\.profile\s*\(\s*\)(?:\.next\s*\(\s*\))?(?:\.toString\s*\(\s*\))?\s*;?\s*$/i.test(query)) return withTraversalConsoleText(query, "profile");
+  if (/\.explain\s*\(\s*\)(?:\.next\s*\(\s*\))?(?:\.toString\s*\(\s*\))?\s*;?\s*$/i.test(query)) return withTraversalConsoleText(query, "explain");
+  return query;
 }

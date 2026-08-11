@@ -4,6 +4,7 @@ import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 const desktopApi: DesktopApi = {
   runtime: {
     platform: () => ipcRenderer.invoke("runtime:platform"),
+    writeClipboard: (text) => ipcRenderer.invoke("runtime:write-clipboard", text),
     onNavigate: (listener) => {
       const handler = (_event: IpcRendererEvent, destination: "settings") =>
         listener(destination);
@@ -24,7 +25,7 @@ const desktopApi: DesktopApi = {
     export: (input) => ipcRenderer.invoke("queries:export", input),
   },
   history: {
-    list: (limit) => ipcRenderer.invoke("history:list", limit),
+    list: (input) => ipcRenderer.invoke("history:list", input),
     remove: (id) => ipcRenderer.invoke("history:remove", id),
     clear: () => ipcRenderer.invoke("history:clear"),
   },
@@ -35,6 +36,8 @@ const desktopApi: DesktopApi = {
     saveGraphFile: (input) => ipcRenderer.invoke("files:save-graph", input),
     pickQueryFile: () => ipcRenderer.invoke("files:pick-query"),
     saveQueryFile: (input) => ipcRenderer.invoke("files:save-query", input),
+    pickSchemaFile: () => ipcRenderer.invoke("files:pick-schema"),
+    saveSchemaFile: (input) => ipcRenderer.invoke("files:save-schema", input),
   },
   security: {
     status: () => ipcRenderer.invoke("security:status"),
@@ -42,6 +45,7 @@ const desktopApi: DesktopApi = {
   schemaJobs: {
     list: (connectionId) => ipcRenderer.invoke("schema-jobs:list", connectionId),
     run: (input) => ipcRenderer.invoke("schema-jobs:run", input),
+    cancel: (connectionId) => ipcRenderer.invoke("schema-jobs:cancel", connectionId),
     retry: (id) => ipcRenderer.invoke("schema-jobs:retry", id),
     dismiss: (id) => ipcRenderer.invoke("schema-jobs:dismiss", id),
   },

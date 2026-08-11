@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { ConnectionRepository } from "../../apps/desktop/src/main/storage/connection-repository.ts";
 import { openApplicationDatabase } from "../../apps/desktop/src/main/storage/database.ts";
@@ -20,6 +21,8 @@ test("persists connection profiles, advanced transport settings and history", ()
       port: 8182,
       path: "/gremlin",
       username: "qa",
+      environment: "test",
+      connectionReadOnly: true,
       clientMode: "sessionless",
       traversalSource: "g",
       graphBinding: "graph",
@@ -32,6 +35,8 @@ test("persists connection profiles, advanced transport settings and history", ()
     assert.equal(saved.hasPassword, true);
     assert.equal(saved.tlsRejectUnauthorized, false);
     assert.equal(saved.enableCompression, true);
+    assert.equal(saved.environment, "test");
+    assert.equal(saved.connectionReadOnly, true);
     assert.equal(connections.find(saved.id)?.profile.customHeaders, "{\"X-QA\":\"1\"}");
 
     const history = new HistoryRepository(database);
@@ -39,6 +44,38 @@ test("persists connection profiles, advanced transport settings and history", ()
     assert.equal(history.list(10)[0]?.id, entry.id);
     history.remove(entry.id);
     assert.equal(history.list(10).length, 0);
+  } finally {
+    database.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("filters and paginates all query history statuses", () => {
+  const directory = mkdtempSync(join(tmpdir(), "janus-studio-history-test-"));
+  const database = openApplicationDatabase(join(directory, "app.sqlite"));
+  try {
+    const history = new HistoryRepository(database);
+    const successful = history.add("connection-a", "A", "g.V()", "success", 10, 1);
+    const truncated = history.add("connection-a", "A", "g.V().limit(20000)", "truncated", 20, 20_000);
+    const cancelled = history.add("connection-b", "B", "g.V().repeat(out())", "cancelled", 30, 0, "查询已停止");
+    const failed = history.add("connection-b", "B", "g.addV()", "error", 40, 0, "denied");
+    database.prepare("UPDATE query_history SET created_at = ? WHERE id = ?").run("2026-08-01T00:00:00.000Z", successful.id);
+    database.prepare("UPDATE query_history SET created_at = ? WHERE id = ?").run("2026-08-02T00:00:00.000Z", truncated.id);
+    database.prepare("UPDATE query_history SET created_at = ? WHERE id = ?").run("2026-08-03T00:00:00.000Z", cancelled.id);
+    database.prepare("UPDATE query_history SET created_at = ? WHERE id = ?").run("2026-08-04T00:00:00.000Z", failed.id);
+
+    assert.deepEqual(
+      history.list({ connectionId: "connection-a", statuses: ["truncated"] }).map(({ id }) => id),
+      [truncated.id],
+    );
+    assert.deepEqual(
+      history.list({ statuses: ["error", "cancelled"], createdFrom: "2026-08-03T00:00:00.000Z" }).map(({ id }) => id),
+      [failed.id, cancelled.id],
+    );
+    assert.deepEqual(
+      history.list({ limit: 2, offset: 1 }).map(({ id }) => id),
+      [cancelled.id, truncated.id],
+    );
   } finally {
     database.close();
     rmSync(directory, { recursive: true, force: true });
@@ -99,6 +136,8 @@ test("keeps schema operation history after its connection is removed", () => {
       port: 8182,
       path: "/gremlin",
       username: "",
+      environment: "dev",
+      connectionReadOnly: false,
       clientMode: "sessionless",
       traversalSource: "g",
       graphBinding: "graph",
@@ -120,6 +159,51 @@ test("keeps schema operation history after its connection is removed", () => {
     connections.remove("connection-1");
 
     assert.equal(jobs.list("connection-1").length, 1);
+  } finally {
+    database.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("migrates existing connection profiles to development with write access", () => {
+  const directory = mkdtempSync(join(tmpdir(), "janusgraph-connection-migration-test-"));
+  const path = join(directory, "app.sqlite");
+  const legacy = new DatabaseSync(path);
+  legacy.exec(`
+    CREATE TABLE connection_profiles (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      protocol TEXT NOT NULL,
+      host TEXT NOT NULL,
+      port INTEGER NOT NULL,
+      path TEXT NOT NULL,
+      username TEXT NOT NULL,
+      client_mode TEXT NOT NULL DEFAULT 'sessionless',
+      traversal_source TEXT NOT NULL,
+      graph_binding TEXT NOT NULL,
+      connect_timeout_ms INTEGER NOT NULL,
+      query_timeout_ms INTEGER NOT NULL,
+      tls_reject_unauthorized INTEGER NOT NULL DEFAULT 1,
+      enable_compression INTEGER NOT NULL DEFAULT 0,
+      custom_headers TEXT NOT NULL DEFAULT '{}',
+      password_cipher BLOB,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    INSERT INTO connection_profiles VALUES (
+      'legacy', 'Legacy', 'ws', 'localhost', 8182, '/gremlin', '',
+      'sessionless', 'g', 'graph', 5000, 30000, 1, 0, '{}', NULL,
+      '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'
+    );
+  `);
+  legacy.close();
+
+  const database = openApplicationDatabase(path);
+  try {
+    const migrated = new ConnectionRepository(database).find("legacy")?.profile;
+    assert.equal(migrated?.environment, "dev");
+    assert.equal(migrated?.connectionReadOnly, false);
+    assert.equal(database.prepare("PRAGMA user_version").get()?.user_version, 6);
   } finally {
     database.close();
     rmSync(directory, { recursive: true, force: true });

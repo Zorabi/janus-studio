@@ -160,6 +160,15 @@ const EN: Dictionary = {
   "清空历史": "Clear history",
   "搜索查询或连接": "Search query or connection",
   "语言": "Language",
+  "确认生产环境写操作": "Confirm Production Write",
+  "仍要执行": "Run Anyway",
+  "生产连接": "Production connection",
+  "当前 Gremlin 语句可能修改图数据或 Schema；执行前请确认连接与语句均正确。":
+    "This Gremlin statement may mutate graph data or schema; verify the connection and statement before continuing.",
+  "连接级只读保护阻止了可能修改图数据或 Schema 的查询。请在连接设置中关闭只读保护后再试。":
+    "Connection-level read-only protection blocked a query that may mutate graph data or schema. Disable it in the connection settings to continue.",
+  "生产环境写操作需要先完成风险确认；当前入口未获得确认，已安全阻止执行。":
+    "Production writes require risk confirmation. This action was blocked because its entry point did not obtain confirmation.",
 };
 
 const ZH_TW: Dictionary = {

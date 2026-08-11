@@ -36,6 +36,7 @@ test("loads renderer styles through ordered responsibility-based modules", async
     "feature-pages.css",
     "settings-overlays.css",
     "refinements.css",
+    "schema-factory.css",
     "themes.css",
     "ide-overrides.css",
   ]);

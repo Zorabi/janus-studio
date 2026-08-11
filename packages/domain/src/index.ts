@@ -1,5 +1,6 @@
 export type ConnectionProtocol = "ws" | "wss" | "http" | "https";
 export type GremlinClientMode = "sessionless" | "sessioned";
+export type ConnectionEnvironment = "dev" | "test" | "prod";
 
 export type ConnectionProfile = {
   id: string;
@@ -9,6 +10,8 @@ export type ConnectionProfile = {
   port: number;
   path: string;
   username: string;
+  environment: ConnectionEnvironment;
+  connectionReadOnly: boolean;
   clientMode: GremlinClientMode;
   traversalSource: string;
   graphBinding: string;
@@ -46,8 +49,10 @@ export type QueryRequest = {
   consoleId: string;
   executionId: string;
   query: string;
+  traversalSource?: string;
   bindings?: Record<string, unknown>;
   recordHistory?: boolean;
+  productionConfirmed?: boolean;
 };
 
 export type QueryCancelRequest = {
@@ -58,6 +63,7 @@ export type QueryExportRequest = {
   connectionId: string;
   executionId: string;
   query: string;
+  traversalSource?: string;
   bindings?: Record<string, unknown>;
   suggestedName: string;
   format: "json" | "jsonl";
@@ -78,20 +84,36 @@ export type QueryExecutionResult = {
   executionId: string;
   durationMs: number;
   items: unknown[];
+  consoleText?: string;
   truncated: boolean;
   totalCount: number;
 };
+
+export type QueryHistoryStatus =
+  | "success"
+  | "error"
+  | "cancelled"
+  | "truncated";
 
 export type QueryHistoryEntry = {
   id: string;
   connectionId: string;
   connectionName: string;
   query: string;
-  status: "success" | "error";
+  status: QueryHistoryStatus;
   durationMs: number;
   resultCount: number;
   errorMessage: string;
   createdAt: string;
+};
+
+export type QueryHistoryListInput = {
+  limit?: number;
+  offset?: number;
+  connectionId?: string;
+  statuses?: QueryHistoryStatus[];
+  createdFrom?: string;
+  createdTo?: string;
 };
 
 export type PickedDataFile = {
@@ -115,6 +137,16 @@ export type SaveResultFileInput = {
 export type PickedQueryFile = {
   name: string;
   path: string;
+  content: string;
+};
+
+export type PickedSchemaFile = {
+  name: string;
+  content: string;
+};
+
+export type SaveSchemaFileInput = {
+  suggestedName: string;
   content: string;
 };
 
@@ -157,11 +189,14 @@ export type RunSchemaJobInput = {
   indexName: string;
   action: string;
   query: string;
+  queries?: string[];
+  productionConfirmed?: boolean;
 };
 
 export type DesktopApi = {
   runtime: {
     platform(): Promise<string>;
+    writeClipboard(text: string): Promise<void>;
     onNavigate(listener: (destination: "settings") => void): () => void;
   };
   connections: {
@@ -177,7 +212,7 @@ export type DesktopApi = {
     export(input: QueryExportRequest): Promise<QueryExportResult>;
   };
   history: {
-    list(limit?: number): Promise<QueryHistoryEntry[]>;
+    list(input?: number | QueryHistoryListInput): Promise<QueryHistoryEntry[]>;
     remove(id: string): Promise<void>;
     clear(): Promise<void>;
   };
@@ -188,6 +223,8 @@ export type DesktopApi = {
     saveGraphFile(input: SaveGraphFileInput): Promise<string | null>;
     pickQueryFile(): Promise<PickedQueryFile | null>;
     saveQueryFile(input: SaveQueryFileInput): Promise<string | null>;
+    pickSchemaFile(): Promise<PickedSchemaFile | null>;
+    saveSchemaFile(input: SaveSchemaFileInput): Promise<string | null>;
   };
   security: {
     status(): Promise<SecurityStorageStatus>;
@@ -195,6 +232,7 @@ export type DesktopApi = {
   schemaJobs: {
     list(connectionId?: string): Promise<SchemaJob[]>;
     run(input: RunSchemaJobInput): Promise<SchemaJob>;
+    cancel(connectionId: string): Promise<boolean>;
     retry(id: string): Promise<SchemaJob>;
     dismiss(id: string): Promise<void>;
   };

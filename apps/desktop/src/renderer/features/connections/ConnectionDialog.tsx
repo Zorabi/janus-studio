@@ -7,6 +7,7 @@ import {
   Eye,
   EyeOff,
   LoaderCircle,
+  LockKeyhole,
   Save,
   SlidersHorizontal,
 } from "lucide-react";
@@ -24,6 +25,8 @@ const EMPTY_CONNECTION: Omit<SaveConnectionInput, "id"> = {
   path: "/gremlin",
   username: "",
   password: "",
+  environment: "dev",
+  connectionReadOnly: false,
   clientMode: "sessionless",
   traversalSource: "g",
   graphBinding: "graph",
@@ -49,6 +52,10 @@ function connectionFromForm(
     path: String(data.get("path") ?? "").trim(),
     username: String(data.get("username") ?? ""),
     password: editing?.hasPassword && password === "" ? undefined : password,
+    environment: String(
+      data.get("environment") ?? "dev",
+    ) as SaveConnectionInput["environment"],
+    connectionReadOnly: data.get("connectionReadOnly") === "on",
     clientMode: String(
       data.get("clientMode") ?? "sessionless",
     ) as SaveConnectionInput["clientMode"],
@@ -137,9 +144,34 @@ export function ConnectionDialog({
     >
       <form ref={formRef} className="connection-form" onSubmit={save}>
         <div className="form-grid">
-          <label className="field field-span-2">
+          <label className="field">
             <span>{t("连接名称", "Connection name")}</span>
             <input name="name" defaultValue={defaults.name} required maxLength={80} />
+          </label>
+          <label className="field">
+            <span>{t("环境", "Environment")}</span>
+            <SelectControl
+              name="environment"
+              ariaLabel={t("连接环境", "Connection environment")}
+              defaultValue={defaults.environment}
+              options={[
+                {
+                  value: "dev",
+                  label: t("开发", "Development"),
+                  description: t("本地开发与功能调试", "Local development and feature work"),
+                },
+                {
+                  value: "test",
+                  label: t("测试", "Testing"),
+                  description: t("共享测试或预发布环境", "Shared testing or staging environment"),
+                },
+                {
+                  value: "prod",
+                  label: t("生产", "Production"),
+                  description: t("写操作需要额外确认", "Writes require an additional confirmation"),
+                },
+              ]}
+            />
           </label>
           <label className="field">
             <span>{t("协议", "Protocol")}</span>
@@ -231,6 +263,23 @@ export function ConnectionDialog({
                 },
               ]}
             />
+          </label>
+          <label className="check-field connection-safety field-span-2">
+            <input
+              type="checkbox"
+              name="connectionReadOnly"
+              defaultChecked={defaults.connectionReadOnly}
+            />
+            <LockKeyhole size={18} />
+            <span>
+              <strong>{t("连接级只读保护", "Connection-level read-only protection")}</strong>
+              <small>
+                {t(
+                  "阻止此连接执行可能修改图数据或 Schema 的 Gremlin 语句，适用于所有工作区。",
+                  "Block Gremlin statements that may mutate graph data or schema across every workspace.",
+                )}
+              </small>
+            </span>
           </label>
           <label className="field">
             <span>Traversal Source</span>

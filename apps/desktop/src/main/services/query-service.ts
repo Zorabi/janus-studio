@@ -1,10 +1,9 @@
+import { isMutationQuery, normalizeTraversalConsoleText } from "@janusgraph/application";
 import type { QueryExecutionResult, QueryExportRequest, QueryExportResult, QueryRequest } from "@janusgraph/domain";
 import { ConnectionService } from "./connection-service";
 import { GremlinService } from "./gremlin-service";
 import { HistoryRepository } from "../storage/history-repository";
 import { FileService } from "./file-service";
-
-const MUTATING_QUERY = /\.(?:addV|addE|mergeV|mergeE|property|drop|iterate|write)\s*\(|openManagement\s*\(|\.tx\s*\(\)|\b(?:commit|rollback)\s*\(/i;
 
 export class QueryService {
   constructor(
@@ -15,7 +14,20 @@ export class QueryService {
   ) {}
 
   async execute(request: QueryRequest): Promise<QueryExecutionResult> {
-    const profile = this.connections.profile(request.connectionId);
+    const storedProfile = this.connections.profile(request.connectionId);
+    const profile = request.traversalSource
+      ? { ...storedProfile, traversalSource: request.traversalSource }
+      : storedProfile;
+    if (profile.connectionReadOnly && isMutationQuery(request.query)) {
+      throw new Error("连接级只读保护阻止了可能修改图数据或 Schema 的查询");
+    }
+    if (
+      profile.environment === "prod" &&
+      isMutationQuery(request.query) &&
+      request.productionConfirmed !== true
+    ) {
+      throw new Error("生产环境写操作尚未确认，查询已被安全阻止");
+    }
     const password = await this.connections.passwordFor(request.connectionId);
     const startedAt = performance.now();
 
@@ -25,7 +37,7 @@ export class QueryService {
         password,
         request.consoleId,
         request.executionId,
-        request.query,
+        normalizeTraversalConsoleText(request.query),
         request.bindings ?? {},
       );
       if (request.recordHistory !== false) {
@@ -33,7 +45,7 @@ export class QueryService {
           profile.id,
           profile.name,
           request.query,
-          "success",
+          result.truncated ? "truncated" : "success",
           result.durationMs,
           result.totalCount,
         );
@@ -47,7 +59,7 @@ export class QueryService {
           profile.id,
           profile.name,
           request.query,
-          "error",
+          message === "查询已停止" ? "cancelled" : "error",
           durationMs,
           0,
           message,
@@ -58,10 +70,13 @@ export class QueryService {
   }
 
   async export(request: QueryExportRequest): Promise<QueryExportResult> {
-    if (MUTATING_QUERY.test(request.query)) {
+    if (isMutationQuery(request.query)) {
       throw new Error("完整结果流式导出仅允许只读 Gremlin 查询");
     }
-    const profile = this.connections.profile(request.connectionId);
+    const storedProfile = this.connections.profile(request.connectionId);
+    const profile = request.traversalSource
+      ? { ...storedProfile, traversalSource: request.traversalSource }
+      : storedProfile;
     const password = await this.connections.passwordFor(request.connectionId);
     return this.files.streamQueryResult(
       request.suggestedName,

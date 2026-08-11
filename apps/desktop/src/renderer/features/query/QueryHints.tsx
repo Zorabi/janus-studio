@@ -31,7 +31,7 @@ function buildHistorySuggestionModel(
   const seen = new Set<string>();
   const counts = new Map<string, Map<string, number>>();
   for (const entry of history) {
-    if (entry.status !== "success") continue;
+    if (entry.status !== "success" && entry.status !== "truncated") continue;
     const candidate = entry.query.trim();
     if (!candidate) continue;
     if (!seen.has(candidate) && recent.length < 8) {
@@ -208,5 +208,4 @@ export function QueryHints({
     </div>
   );
 }
-
 

@@ -338,6 +338,20 @@ export function buildTableRows(items: unknown[]): ResultRow[] {
   });
 }
 
+export type ScalarResult = {
+  value: string | number | boolean | bigint | null | undefined;
+  type: "string" | "number" | "boolean" | "bigint" | "null" | "undefined";
+};
+
+export function singleScalarResult(items: unknown[]): ScalarResult | null {
+  if (items.length !== 1) return null;
+  const value = decodeGraphValue(items[0]);
+  if (value !== null && typeof value === "object") return null;
+  const type = value === null ? "null" : typeof value;
+  if (!["string", "number", "boolean", "bigint", "null", "undefined"].includes(type)) return null;
+  return { value: value as ScalarResult["value"], type: type as ScalarResult["type"] };
+}
+
 export function structuredJsonItems(items: unknown[]): unknown[] {
   return items.map((raw) => {
     const value = decodeGraphValue(raw);

@@ -30,15 +30,16 @@
   --font-code:
     "JetBrains Mono Variable", "SFMono-Regular", Consolas, "Liberation Mono",
     monospace;
+  --font-ui:
+    "Noto Sans Variable", "Noto Sans CJK SC", "PingFang SC",
+    "Microsoft YaHei", sans-serif;
   --radius-sm: 4px;
   --radius-md: 8px;
   --shadow-modal: 0 30px 100px rgba(0, 0, 0, 0.68);
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   color: var(--bone);
   background: var(--canvas);
-  font-family:
-    "Noto Sans Variable", "Noto Sans CJK SC", "PingFang SC",
-    "Microsoft YaHei", sans-serif;
+  font-family: var(--font-ui);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -64,39 +65,39 @@
 }
 
 :root[data-font-family="system"] {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 :root[data-font-family="mono"] {
-  font-family: var(--font-code);
+  --font-ui: var(--font-code);
 }
 
 :root[data-font-family="sans"] {
-  font-family:
+  --font-ui:
     "Noto Sans Variable", "Noto Sans CJK SC", "PingFang SC",
     "Microsoft YaHei", sans-serif;
 }
 
 :root[data-font-family="humanist"] {
-  font-family:
+  --font-ui:
     "Avenir Next", "Noto Sans Variable", "Segoe UI", "PingFang SC",
     sans-serif;
 }
 
 :root[data-font-family="technical"] {
-  font-family:
+  --font-ui:
     "Lexend Variable", "Noto Sans Variable", "PingFang SC",
     "Microsoft YaHei", sans-serif;
 }
 
 :root[data-font-family="editorial"] {
-  font-family:
+  --font-ui:
     Aptos, Inter, "Noto Sans Variable", "PingFang SC", "Segoe UI",
     sans-serif;
 }
 
 :root[data-font-family="custom"] {
-  font-family:
+  --font-ui:
     var(--custom-ui-font), "Noto Sans Variable", "PingFang SC",
     sans-serif;
 }
@@ -715,5 +716,4 @@ select:disabled {
   border-radius: 3px;
   font-size: var(--text-xs);
 }
-
 

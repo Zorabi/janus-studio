@@ -12,12 +12,14 @@ test("persists schema job history and supports retrying or deleting records", as
   const database = openApplicationDatabase(join(directory, "app.sqlite"));
   const repository = new SchemaJobRepository(database);
   let queryError: Error | null = null;
+  const executedQueries: string[] = [];
   const connections = {
     profile: () => ({ name: "QA" }),
   } as unknown as ConstructorParameters<typeof SchemaJobService>[1];
   const queries = {
-    execute: async () => {
+    execute: async (request: { query: string }) => {
       if (queryError) throw queryError;
+      executedQueries.push(request.query);
       return {
         executionId: "execution",
         durationMs: 1,
@@ -41,6 +43,21 @@ test("persists schema job history and supports retrying or deleting records", as
     assert.equal(completed.status, "succeeded");
     assert.equal(repository.list("connection-1").length, 1);
 
+    executedQueries.length = 0;
+    const batched = await service.run({
+      ...input,
+      action: "IMPORT_SCHEMA",
+      query: "batch-1\nbatch-2\nbatch-3",
+      queries: ["batch-1", "batch-2", "batch-3"],
+    });
+    assert.deepEqual(executedQueries, ["batch-1", "batch-2", "batch-3"]);
+    assert.equal(batched.message, "Completed 3/3 batches");
+
+    executedQueries.length = 0;
+    const retriedBatch = await service.retry(batched.id);
+    assert.deepEqual(executedQueries, ["batch-1", "batch-2", "batch-3"]);
+    assert.equal(retriedBatch.status, "succeeded");
+
     queryError = new Error("reindex failed");
     await assert.rejects(service.run(input), queryError);
     const failed = repository.list("connection-1")[0]!;
@@ -50,13 +67,57 @@ test("persists schema job history and supports retrying or deleting records", as
     const retried = await service.retry(failed.id);
     assert.equal(retried.id, failed.id);
     assert.equal(retried.status, "succeeded");
-    assert.equal(repository.list("connection-1").length, 2);
+    assert.equal(repository.list("connection-1").length, 3);
 
     queryError = new Error("reindex failed again");
     await assert.rejects(service.run(input), queryError);
     const dismissed = repository.list("connection-1")[0]!;
     service.dismiss(dismissed.id);
-    assert.equal(repository.list("connection-1").length, 2);
+    assert.equal(repository.list("connection-1").length, 3);
+  } finally {
+    database.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("cancels a running Schema import and records an interrupted batch boundary", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "janusgraph-schema-cancel-test-"));
+  const database = openApplicationDatabase(join(directory, "app.sqlite"));
+  const repository = new SchemaJobRepository(database);
+  let executionCount = 0;
+  let rejectActive: ((error: Error) => void) | undefined;
+  let signalSecond!: () => void;
+  const secondStarted = new Promise<void>((resolve) => { signalSecond = resolve; });
+  const connections = { profile: () => ({ name: "QA" }) } as unknown as ConstructorParameters<typeof SchemaJobService>[1];
+  const queries = {
+    execute: async () => {
+      executionCount += 1;
+      if (executionCount === 1) return { executionId: "one", durationMs: 1, items: [], truncated: false, totalCount: 0 };
+      signalSecond();
+      return new Promise((_resolve, reject) => { rejectActive = reject; });
+    },
+    cancel: async () => {
+      rejectActive?.(new Error("查询已停止"));
+      return true;
+    },
+    closeConsole: async () => undefined,
+  } as unknown as ConstructorParameters<typeof SchemaJobService>[2];
+  const service = new SchemaJobService(repository, connections, queries);
+
+  try {
+    const running = service.run({
+      connectionId: "connection-1",
+      indexName: "schema.json",
+      action: "IMPORT_SCHEMA",
+      query: "batch-1",
+      queries: ["batch-1", "batch-2", "batch-3"],
+    });
+    await secondStarted;
+    assert.equal(repository.list("connection-1")[0]?.message, "Running batch 2/3");
+    assert.equal(await service.cancel("connection-1"), true);
+    await assert.rejects(running, /stopped after 1\/3 batches/);
+    assert.equal(repository.list("connection-1")[0]?.status, "interrupted");
+    assert.equal(executionCount, 2);
   } finally {
     database.close();
     rmSync(directory, { recursive: true, force: true });

@@ -446,6 +446,10 @@
   width: min(100%, 520px);
 }
 
+.modal-card.modal-xwide {
+  width: min(100%, 1040px);
+}
+
 .modal-header {
   display: flex;
   align-items: center;
@@ -459,8 +463,67 @@
 
 .modal-header h2 {
   margin: 3px 0 0;
-  font-family: "Syne Variable", sans-serif;
+  font-family: var(--font-ui);
   font-size: var(--text-xl);
+}
+
+@media (max-width: 920px) {
+  .modal-layer {
+    padding: 18px;
+  }
+
+  .modal-card,
+  .modal-card.modal-narrow,
+  .modal-card.modal-xwide {
+    width: 100%;
+    max-height: calc(100dvh - 36px);
+  }
+
+  .modal-header {
+    min-height: 68px;
+    padding: 11px 13px 11px 18px;
+  }
+
+  .modal-card.modal-xwide .schema-import-workspace {
+    height: calc(100dvh - 104px);
+  }
+}
+
+@media (max-width: 640px) {
+  .modal-layer {
+    padding: 0;
+  }
+
+  .modal-card,
+  .modal-card.modal-narrow,
+  .modal-card.modal-xwide {
+    max-height: 100dvh;
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+  }
+
+  .modal-header {
+    min-height: 62px;
+    padding: 9px 10px 9px 14px;
+  }
+
+  .modal-header h2 {
+    font-size: var(--text-lg);
+  }
+
+  .modal-card.modal-xwide .schema-import-workspace {
+    height: calc(100dvh - 62px);
+  }
+
+  .schema-import-workspace > .schema-import-actions {
+    flex-wrap: wrap;
+    padding: 10px 12px;
+  }
+
+  .schema-import-workspace > .schema-import-actions .button {
+    flex: 1 1 auto;
+  }
 }
 
 .connection-form {
@@ -668,4 +731,3 @@
 .toast.info > svg {
   color: var(--blue);
 }
-

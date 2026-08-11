@@ -13,6 +13,8 @@ type ConnectionRow = {
   port: number;
   path: string;
   username: string;
+  environment: ConnectionProfile["environment"];
+  connection_read_only: number;
   client_mode: ConnectionProfile["clientMode"];
   traversal_source: string;
   graph_binding: string;
@@ -35,6 +37,8 @@ function toProfile(row: ConnectionRow): ConnectionProfile {
     port: row.port,
     path: row.path,
     username: row.username,
+    environment: row.environment ?? "dev",
+    connectionReadOnly: row.connection_read_only !== 0,
     clientMode: row.client_mode ?? "sessionless",
     traversalSource: row.traversal_source,
     graphBinding: row.graph_binding,
@@ -88,11 +92,11 @@ export class ConnectionRepository {
     this.database
       .prepare(`
         INSERT INTO connection_profiles (
-          id, name, protocol, host, port, path, username,
+          id, name, protocol, host, port, path, username, environment, connection_read_only,
           client_mode, traversal_source, graph_binding, connect_timeout_ms, query_timeout_ms,
           tls_reject_unauthorized, enable_compression, custom_headers,
           password_cipher, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           name = excluded.name,
           protocol = excluded.protocol,
@@ -100,6 +104,8 @@ export class ConnectionRepository {
           port = excluded.port,
           path = excluded.path,
           username = excluded.username,
+          environment = excluded.environment,
+          connection_read_only = excluded.connection_read_only,
           client_mode = excluded.client_mode,
           traversal_source = excluded.traversal_source,
           graph_binding = excluded.graph_binding,
@@ -119,6 +125,8 @@ export class ConnectionRepository {
         input.port,
         input.path,
         input.username,
+        input.environment,
+        input.connectionReadOnly ? 1 : 0,
         input.clientMode,
         input.traversalSource,
         input.graphBinding,

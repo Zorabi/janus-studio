@@ -5,8 +5,13 @@ import type {
 } from "@janusgraph/domain";
 import {
   AlertTriangle,
+  Boxes,
+  CheckCircle2,
+  ChevronRight,
   CircleDot,
   Database,
+  Download,
+  FileJson,
   GitBranch,
   History,
   KeyRound,
@@ -17,6 +22,8 @@ import {
   Save,
   Search,
   ShieldCheck,
+  TerminalSquare,
+  Upload,
   Waypoints,
 } from "lucide-react";
 import {
@@ -24,19 +31,42 @@ import {
   type ReactNode,
   useCallback,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { SelectControl } from "../../components/SelectControl";
-import { EmptyState, PageHeader } from "../../components/ui";
+import { ConfirmDialog, EmptyState, Modal, PageHeader } from "../../components/ui";
 import {
   schemaCatalogFromRows,
   schemaRowsFromItems,
 } from "../../lib/gremlin-completion";
 import { safeIdentifier, stringLiteral } from "../../lib/gremlin-identifiers";
 import { useTranslate } from "../../lib/i18n";
+import { dynamicGraphContext, type DynamicGraphContext } from "../../lib/dynamic-graph-context";
+import {
+  GRAPH_FACTORY_PROBE_QUERY,
+  GRAPH_FACTORY_QUERIES,
+  parseGraphFactoryState,
+  type ConfiguredGraphSummary,
+} from "../../lib/configured-graph-factory";
 import { errorMessage } from "../../lib/presentation";
+import {
+  BACKGROUND_SCHEMA_TASK_STORAGE_KEY,
+  findBackgroundSchemaJob,
+  parseBackgroundSchemaTask,
+  type BackgroundSchemaTask,
+} from "../../lib/schema-background-task";
+import {
+  createSchemaArchive,
+  formatSchemaArchiveTime,
+  parseSchemaArchive,
+  planSchemaImport,
+  type SchemaArchive,
+  type SchemaImportPlan,
+} from "../../lib/schema-files";
 import type { QueryState, ToastState } from "../query/query-workspace";
 import { SchemaHistory } from "./SchemaHistory";
+import { SchemaImportDialog } from "./SchemaImportDialog";
 
 function schemaOverviewScripts(connection: ConnectionSummary): Array<{
   label: string;
@@ -398,11 +428,21 @@ function IndexFields({
 
 export function SchemaPage({
   activeConnection,
+  connectionProfile,
+  graphContext,
   execute,
+  onGraphContextChange,
+  onOpenQueryContext,
+  onOpenGraphFactory,
   notify,
 }: {
   activeConnection: ConnectionSummary | undefined;
-  execute: (query: string) => Promise<QueryExecutionResult>;
+  connectionProfile: ConnectionSummary | undefined;
+  graphContext: DynamicGraphContext | null;
+  execute: (query: string, productionConfirmed?: boolean) => Promise<QueryExecutionResult>;
+  onGraphContextChange: (context: DynamicGraphContext | null) => void;
+  onOpenQueryContext: (context: DynamicGraphContext) => void;
+  onOpenGraphFactory: () => void;
   notify: (toast: ToastState) => void;
 }) {
   const t = useTranslate();
@@ -421,6 +461,46 @@ export function SchemaPage({
   const [schemaWarnings, setSchemaWarnings] = useState<string[]>([]);
   const [schemaDiff, setSchemaDiff] = useState<ReturnType<typeof compareSchemaRows> | null>(null);
   const [schemaJobs, setSchemaJobs] = useState<SchemaJob[]>([]);
+  const [schemaImport, setSchemaImport] = useState<{
+    fileName: string;
+    archive: SchemaArchive;
+    plan: SchemaImportPlan;
+  } | null>(null);
+  const [backgroundSchemaImport, setBackgroundSchemaImport] = useState<{
+    fileName: string;
+    archive: SchemaArchive;
+    plan: SchemaImportPlan;
+  } | null>(null);
+  const [backgroundSchemaTask, setBackgroundSchemaTask] = useState<BackgroundSchemaTask | null>(() =>
+    parseBackgroundSchemaTask(localStorage.getItem(BACKGROUND_SCHEMA_TASK_STORAGE_KEY)),
+  );
+  const schemaImportStartedAt = useRef("");
+  const [schemaImportFailure, setSchemaImportFailure] = useState<string | null>(null);
+  const [schemaTransferBusy, setSchemaTransferBusy] = useState<"import" | "export" | null>(null);
+  const [schemaCancelRequested, setSchemaCancelRequested] = useState(false);
+  const [schemaBatchIndex, setSchemaBatchIndex] = useState(0);
+  const [factoryGraphs, setFactoryGraphs] = useState<ConfiguredGraphSummary[]>([]);
+  const [factoryAvailable, setFactoryAvailable] = useState(false);
+  const [factoryGraphsLoading, setFactoryGraphsLoading] = useState(false);
+  const [pendingSchemaCreate, setPendingSchemaCreate] = useState<{
+    script: string;
+    form: HTMLFormElement;
+  } | null>(null);
+  const [pendingIndexAction, setPendingIndexAction] = useState<{
+    name: string;
+    action: string;
+  } | null>(null);
+  const schemaContextKey = activeConnection
+    ? graphContext
+      ? `${activeConnection.id}.${graphContext.traversalSource}`
+      : activeConnection.id
+    : "";
+
+  const rememberBackgroundSchemaTask = (task: BackgroundSchemaTask | null) => {
+    setBackgroundSchemaTask(task);
+    if (task) localStorage.setItem(BACKGROUND_SCHEMA_TASK_STORAGE_KEY, JSON.stringify(task));
+    else localStorage.removeItem(BACKGROUND_SCHEMA_TASK_STORAGE_KEY);
+  };
 
   const refreshJobs = useCallback(async () => {
     if (!window.janusGraphDesktop) {
@@ -429,6 +509,45 @@ export function SchemaPage({
     }
     setSchemaJobs(await window.janusGraphDesktop.schemaJobs.list());
   }, []);
+
+  const backgroundSchemaJob = findBackgroundSchemaJob(schemaJobs, backgroundSchemaTask);
+  const hasRunningSchemaImport = backgroundSchemaJob?.status === "running" || schemaJobs.some((job) =>
+    job.status === "running" &&
+    job.action === "IMPORT_SCHEMA" &&
+    job.connectionId === activeConnection?.id,
+  );
+
+  useEffect(() => {
+    if (!backgroundSchemaTask || backgroundSchemaTask.jobId || !backgroundSchemaJob) return;
+    rememberBackgroundSchemaTask({ ...backgroundSchemaTask, jobId: backgroundSchemaJob.id });
+  }, [backgroundSchemaJob?.id, backgroundSchemaTask?.jobId]);
+
+  useEffect(() => {
+    if (schemaTransferBusy !== "import" && !hasRunningSchemaImport) return;
+    void refreshJobs();
+    const interval = window.setInterval(() => { void refreshJobs(); }, 500);
+    return () => window.clearInterval(interval);
+  }, [schemaTransferBusy, hasRunningSchemaImport, refreshJobs]);
+
+  const refreshFactoryGraphs = useCallback(async () => {
+    if (!activeConnection) {
+      setFactoryGraphs([]);
+      setFactoryAvailable(false);
+      return;
+    }
+    setFactoryGraphsLoading(true);
+    try {
+      const result = await execute(GRAPH_FACTORY_PROBE_QUERY);
+      const factoryState = parseGraphFactoryState(result.items);
+      setFactoryGraphs(factoryState?.graphs ?? []);
+      setFactoryAvailable(Boolean(factoryState && (factoryState.graphs.length > 0 || factoryState.templateConfiguration)));
+    } catch {
+      setFactoryGraphs([]);
+      setFactoryAvailable(false);
+    } finally {
+      setFactoryGraphsLoading(false);
+    }
+  }, [activeConnection?.id, execute]);
 
   const refresh = useCallback(async () => {
     if (!activeConnection) return;
@@ -456,7 +575,7 @@ export function SchemaPage({
         totalCount: items.length,
       };
       localStorage.setItem(
-        `janusgraph.schemaCatalog.v1.${activeConnection.id}`,
+        `janusgraph.schemaCatalog.v1.${schemaContextKey}`,
         JSON.stringify(schemaCatalogFromRows(result.items)),
       );
       setSchemaWarnings(warnings);
@@ -467,16 +586,56 @@ export function SchemaPage({
     } catch (error) {
       setState({ status: "error", message: errorMessage(error) });
     }
-  }, [activeConnection, execute, t]);
+  }, [activeConnection, execute, schemaContextKey, t]);
 
   useEffect(() => {
     if (activeConnection) {
       void refresh();
     }
     void refreshJobs();
-  }, [activeConnection?.id]);
+    void refreshFactoryGraphs();
+  }, [schemaContextKey]);
 
-  const create = async (event: FormEvent<HTMLFormElement>) => {
+  const selectGraphContext = async (value: string) => {
+    if (!activeConnection || value === (graphContext?.name ?? "")) return;
+    if (!value) {
+      onGraphContextChange(null);
+      return;
+    }
+    const graph = factoryGraphs.find((candidate) => candidate.name === value);
+    if (!graph) return;
+    setFactoryGraphsLoading(true);
+    try {
+      await execute(GRAPH_FACTORY_QUERIES.openGraph.replaceAll("graphName", stringLiteral(graph.name)));
+      onGraphContextChange(dynamicGraphContext(activeConnection.id, graph));
+    } catch (error) {
+      notify({ tone: "error", message: errorMessage(error) });
+    } finally {
+      setFactoryGraphsLoading(false);
+    }
+  };
+
+  const executeSchemaCreate = async (
+    script: string,
+    form: HTMLFormElement,
+    productionConfirmed = false,
+  ) => {
+    setBusy(true);
+    try {
+      await execute(script, productionConfirmed);
+      form.reset();
+      setPropertyComposite(false);
+      setPropertyMixed(false);
+      setExistingIndexType("composite");
+      await refresh();
+    } catch (error) {
+      setState({ status: "error", message: errorMessage(error) });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const create = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!activeConnection) return;
     const form = event.currentTarget;
@@ -549,27 +708,19 @@ ${buildIndex}
 mgmt.commit()
 ${stringLiteral(`${indexType} index ${name} created`)}`;
     }
-    setBusy(true);
-    try {
-      await execute(script);
-      form.reset();
-      setPropertyComposite(false);
-      setPropertyMixed(false);
-      setExistingIndexType("composite");
-      await refresh();
-    } catch (error) {
-      setState({ status: "error", message: errorMessage(error) });
-    } finally {
-      setBusy(false);
+    if (activeConnection.environment === "prod") {
+      setPendingSchemaCreate({ script, form });
+      return;
     }
+    void executeSchemaCreate(script, form);
   };
 
-  const updateIndex = async (name: string, action: string) => {
+  const updateIndex = async (name: string, action: string, confirmed = false) => {
     if (!activeConnection) return;
-    if (action === "REMOVE_INDEX" && !window.confirm(t(
-      `确认永久删除索引 ${name}？只有已禁用索引才能删除。`,
-      `Permanently remove index ${name}? Only disabled indexes can be removed.`,
-    ))) return;
+    if (!confirmed && (action === "REMOVE_INDEX" || activeConnection.environment === "prod")) {
+      setPendingIndexAction({ name, action });
+      return;
+    }
     const graph = safeIdentifier(activeConnection.graphBinding);
     setIndexBusy(`${name}:${action}`);
     try {
@@ -586,6 +737,7 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
         indexName: name,
         action,
         query: lifecycleQuery,
+        productionConfirmed: activeConnection.environment === "prod" && confirmed,
       });
       notify({
         tone: "success",
@@ -604,6 +756,18 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
 
   const retrySchemaJob = async (job: SchemaJob) => {
     if (!window.janusGraphDesktop) return;
+    if (job.action === "IMPORT_SCHEMA") {
+      setSection("definitions");
+      notify({
+        tone: "info",
+        message: t(
+          "Schema 导入不会直接重放旧批次。请刷新目标 Schema 后重新选择文件，以当前状态生成幂等导入计划。",
+          "Schema imports do not replay stale batches. Refresh the target Schema and select the file again to generate an idempotent plan from current state.",
+        ),
+        dismissOnly: true,
+      });
+      return;
+    }
     setIndexBusy(`retry:${job.id}`);
     try {
       const completed = await window.janusGraphDesktop.schemaJobs.retry(job.id);
@@ -627,6 +791,7 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
     setIndexBusy(`dismiss:${job.id}`);
     try {
       await window.janusGraphDesktop.schemaJobs.dismiss(job.id);
+      if (backgroundSchemaJob?.id === job.id) rememberBackgroundSchemaTask(null);
       await refreshJobs();
     } catch (error) {
       setState({ status: "error", message: errorMessage(error) });
@@ -635,8 +800,8 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
     }
   };
 
-  const schemaSnapshotKey = activeConnection
-    ? `janusgraph.schemaSnapshot.v1.${activeConnection.id}`
+  const schemaSnapshotKey = schemaContextKey
+    ? `janusgraph.schemaSnapshot.v1.${schemaContextKey}`
     : "";
   const saveSchemaSnapshot = () => {
     if (!schemaSnapshotKey || state.status !== "success") return;
@@ -657,8 +822,152 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
     }
   };
 
+  const exportSchema = async () => {
+    if (!activeConnection || state.status !== "success" || !window.janusGraphDesktop) return;
+    setSchemaTransferBusy("export");
+    try {
+      const archive = createSchemaArchive(state.result.items, {
+        connectionName: activeConnection.name,
+        graphBinding: activeConnection.graphBinding,
+        traversalSource: activeConnection.traversalSource,
+      });
+      const safeName = (graphContext?.name ?? activeConnection.name).trim().replace(/[^\p{L}\p{N}._-]+/gu, "-") || "graph";
+      const path = await window.janusGraphDesktop.files.saveSchemaFile({
+        suggestedName: `${safeName}.schema.json`,
+        content: `${JSON.stringify(archive, null, 2)}\n`,
+      });
+      if (path) {
+        notify({
+          tone: "success",
+          message: t("Schema 已导出", "Schema exported"),
+        });
+      }
+    } catch (error) {
+      notify({ tone: "error", message: errorMessage(error) });
+    } finally {
+      setSchemaTransferBusy(null);
+    }
+  };
+
+  const selectSchemaImport = async () => {
+    if (!activeConnection || state.status !== "success" || !window.janusGraphDesktop) return;
+    setSchemaImportFailure(null);
+    setSchemaTransferBusy("import");
+    try {
+      const file = await window.janusGraphDesktop.files.pickSchemaFile();
+      if (!file) return;
+      const archive = parseSchemaArchive(file);
+      setSchemaImport({
+        fileName: file.name,
+        archive,
+        plan: planSchemaImport(
+          archive,
+          state.result.items,
+          activeConnection.graphBinding,
+          activeConnection.traversalSource,
+        ),
+      });
+      setBackgroundSchemaImport(null);
+      setSchemaBatchIndex(0);
+    } catch (error) {
+      notify({ tone: "error", message: errorMessage(error) });
+    } finally {
+      setSchemaTransferBusy(null);
+    }
+  };
+
+  const applySchemaImport = async () => {
+    if (!activeConnection || !schemaImport || !window.janusGraphDesktop) return;
+    if (schemaImport.plan.conflicts.length > 0 || !schemaImport.plan.script) return;
+    setSchemaTransferBusy("import");
+    setSchemaImportFailure(null);
+    setSchemaCancelRequested(false);
+    schemaImportStartedAt.current = new Date().toISOString();
+    try {
+      await window.janusGraphDesktop.schemaJobs.run({
+        connectionId: activeConnection.id,
+        indexName: schemaImport.fileName,
+        action: "IMPORT_SCHEMA",
+        query: schemaImport.plan.script,
+        queries: schemaImport.plan.scripts,
+        productionConfirmed: activeConnection.environment === "prod",
+      });
+      notify({
+        tone: "success",
+        message: `${t("Schema 导入并校验完成", "Schema import and verification completed")} · ${schemaImport.plan.operations.length} ${t("项定义已创建", "definitions created")} · ${schemaImport.plan.indexActivations.length} ${t("个索引已启用", "indexes enabled")}`,
+        dismissOnly: true,
+      });
+      setSchemaImport(null);
+      setBackgroundSchemaImport(null);
+      await refreshJobs();
+      await refresh();
+    } catch (error) {
+      const message = errorMessage(error);
+      notify({ tone: /stopped|停止/i.test(message) ? "info" : "error", message });
+      setSchemaImportFailure(message);
+      setBackgroundSchemaImport(null);
+      await refreshJobs().catch(() => undefined);
+      await refresh();
+    } finally {
+      setSchemaTransferBusy(null);
+      setSchemaCancelRequested(false);
+    }
+  };
+
+  const cancelSchemaImport = async () => {
+    if (!activeConnection || !window.janusGraphDesktop || schemaCancelRequested) return;
+    setSchemaCancelRequested(true);
+    try {
+      const cancelled = await window.janusGraphDesktop.schemaJobs.cancel(activeConnection.id);
+      if (!cancelled) setSchemaCancelRequested(false);
+    } catch (error) {
+      setSchemaCancelRequested(false);
+      notify({ tone: "error", message: errorMessage(error) });
+    }
+  };
+
+  const trackedSchemaImportName = schemaImport?.fileName ?? backgroundSchemaImport?.fileName;
+  const runningSchemaImport = schemaJobs.find((job) =>
+    job.status === "running" &&
+    job.action === "IMPORT_SCHEMA" &&
+    job.connectionId === activeConnection?.id &&
+    (!trackedSchemaImportName || job.indexName === trackedSchemaImportName),
+  );
+  const progressSchemaImport = backgroundSchemaJob?.status === "running" ? backgroundSchemaJob : runningSchemaImport;
+  const visibleBackgroundSchemaJob = backgroundSchemaJob ?? (!schemaImport ? runningSchemaImport : undefined);
+  const schemaProgressMatch = progressSchemaImport?.message.match(/(?:Running batch|Completed)\s+(\d+)\/(\d+)/i);
+  const schemaImportProgress = schemaProgressMatch
+    ? {
+        current: Number(schemaProgressMatch[1]),
+        total: Number(schemaProgressMatch[2]),
+        message: progressSchemaImport?.message ?? "",
+      }
+    : null;
+
+  const schemaDefinitionActions = (
+    <div className="schema-local-actions">
+      <button type="button" className="button text" onClick={() => void selectSchemaImport()} disabled={state.status !== "success" || schemaTransferBusy !== null}>
+        {schemaTransferBusy === "import" ? <LoaderCircle className="spin" size={16} /> : <Upload size={16} />}
+        {t("导入 Schema", "Import Schema")}
+      </button>
+      <button type="button" className="button text" onClick={() => void exportSchema()} disabled={state.status !== "success" || schemaTransferBusy !== null}>
+        {schemaTransferBusy === "export" ? <LoaderCircle className="spin" size={16} /> : <Download size={16} />}
+        {t("导出 Schema", "Export Schema")}
+      </button>
+      <button type="button" className="button text" onClick={saveSchemaSnapshot} disabled={state.status !== "success"}>
+        <Save size={16} />{t("保存快照", "Save snapshot")}
+      </button>
+      <button type="button" className="button text" onClick={compareSchemaSnapshot} disabled={state.status !== "success"}>
+        <GitBranch size={16} />{t("比较快照", "Compare snapshot")}
+      </button>
+      <button type="button" className="button secondary" onClick={refresh} disabled={!activeConnection || state.status === "loading"}>
+        <RefreshCw className={state.status === "loading" ? "spin" : ""} size={17} />{t("刷新 Schema")}
+      </button>
+    </div>
+  );
+
   return (
-    <div className="page-scroll">
+    <div className="page-scroll schema-page">
       <PageHeader
         eyebrow="JANUSGRAPH MANAGEMENT"
         title={t("Schema 管理")}
@@ -674,36 +983,66 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
               )
         }
         actions={
-          section === "definitions" ? (
-            <div className="schema-header-actions">
-              <button type="button" className="button text" onClick={saveSchemaSnapshot} disabled={state.status !== "success"}>
-                <Save size={16} />
-                {t("保存快照", "Save snapshot")}
-              </button>
-              <button type="button" className="button text" onClick={compareSchemaSnapshot} disabled={state.status !== "success"}>
-                <GitBranch size={16} />
-                {t("比较快照", "Compare snapshot")}
-              </button>
-              <button
-                type="button"
-                className="button secondary"
-                onClick={refresh}
-                disabled={!activeConnection || state.status === "loading"}
-              >
-                <RefreshCw className={state.status === "loading" ? "spin" : ""} size={17} />
-                {t("刷新 Schema")}
-              </button>
-            </div>
-          ) : (
+          section === "history" ? (
             <button type="button" className="button secondary" onClick={() => void refreshJobs()}>
               <RefreshCw size={17} />
               {t("刷新", "Refresh")}
             </button>
-          )
+          ) : undefined
         }
       />
-      <nav className="schema-section-tabs" aria-label={t("Schema 页面", "Schema pages")}>
-        <button
+      {activeConnection && (
+        <section className={`schema-context-strip ${graphContext ? "is-dynamic" : ""}`} aria-label={t("Schema 图上下文", "Schema graph context")}>
+          <div className="schema-context-node">
+            <span><Database size={16} /></span>
+            <div><small>{t("连接", "Connection")}</small><strong>{activeConnection.name}</strong></div>
+          </div>
+          <ChevronRight className="schema-context-arrow" size={18} />
+          <div className="schema-context-node is-graph">
+            <span>{graphContext ? <Boxes size={16} /> : <Layers3 size={16} />}</span>
+            <div className={factoryAvailable || graphContext ? "schema-context-graph-picker" : ""}>
+              <small>{graphContext ? t("动态图", "Dynamic graph") : t("连接默认图", "Connection default graph")}</small>
+              {factoryAvailable || graphContext ? (
+                <SelectControl
+                  value={graphContext?.name ?? ""}
+                  ariaLabel={t("切换 Schema 图", "Switch Schema graph")}
+                  disabled={factoryGraphsLoading}
+                  onValueChange={(value) => void selectGraphContext(value)}
+                  options={[
+                    { value: "", label: t("连接默认图", "Connection default graph"), description: connectionProfile?.graphBinding ?? activeConnection.graphBinding },
+                    ...factoryGraphs.map((graph) => ({ value: graph.name, label: graph.name, description: graph.traversalSource })),
+                  ]}
+                />
+              ) : <strong>{activeConnection.graphBinding}</strong>}
+            </div>
+          </div>
+          <div className="schema-context-bindings">
+            <code>{activeConnection.graphBinding}</code>
+            <span>g →</span>
+            <code>{activeConnection.traversalSource}</code>
+          </div>
+          <div className="schema-context-actions">
+            {graphContext && (
+              <button type="button" className="button text" onClick={() => onOpenQueryContext(graphContext)}>
+                <TerminalSquare size={15} />{t("在查询中打开", "Open in query")}
+              </button>
+            )}
+            {(factoryAvailable || graphContext) && (
+              <button type="button" className="button text" onClick={onOpenGraphFactory}>
+                <Boxes size={15} />{t("动态图管理", "Dynamic graphs")}
+              </button>
+            )}
+            {graphContext && (
+              <button type="button" className="button secondary" onClick={() => onGraphContextChange(null)}>
+                {t("返回连接默认图", "Use connection default")}
+              </button>
+            )}
+          </div>
+        </section>
+      )}
+      <div className="schema-section-toolbar">
+        <nav className="schema-section-tabs" aria-label={t("Schema 页面", "Schema pages")}>
+          <button
           type="button"
           className={section === "definitions" ? "is-active" : ""}
           aria-current={section === "definitions" ? "page" : undefined}
@@ -711,8 +1050,8 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
         >
           <Layers3 size={17} />
           {t("Schema 定义", "Schema definitions")}
-        </button>
-        <button
+          </button>
+          <button
           type="button"
           className={section === "history" ? "is-active" : ""}
           aria-current={section === "history" ? "page" : undefined}
@@ -721,8 +1060,55 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
           <History size={17} />
           {t("操作历史", "Operation history")}
           {schemaJobs.length > 0 && <span>{schemaJobs.length}</span>}
-        </button>
-      </nav>
+          </button>
+        </nav>
+        {section === "definitions" && schemaDefinitionActions}
+      </div>
+      {!schemaImport && visibleBackgroundSchemaJob && (
+        <section className={`schema-background-import is-${visibleBackgroundSchemaJob.status}`} role={visibleBackgroundSchemaJob.status === "failed" ? "alert" : "status"} aria-live="polite">
+          {visibleBackgroundSchemaJob.status === "running"
+            ? <LoaderCircle className="spin" size={18} />
+            : visibleBackgroundSchemaJob.status === "succeeded"
+              ? <CheckCircle2 size={18} />
+              : <AlertTriangle size={18} />}
+          <div>
+            <strong>{visibleBackgroundSchemaJob.status === "running"
+              ? t("Schema 正在后台导入", "Schema import is running in the background")
+              : visibleBackgroundSchemaJob.status === "succeeded"
+                ? t("Schema 后台导入成功", "Background Schema import succeeded")
+                : visibleBackgroundSchemaJob.status === "interrupted"
+                  ? t("Schema 后台导入已中断", "Background Schema import was interrupted")
+                  : t("Schema 后台导入失败", "Background Schema import failed")}</strong>
+            <small>{visibleBackgroundSchemaJob.indexName}{visibleBackgroundSchemaJob.message ? ` · ${visibleBackgroundSchemaJob.message}` : ""}{schemaImportProgress ? ` · ${schemaImportProgress.current} / ${schemaImportProgress.total}` : ""}</small>
+            {visibleBackgroundSchemaJob.status === "running" && <progress value={schemaImportProgress?.current ?? 0} max={schemaImportProgress?.total ?? 1} />}
+          </div>
+          {visibleBackgroundSchemaJob.status === "running" ? (
+            <>
+              <button type="button" className="button text" onClick={() => {
+                if (backgroundSchemaImport) {
+                  setSchemaImport(backgroundSchemaImport);
+                  setBackgroundSchemaImport(null);
+                } else setSection("history");
+              }}>
+                <FileJson size={16} />{backgroundSchemaImport ? t("查看进度", "View progress") : t("查看任务", "View job")}
+              </button>
+              <button type="button" className="button secondary" disabled={schemaCancelRequested} onClick={() => void cancelSchemaImport()}>
+                {schemaCancelRequested ? <LoaderCircle className="spin" size={16} /> : <CircleDot size={16} />}
+                {schemaCancelRequested ? t("正在停止…", "Stopping…") : t("停止导入", "Stop import")}
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" className="button text" onClick={() => { setSection("history"); rememberBackgroundSchemaTask(null); }}>
+                <History size={16} />{t("查看操作历史", "View operation history")}
+              </button>
+              <button type="button" className="button secondary" onClick={() => rememberBackgroundSchemaTask(null)}>
+                <CheckCircle2 size={16} />{t("知道了", "Dismiss")}
+              </button>
+            </>
+          )}
+        </section>
+      )}
       {section === "history" ? (
         <SchemaHistory
           jobs={schemaJobs}
@@ -745,9 +1131,9 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
             <header className="surface-header">
               <div>
                 <span className="eyebrow">CURRENT SCHEMA</span>
-                <strong>{activeConnection.name}</strong>
+                <strong>{graphContext?.name ?? activeConnection.name}</strong>
                 <small className="schema-binding">
-                  Management: {activeConnection.graphBinding} · g →{" "}
+                  {graphContext && <>{activeConnection.name} · </>}Management: {activeConnection.graphBinding} · g →{" "}
                   {activeConnection.traversalSource}
                 </small>
               </div>
@@ -1060,6 +1446,249 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
             </form>
           </section>
         </div>
+      )}
+      {schemaImport && (
+        <SchemaImportDialog
+          activeConnection={activeConnection}
+          graphContext={graphContext}
+          value={schemaImport}
+          busy={schemaTransferBusy === "import"}
+          cancelRequested={schemaCancelRequested}
+          failureMessage={schemaImportFailure}
+          progress={schemaImportProgress}
+          onClose={() => setSchemaImport(null)}
+          onBackground={() => {
+            setBackgroundSchemaImport(schemaImport);
+            setSchemaImport(null);
+            if (activeConnection) {
+              rememberBackgroundSchemaTask({
+                connectionId: activeConnection.id,
+                fileName: schemaImport.fileName,
+                startedAt: schemaImportStartedAt.current || new Date().toISOString(),
+                jobId: runningSchemaImport?.id,
+              });
+            }
+          }}
+          onCancel={() => void cancelSchemaImport()}
+          onRegenerate={() => void selectSchemaImport()}
+          onApply={() => void applySchemaImport()}
+        />
+      )}
+      {false && ((schemaImport, activeConnection, graphContext) => (
+        <Modal
+          eyebrow="SCHEMA IMPORT PLAN"
+          title={t("审阅 Schema 导入计划", "Review Schema Import Plan")}
+          onClose={() => {
+            if (!schemaTransferBusy) setSchemaImport(null);
+          }}
+          width="xwide"
+        >
+          <div className="schema-import-dialog">
+            <div className="schema-import-source">
+              <FileJson size={22} />
+              <div>
+                <strong>{schemaImport.fileName}</strong>
+                <small>
+                  {t("来源", "Source")}: {schemaImport.archive.source.connectionName} · {formatSchemaArchiveTime(schemaImport.archive.exportedAt)}
+                </small>
+              </div>
+              <span>{schemaImport.archive.format}</span>
+            </div>
+            <div className={`schema-import-target ${activeConnection?.environment === "prod" ? "is-production" : ""}`}>
+              {activeConnection?.environment === "prod" ? <AlertTriangle size={18} /> : <Database size={18} />}
+              <div>
+                <span>{t("目标图连接", "Target graph connection")}</span>
+                <strong>{activeConnection
+                  ? graphContext
+                    ? `${activeConnection.name} / ${graphContext.name}`
+                    : activeConnection.name
+                  : t("未选择连接", "No connection selected")}</strong>
+              </div>
+              {activeConnection?.environment === "prod" && (
+                <small>{t(
+                  "这是生产连接。确认导入即表示允许执行下方已审阅的 Schema 写入计划。",
+                  "This is a production connection. Confirming the import authorizes the reviewed schema write plan below.",
+                )}</small>
+              )}
+            </div>
+            <div className="schema-import-stats">
+              <article className="is-create">
+                <strong>{schemaImport.plan.operations.length}</strong>
+                <span>{t("待创建", "To create")}</span>
+              </article>
+              <article className="is-skip">
+                <strong>{schemaImport.plan.skipped.length}</strong>
+                <span>{t("相同并跳过", "Matching and skipped")}</span>
+              </article>
+              <article className="is-activate">
+                <strong>{schemaImport.plan.indexActivations.length}</strong>
+                <span>{t("待启用索引", "Indexes to enable")}</span>
+              </article>
+              <article className="is-conflict">
+                <strong>{schemaImport.plan.conflicts.length}</strong>
+                <span>{t("冲突", "Conflicts")}</span>
+              </article>
+            </div>
+            <div className="schema-import-notice">
+              <ShieldCheck size={18} />
+              <div>
+                <strong>{t("安全的增量导入", "Safe additive import")}</strong>
+                <small>{t(
+                  `只创建目标图中缺少的定义；不会删除或覆盖已有 Schema。将按依赖顺序执行 ${schemaImport.plan.scripts.length} 个小批次，每批提交后立即回读校验。导入期间可以请求停止，已提交批次会保留。`,
+                  `Only missing definitions are created; existing schema is never deleted or overwritten. ${schemaImport.plan.scripts.length} dependency-ordered batches are verified after each commit. You can request a stop during import; committed batches are retained.`,
+                )}</small>
+              </div>
+            </div>
+            {schemaImport.plan.indexActivations.length > 0 && (
+              <div className="schema-import-index-note">
+                <AlertTriangle size={18} />
+                <div>
+                  <strong>{t("索引将自动完成生命周期", "Index lifecycle is automated")}</strong>
+                  <small>{t(
+                    "定义创建后会依次执行 REGISTER_INDEX 与 REINDEX，并回读确认所有字段达到 ENABLED。重建已有数据索引可能耗时较长。",
+                    "After definitions are created, REGISTER_INDEX and REINDEX run in sequence and all fields are verified as ENABLED. Reindexing existing data can take time.",
+                  )}</small>
+                </div>
+              </div>
+            )}
+            {schemaImport.plan.conflicts.length > 0 && (
+              <section className="schema-import-conflicts" role="alert">
+                <header>
+                  <AlertTriangle size={17} />
+                  <strong>{t("必须先解决冲突", "Resolve conflicts before importing")}</strong>
+                </header>
+                {schemaImport.plan.conflicts.map((conflict) => (
+                  <div key={`${conflict.key}:${conflict.reason}`}>
+                    <code>{conflict.key}</code>
+                    <span>{conflict.reason}</span>
+                  </div>
+                ))}
+              </section>
+            )}
+            <section className="schema-import-operations">
+              <header>
+                <strong>{t("变更清单", "Change set")}</strong>
+                <span>{schemaImport.plan.operations.length + schemaImport.plan.indexActivations.length}</span>
+              </header>
+              {schemaImport.plan.operations.length + schemaImport.plan.indexActivations.length > 0 ? (
+                <div>
+                  {schemaImport.plan.operations.map((item) => (
+                    <article key={`${item.group}:${item.name}`}>
+                      <CheckCircle2 size={15} />
+                      <span>{item.summary}</span>
+                      <code>{item.group}</code>
+                    </article>
+                  ))}
+                  {schemaImport.plan.indexActivations.map((name) => (
+                    <article key={`activate:${name}`}>
+                      <RefreshCw size={15} />
+                      <span>{t(`启用 Graph Index · ${name}`, `Enable Graph Index · ${name}`)}</span>
+                      <code>REGISTER → REINDEX</code>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <p>{t("目标图已经包含归档中的全部定义。", "The target graph already contains every archived definition.")}</p>
+              )}
+            </section>
+            {schemaImport.plan.script && (
+              <details className="schema-import-script">
+                <summary>{t(
+                  `查看 ${schemaImport.plan.scripts.length} 个 Gremlin 批次`,
+                  `Inspect ${schemaImport.plan.scripts.length} Gremlin batches`,
+                )}</summary>
+                <div className="schema-import-batch-list">
+                  <nav aria-label={t("Gremlin 批次", "Gremlin batches")}>
+                    {schemaImport.plan.scripts.map((_script, index) => (
+                      <button
+                        type="button"
+                        key={`schema-import-batch-${index + 1}`}
+                        className={schemaBatchIndex === index ? "is-active" : ""}
+                        aria-current={schemaBatchIndex === index ? "true" : undefined}
+                        onClick={() => setSchemaBatchIndex(index)}
+                      >
+                        <span>{String(index + 1).padStart(2, "0")}</span>
+                        {t(`批次 ${index + 1}`, `Batch ${index + 1}`)}
+                      </button>
+                    ))}
+                  </nav>
+                  <pre>{schemaImport.plan.scripts[schemaBatchIndex] ?? ""}</pre>
+                </div>
+              </details>
+            )}
+            <footer className="schema-import-actions">
+              <button
+                type="button"
+                className="button secondary"
+                disabled={schemaCancelRequested}
+                onClick={() => schemaTransferBusy === "import" ? void cancelSchemaImport() : setSchemaImport(null)}
+              >
+                {schemaCancelRequested && <LoaderCircle className="spin" size={17} />}
+                {schemaTransferBusy === "import"
+                  ? schemaCancelRequested ? t("正在停止…", "Stopping…") : t("停止导入", "Stop import")
+                  : t("取消", "Cancel")}
+              </button>
+              <button
+                type="button"
+                className="button primary"
+                disabled={
+                  schemaTransferBusy !== null ||
+                  schemaImport.plan.conflicts.length > 0 ||
+                  !schemaImport.plan.script
+                }
+                onClick={() => void applySchemaImport()}
+              >
+                {schemaTransferBusy === "import" ? <LoaderCircle className="spin" size={17} /> : <Upload size={17} />}
+                {t("确认并导入", "Confirm and Import")}
+              </button>
+            </footer>
+          </div>
+        </Modal>
+      ))(schemaImport!, activeConnection!, graphContext!)}
+      {pendingSchemaCreate && activeConnection && (
+        <ConfirmDialog
+          title={t("确认生产环境 Schema 变更", "Confirm Production Schema Change")}
+          description={`${t("生产连接", "Production connection")} “${activeConnection.name}”. ${t(
+            "即将创建新的 Schema 定义；请再次确认目标连接和表单内容均正确。",
+            "A new schema definition will be created. Verify the target connection and form values before continuing.",
+          )}`}
+          confirmLabel={t("确认创建", "Confirm Creation")}
+          confirmIcon={<AlertTriangle size={17} />}
+          onCancel={() => setPendingSchemaCreate(null)}
+          onConfirm={async () => {
+            const pending = pendingSchemaCreate;
+            setPendingSchemaCreate(null);
+            await executeSchemaCreate(pending.script, pending.form, true);
+          }}
+        />
+      )}
+      {pendingIndexAction && activeConnection && (
+        <ConfirmDialog
+          title={
+            pendingIndexAction.action === "REMOVE_INDEX"
+              ? t("确认永久删除索引", "Confirm Permanent Index Removal")
+              : t("确认生产环境索引操作", "Confirm Production Index Operation")
+          }
+          description={
+            pendingIndexAction.action === "REMOVE_INDEX"
+              ? `${t("索引", "Index")} “${pendingIndexAction.name}” · ${t(
+                  "此操作不可撤销，而且只有已禁用的索引才能删除。",
+                  "This action cannot be undone, and only a disabled index can be removed.",
+                )}`
+              : `${t("生产连接", "Production connection")} “${activeConnection.name}” · ${pendingIndexAction.name} · ${pendingIndexAction.action}. ${t(
+                  "索引生命周期操作可能持续较长时间并影响线上查询。",
+                  "Index lifecycle operations can be long-running and may affect production queries.",
+                )}`
+          }
+          confirmLabel={t("确认执行", "Confirm Operation")}
+          confirmIcon={<AlertTriangle size={17} />}
+          onCancel={() => setPendingIndexAction(null)}
+          onConfirm={async () => {
+            const pending = pendingIndexAction;
+            setPendingIndexAction(null);
+            await updateIndex(pending.name, pending.action, true);
+          }}
+        />
       )}
     </div>
   );

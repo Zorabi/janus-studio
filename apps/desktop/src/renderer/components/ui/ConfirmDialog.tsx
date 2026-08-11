@@ -1,5 +1,5 @@
 import { AlertTriangle, LoaderCircle, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { useTranslate } from "../../lib/i18n";
 import { Modal } from "./Modal";
 
@@ -7,6 +7,7 @@ export interface ConfirmDialogProps {
   title: string;
   description: string;
   confirmLabel: string;
+  confirmIcon?: ReactNode;
   onCancel: () => void;
   onConfirm: () => void | Promise<void>;
 }
@@ -15,6 +16,7 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel,
+  confirmIcon,
   onCancel,
   onConfirm,
 }: ConfirmDialogProps) {
@@ -41,7 +43,7 @@ export function ConfirmDialog({
             setBusy(false);
           }}
         >
-          {busy ? <LoaderCircle className="spin" size={17} /> : <Trash2 size={17} />}
+          {busy ? <LoaderCircle className="spin" size={17} /> : confirmIcon ?? <Trash2 size={17} />}
           {confirmLabel}
         </button>
       </footer>

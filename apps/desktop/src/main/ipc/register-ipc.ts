@@ -1,4 +1,4 @@
-import { ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from "electron";
+import { clipboard, ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from "electron";
 import { ConnectionService } from "../services/connection-service";
 import { FileService } from "../services/file-service";
 import { QueryService } from "../services/query-service";
@@ -8,8 +8,9 @@ import { SchemaJobService } from "../services/schema-job-service";
 import {
   connectionIdSchema,
   connectionInputSchema,
+  clipboardTextSchema,
   historyIdSchema,
-  historyLimitSchema,
+  historyListSchema,
   queryCancelSchema,
   queryConsoleSchema,
   queryRequestSchema,
@@ -18,6 +19,7 @@ import {
   saveGraphFileSchema,
   saveResultFileSchema,
   saveQueryFileSchema,
+  saveSchemaFileSchema,
   runSchemaJobSchema,
   schemaJobIdSchema,
 } from "./schemas";
@@ -50,6 +52,11 @@ export function registerIpcHandlers({
   ipcMain.handle("runtime:platform", (event) => {
     assertTrustedSender(event, window);
     return process.platform;
+  });
+
+  ipcMain.handle("runtime:write-clipboard", (event, rawText: unknown) => {
+    assertTrustedSender(event, window);
+    clipboard.writeText(clipboardTextSchema.parse(rawText));
   });
 
   ipcMain.handle("connections:list", (event) => {
@@ -94,9 +101,9 @@ export function registerIpcHandlers({
     await queryService.closeConsole(request.connectionId, request.consoleId);
   });
 
-  ipcMain.handle("history:list", (event, rawLimit: unknown) => {
+  ipcMain.handle("history:list", (event, rawInput: unknown) => {
     assertTrustedSender(event, window);
-    return historyRepository.list(historyLimitSchema.parse(rawLimit) ?? 200);
+    return historyRepository.list(historyListSchema.parse(rawInput) ?? 200);
   });
 
   ipcMain.handle("history:remove", (event, rawId: unknown) => {
@@ -139,6 +146,16 @@ export function registerIpcHandlers({
     return fileService.saveQueryFile(saveQueryFileSchema.parse(rawInput));
   });
 
+  ipcMain.handle("files:pick-schema", async (event) => {
+    assertTrustedSender(event, window);
+    return fileService.pickSchemaFile();
+  });
+
+  ipcMain.handle("files:save-schema", async (event, rawInput: unknown) => {
+    assertTrustedSender(event, window);
+    return fileService.saveSchemaFile(saveSchemaFileSchema.parse(rawInput));
+  });
+
   ipcMain.handle("security:status", async (event) => {
     assertTrustedSender(event, window);
     return credentialVault.status();
@@ -153,6 +170,11 @@ export function registerIpcHandlers({
   ipcMain.handle("schema-jobs:run", async (event, rawInput: unknown) => {
     assertTrustedSender(event, window);
     return schemaJobService.run(runSchemaJobSchema.parse(rawInput));
+  });
+
+  ipcMain.handle("schema-jobs:cancel", async (event, rawConnectionId: unknown) => {
+    assertTrustedSender(event, window);
+    return schemaJobService.cancel(connectionIdSchema.parse(rawConnectionId));
   });
 
   ipcMain.handle("schema-jobs:retry", async (event, rawId: unknown) => {

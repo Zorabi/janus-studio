@@ -39,8 +39,8 @@ one native desktop application.
   grid layouts; inspect element properties; save layouts; and export PNG, JPG,
   SVG, or JSON.
 - **Schema and data tools** — Browse and manage labels, property keys, composite
-  and mixed indexes, schema snapshots, whole-graph archives, and query-result
-  exports.
+  and mixed indexes, schema snapshots and diffs, safe additive schema
+  imports/exports, whole-graph archives, and query-result exports.
 - **Desktop-first experience** — Restore workspaces across restarts, search
   SQLite-backed history, choose from 14 interface languages, and customize
   themes, fonts, density, graph rendering, and shortcuts.
@@ -131,11 +131,24 @@ apps/desktop/
   src/preload/          Secure renderer API bridge
   src/renderer/         React UI, Gremlin editor, graph canvas, and settings
 packages/domain/        Domain models and desktop API contracts
-packages/application/   Connection, query, and storage application logic
+packages/application/   Framework-independent application rules and transforms
 tests/                  Unit, integration, compatibility, and packaged-app tests
 docs/                   Architecture and release documentation
 design-system/          Visual system and page-specific rules
 ```
+
+The three workspace packages are layers of one product, not separate apps:
+
+- `@janusgraph/domain` defines framework-independent models and the shared
+  desktop API contract.
+- `@janusgraph/application` contains reusable, testable application rules and
+  depends only on `domain`.
+- `@janusgraph/desktop` is the Electron application and depends on both inner
+  layers.
+
+Dependencies point inward: `domain ← application ← desktop`. See the
+[contributing guide](CONTRIBUTING.md#why-there-are-three-workspaces) for package
+boundaries and examples of where changes belong.
 
 The workspace uses Electron Forge, Vite, React, TypeScript, Monaco Editor,
 Lucide, the official Gremlin JavaScript driver, and SQLite-backed local storage.
@@ -168,18 +181,14 @@ current credential format.
 - [Design system](design-system/janusgraph-desktop/MASTER.md)
 - [Workbench design rules](design-system/janusgraph-desktop/pages/workbench.md)
 - [Release, signing, and updates (Chinese)](docs/发布与签名.md)
+- [Contributing guide](CONTRIBUTING.md)
 
 ## Contributing
 
-Issues and pull requests are welcome. Before submitting a change:
-
-1. Keep user-visible strings in the i18n catalogs and run `pnpm i18n:generate`.
-2. Add unit coverage for new pure logic.
-3. Run `pnpm typecheck` and the relevant tests.
-4. Run `pnpm build` when the change can affect the packaged application.
-
-Please keep changes focused and do not commit credentials, certificates, local
-databases, or generated release artifacts.
+Issues and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for
+workspace boundaries, development workflow, project invariants, verification,
+commit style, and the pull request checklist. A
+[Simplified Chinese version](CONTRIBUTING.zh-CN.md) is also available.
 
 ## License
 
