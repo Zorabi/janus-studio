@@ -53,6 +53,7 @@ export type QueryRequest = {
   bindings?: Record<string, unknown>;
   recordHistory?: boolean;
   productionConfirmed?: boolean;
+  timeoutMs?: number;
 };
 
 export type QueryCancelRequest = {
@@ -126,6 +127,28 @@ export type SaveDataFileInput = {
   suggestedName: string;
   format: "json" | "jsonl" | "csv";
   content: string;
+};
+
+export type DockerContainerInfo = {
+  id: string;
+  name: string;
+  image: string;
+  status: string;
+};
+
+export type DockerRuntimeStatus = {
+  available: boolean;
+  containers: DockerContainerInfo[];
+  cliPath?: string;
+  message?: string;
+};
+
+export type DockerTransferTarget = {
+  transferId: string;
+  containerId: string;
+  serverPath: string;
+  name: string;
+  sizeBytes?: number;
 };
 
 export type SaveResultFileInput = {
@@ -225,6 +248,13 @@ export type DesktopApi = {
     saveQueryFile(input: SaveQueryFileInput): Promise<string | null>;
     pickSchemaFile(): Promise<PickedSchemaFile | null>;
     saveSchemaFile(input: SaveSchemaFileInput): Promise<string | null>;
+  };
+  dataTransfers: {
+    dockerStatus(): Promise<DockerRuntimeStatus>;
+    stageDockerImport(containerId: string): Promise<DockerTransferTarget | null>;
+    prepareDockerExport(containerId: string): Promise<DockerTransferTarget>;
+    finishDockerExport(transferId: string, suggestedName: string): Promise<string | null>;
+    cleanupDockerTransfer(transferId: string): Promise<boolean>;
   };
   security: {
     status(): Promise<SecurityStorageStatus>;

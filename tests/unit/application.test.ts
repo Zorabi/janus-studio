@@ -74,6 +74,8 @@ test("detects data and schema mutations without blocking transaction cleanup or 
     false,
   );
   assert.equal(isMutationQuery("mgmt.forceCloseInstance(instanceId); mgmt.commit()"), true);
+  assert.equal(isMutationQuery("graph.io(graphson()).readGraph(serverPath)"), true);
+  assert.equal(isMutationQuery("graph.io(graphson()).writeGraph(serverPath)"), false);
 });
 
 test("normalizes terminal Profile and Explain queries to Gremlin Console text", () => {

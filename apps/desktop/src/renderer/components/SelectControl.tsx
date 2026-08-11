@@ -23,6 +23,7 @@ export function SelectControl({
   ariaLabel,
   disabled = false,
   className = "",
+  popoverClassName = "",
 }: {
   name?: string;
   value?: string;
@@ -32,6 +33,7 @@ export function SelectControl({
   ariaLabel: string;
   disabled?: boolean;
   className?: string;
+  popoverClassName?: string;
 }) {
   const listId = useId();
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -62,12 +64,13 @@ export function SelectControl({
     const availableAbove = rect.top - 12;
     const maxHeight = Math.min(340, Math.max(160, Math.max(availableBelow, availableAbove)));
     const useAbove = availableBelow < 220 && availableAbove > availableBelow;
+    const width = Math.min(Math.max(rect.width, 260), Math.max(220, window.innerWidth - 24));
     setPosition({
-      left: Math.min(rect.left, window.innerWidth - Math.max(rect.width, 260) - 12),
+      left: Math.max(12, Math.min(rect.left, window.innerWidth - width - 12)),
       top: useAbove
         ? Math.max(12, rect.top - maxHeight - 8)
         : Math.min(window.innerHeight - maxHeight - 12, rect.bottom + 8),
-      width: Math.max(rect.width, 260),
+      width,
       maxHeight,
     });
   };
@@ -168,7 +171,7 @@ export function SelectControl({
           <div
             id={listId}
             data-select-list={listId}
-            className="select-popover"
+            className={`select-popover ${popoverClassName}`}
             role="listbox"
             tabIndex={-1}
             aria-label={ariaLabel}

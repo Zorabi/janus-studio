@@ -38,6 +38,7 @@ export type QueryTabState = {
   selection: Selection;
   bindingsText: string;
   bindingsEnabled: boolean;
+  timeoutMsOverride: number;
   readOnly: boolean;
   scriptName: string;
   savedContent: string;
@@ -77,6 +78,7 @@ type PersistedQueryWorkspace = {
       | "mode"
       | "bindingsText"
       | "bindingsEnabled"
+      | "timeoutMsOverride"
       | "readOnly"
       | "scriptName"
       | "savedContent"
@@ -102,6 +104,7 @@ export function createQueryTab(
     selection: null,
     bindingsText: "{}",
     bindingsEnabled: false,
+    timeoutMsOverride: 0,
     readOnly: false,
     scriptName: "",
     savedContent: "",
@@ -201,6 +204,13 @@ export function loadQueryWorkspace(
             ? candidate.bindingsText.slice(0, 1_000_000)
             : "{}",
         bindingsEnabled: candidate.bindingsEnabled === true,
+        timeoutMsOverride:
+          typeof candidate.timeoutMsOverride === "number"
+          && Number.isInteger(candidate.timeoutMsOverride)
+          && candidate.timeoutMsOverride >= 500
+          && candidate.timeoutMsOverride <= 86_400_000
+            ? candidate.timeoutMsOverride
+            : 0,
         readOnly: candidate.readOnly === true,
         scriptName:
           typeof candidate.scriptName === "string"
@@ -251,6 +261,7 @@ export function saveQueryWorkspace(
       mode,
       bindingsText,
       bindingsEnabled,
+      timeoutMsOverride,
       readOnly,
       scriptName,
       savedContent,
@@ -264,6 +275,7 @@ export function saveQueryWorkspace(
       mode,
       bindingsText,
       bindingsEnabled,
+      timeoutMsOverride,
       readOnly,
       scriptName,
       savedContent,

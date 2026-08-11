@@ -456,7 +456,7 @@ export default function App() {
       recordHistory = true,
       executionId = crypto.randomUUID(),
       productionConfirmed = false,
-      traversalSource?: string,
+      traversalSource?: string, timeoutMs?: number,
     ): Promise<QueryExecutionResult> => {
       if (!window.janusGraphDesktop) throw new Error("桌面 API 未加载");
       if (!connectionId) throw new Error("请先选择连接");
@@ -485,7 +485,7 @@ export default function App() {
         traversalSource,
         bindings,
         recordHistory,
-        productionConfirmed,
+        productionConfirmed, timeoutMs,
       });
       if (recordHistory) void loadHistory();
       return response;
@@ -550,14 +550,10 @@ export default function App() {
     });
     try {
       const response = await executeFor(
-        connection.id,
-        tab.id,
-        queryToExecute,
-        bindings,
-        true,
-        executionId,
-        productionConfirmed,
+        connection.id, tab.id, queryToExecute, bindings, true,
+        executionId, productionConfirmed,
         tab.traversalSourceOverride || undefined,
+        tab.timeoutMsOverride || undefined,
       );
       const graph = buildGraphModel(response.items);
       const preferred = settings.defaultResultMode;
@@ -905,6 +901,8 @@ export default function App() {
             setBindingsText={(bindingsText) => updateQueryTab(activeQueryTab.id, { bindingsText })}
             bindingsEnabled={activeQueryTab.bindingsEnabled}
             setBindingsEnabled={(bindingsEnabled) => updateQueryTab(activeQueryTab.id, { bindingsEnabled })}
+            timeoutMsOverride={activeQueryTab.timeoutMsOverride}
+            setTimeoutMsOverride={(timeoutMsOverride) => updateQueryTab(activeQueryTab.id, { timeoutMsOverride })}
             readOnly={activeQueryTab.readOnly}
             setReadOnly={(readOnly) => updateQueryTab(activeQueryTab.id, { readOnly })}
             scriptName={activeQueryTab.scriptName}
@@ -917,9 +915,7 @@ export default function App() {
             mode={activeQueryTab.mode}
             setMode={(mode) => updateQueryTab(activeQueryTab.id, { mode })}
             selection={activeQueryTab.selection}
-            setSelection={(selection) =>
-              updateQueryTab(activeQueryTab.id, { selection })
-            }
+            setSelection={(selection) => updateQueryTab(activeQueryTab.id, { selection })}
             execute={(nextQuery, bindings, recordHistory) =>
               executeFor(
                 activeQueryTab.connectionId,
@@ -930,6 +926,7 @@ export default function App() {
                 crypto.randomUUID(),
                 false,
                 activeQueryTab.traversalSourceOverride || undefined,
+                activeQueryTab.timeoutMsOverride || undefined,
               )
             }
             settings={settings}
@@ -1038,13 +1035,13 @@ export default function App() {
         {view === "transfer" && (
           <TransferPage
             activeConnection={activeConnection}
-            execute={(nextQuery, bindings, recordHistory) =>
+            execute={(nextQuery, bindings, recordHistory, productionConfirmed, timeoutMs) =>
               executeFor(
-                activeConnectionId,
-                "transfer-console",
+                activeConnectionId, "transfer-console",
                 nextQuery,
                 bindings,
                 recordHistory,
+                crypto.randomUUID(), productionConfirmed, undefined, timeoutMs,
               )
             }
             notify={notify}

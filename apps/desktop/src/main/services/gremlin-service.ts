@@ -190,6 +190,7 @@ export class GremlinService {
     executionId: string,
     query: string,
     bindings: Record<string, unknown>,
+    timeoutMs = profile.queryTimeoutMs,
   ): Promise<QueryExecutionResult> {
     const startedAt = performance.now();
     const endpoint = connectionEndpoint(profile);
@@ -210,6 +211,7 @@ export class GremlinService {
             executionId,
             query,
             bindings,
+            timeoutMs,
           )
         : await this.executeHttp(
             profile,
@@ -218,6 +220,8 @@ export class GremlinService {
             executionId,
             query,
             bindings,
+            MAX_RESULT_ITEMS,
+            timeoutMs,
           );
 
     return {
@@ -303,6 +307,7 @@ export class GremlinService {
     executionId: string,
     query: string,
     bindings: Record<string, unknown>,
+    timeoutMs: number,
   ): Promise<CollectedItems> {
     const authenticator =
       profile.username && password
@@ -376,7 +381,16 @@ export class GremlinService {
         profile.connectTimeoutMs,
         `WebSocket 连接超时（${profile.connectTimeoutMs} ms）`,
       );
-      const stream = client.stream(query, bindings);
+      const requestClient = client as typeof client & {
+        stream: (
+          message: string,
+          requestBindings: Record<string, unknown>,
+          options: { evaluationTimeout: number },
+        ) => ReturnType<typeof client.stream>;
+      };
+      const stream = requestClient.stream(query, bindings, {
+        evaluationTimeout: timeoutMs,
+      });
       const collected = await withTimeout(
         (async (): Promise<CollectedItems> => {
           const items: unknown[] = [];
@@ -393,8 +407,8 @@ export class GremlinService {
             truncated: totalCount > items.length,
           };
         })(),
-        profile.queryTimeoutMs,
-        `Gremlin 查询超时（${profile.queryTimeoutMs} ms）`,
+        timeoutMs,
+        `Gremlin 查询超时（${timeoutMs} ms）`,
       );
       return collected;
     } catch (error) {
@@ -452,6 +466,7 @@ export class GremlinService {
     query: string,
     bindings: Record<string, unknown>,
     maxItems = MAX_RESULT_ITEMS,
+    timeoutMs = profile.queryTimeoutMs,
   ): Promise<CollectedItems> {
     const headers: Record<string, string> = {
       ...customHeaders(profile),
@@ -483,12 +498,13 @@ export class GremlinService {
             gremlin: query,
             bindings,
             aliases: { g: profile.traversalSource },
+            evaluationTimeout: timeoutMs,
           }),
           signal: controller.signal,
           ...(dispatcher ? { dispatcher } : {}),
         } as RequestInit & { dispatcher?: Agent }),
-        profile.queryTimeoutMs,
-        `Gremlin HTTP 查询超时（${profile.queryTimeoutMs} ms）`,
+        timeoutMs,
+        `Gremlin HTTP 查询超时（${timeoutMs} ms）`,
       );
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${await response.text()}`);
@@ -496,8 +512,8 @@ export class GremlinService {
 
       const body = (await withTimeout(
         response.json(),
-        profile.queryTimeoutMs,
-        `Gremlin HTTP 响应读取超时（${profile.queryTimeoutMs} ms）`,
+        timeoutMs,
+        `Gremlin HTTP 响应读取超时（${timeoutMs} ms）`,
       )) as {
         result?: { data?: unknown };
         message?: string;

@@ -36,6 +36,7 @@ import {
   Star,
   Table2,
   TerminalSquare,
+  TimerReset,
   Trash2,
   Waypoints,
   X,
@@ -125,6 +126,8 @@ export function QueryPage({
   setBindingsText,
   bindingsEnabled,
   setBindingsEnabled,
+  timeoutMsOverride,
+  setTimeoutMsOverride,
   readOnly,
   setReadOnly,
   scriptName,
@@ -165,6 +168,8 @@ export function QueryPage({
   setBindingsText: (value: string) => void;
   bindingsEnabled: boolean;
   setBindingsEnabled: (value: boolean) => void;
+  timeoutMsOverride: number;
+  setTimeoutMsOverride: (value: number) => void;
   readOnly: boolean;
   setReadOnly: (value: boolean) => void;
   scriptName: string;
@@ -1076,15 +1081,17 @@ export function QueryPage({
               </button>
               <button
                 type="button"
-                className={`${bindingsEnabled ? "is-active" : ""} ${parametersOpen ? "is-open" : ""}`.trim()}
+                className={`${bindingsEnabled || timeoutMsOverride > 0 ? "is-active" : ""} ${parametersOpen ? "is-open" : ""}`.trim()}
                 onClick={() => { setParametersOpen((value) => !value); setFavoritesOpen(false); setSuggestionsOpen(false); }}
-                title={bindingsEnabled
-                  ? t("参数绑定已启用，点击打开配置", "Bindings enabled; open configuration")
-                  : t("参数绑定未启用，点击打开配置", "Bindings disabled; open configuration")}
+                title={timeoutMsOverride > 0
+                  ? t(`当前标签页超时：${timeoutMsOverride} ms`, `Current tab timeout: ${timeoutMsOverride} ms`)
+                  : bindingsEnabled
+                    ? t("参数绑定已启用，点击打开配置", "Bindings enabled; open configuration")
+                    : t("打开查询参数与临时超时", "Open query parameters and temporary timeout")}
               >
                 <SlidersHorizontal size={16} />
                 <span>{t("参数", "Parameters")}</span>
-                {bindingsEnabled && <i className="parameters-live-dot" aria-hidden="true" />}
+                {(bindingsEnabled || timeoutMsOverride > 0) && <i className="parameters-live-dot" aria-hidden="true" />}
               </button>
               <button
                 type="button"
@@ -1265,8 +1272,8 @@ export function QueryPage({
           <aside className="editor-tool-popover parameters-popover">
             <header>
               <div>
-                <span className="eyebrow">QUERY BINDINGS</span>
-                <strong>{t("参数绑定", "Parameter bindings")}</strong>
+                <span className="eyebrow">QUERY PARAMETERS</span>
+                <strong>{t("查询参数", "Query parameters")}</strong>
               </div>
               <button type="button" onClick={() => setParametersOpen(false)} aria-label={t("关闭参数", "Close parameters")}><X size={16} /></button>
             </header>
@@ -1308,6 +1315,33 @@ export function QueryPage({
                 <p>{t("输入 JSON 对象，在查询中直接使用对应变量名，避免把动态值拼接进 Gremlin。", "Enter a JSON object and reference its keys in Gremlin instead of interpolating dynamic values.")}</p>
               </div>
             </div>
+            <section className={`query-timeout-override${timeoutMsOverride > 0 ? " is-active" : ""}`}>
+              <span className="parameters-enable-icon"><TimerReset size={17} /></span>
+              <div>
+                <strong>{t("标签页临时查询超时", "Temporary tab query timeout")}</strong>
+                <small>{timeoutMsOverride > 0
+                  ? t("覆盖连接配置，并同时传给 Gremlin Server", "Overrides the connection setting and is sent to Gremlin Server")
+                  : t(`跟随连接配置：${activeConnection?.queryTimeoutMs ?? 0} ms`, `Using connection setting: ${activeConnection?.queryTimeoutMs ?? 0} ms`)}</small>
+              </div>
+              <input
+                type="number"
+                min={500}
+                max={86_400_000}
+                step={500}
+                value={timeoutMsOverride || activeConnection?.queryTimeoutMs || 60_000}
+                disabled={timeoutMsOverride === 0}
+                onChange={(event) => {
+                  const value = Math.max(500, Math.min(86_400_000, Number(event.target.value) || 500));
+                  setTimeoutMsOverride(Math.round(value));
+                }}
+                aria-label={t("临时查询超时毫秒数", "Temporary query timeout in milliseconds")}
+              />
+              <button type="button" className="button text" onClick={() => setTimeoutMsOverride(
+                timeoutMsOverride > 0 ? 0 : activeConnection?.queryTimeoutMs || 60_000,
+              )}>
+                {timeoutMsOverride > 0 ? t("跟随连接", "Use connection") : t("启用覆盖", "Enable override")}
+              </button>
+            </section>
             <label className="parameters-editor">
               <span><b>JSON</b><small>{t("对象键将作为查询绑定变量", "Object keys become query bindings")}</small></span>
               <textarea

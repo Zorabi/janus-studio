@@ -19,6 +19,7 @@ test("continues fresh numbering without colliding with restored tabs", () => {
   const query1 = createQueryTab(1, "auto", "connection-1");
   const query2 = createQueryTab(2, "auto", "connection-1");
   const query999 = createQueryTab(999, "auto", "connection-1");
+  assert.equal(query1.timeoutMsOverride, 0);
 
   assert.equal(nextAvailableQuerySequence([query1, query999], 1), 2);
   assert.equal(nextAvailableQuerySequence([query1, query2, query999], 1), 3);

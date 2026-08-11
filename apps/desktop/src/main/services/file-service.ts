@@ -1,4 +1,6 @@
 import type {
+  DockerRuntimeStatus,
+  DockerTransferTarget,
   PickedDataFile,
   PickedQueryFile,
   PickedSchemaFile,
@@ -9,17 +11,159 @@ import type {
   SaveSchemaFileInput,
 } from "@janusgraph/domain";
 import { dialog, type BrowserWindow } from "electron";
-import { readFile, writeFile } from "node:fs/promises";
-import { createWriteStream } from "node:fs";
+import { access, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
+import { constants, createWriteStream } from "node:fs";
+import { execFile } from "node:child_process";
 import { once } from "node:events";
-import { rename, unlink } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { extname } from "node:path";
+import {
+  createDockerServerPath,
+  dockerCliCandidates,
+  dockerExecAsRoot,
+  parseDockerContainers,
+  validateDockerTarget,
+} from "./docker-transfer";
 
 const MAX_IMPORT_BYTES = 200 * 1024 * 1024;
 
 export class FileService {
+  private dockerCommandPromise: Promise<string> | undefined;
+
+  private readonly dockerTransfers = new Map<string, {
+    containerId: string;
+    serverPath: string;
+    direction: "import" | "export";
+    name: string;
+    sizeBytes?: number;
+  }>();
+
   constructor(private readonly window: BrowserWindow) {}
+
+  private resolveDockerCommand(): Promise<string> {
+    if (!this.dockerCommandPromise) {
+      this.dockerCommandPromise = (async () => {
+        for (const candidate of dockerCliCandidates()) {
+          try {
+            await access(candidate, constants.X_OK);
+            return candidate;
+          } catch {
+            // Continue through known GUI-runtime and package-manager locations.
+          }
+        }
+        throw new Error("未找到 Docker CLI。请安装 Docker Desktop、OrbStack 或 Rancher Desktop 后重试。");
+      })().catch((error) => {
+        this.dockerCommandPromise = undefined;
+        throw error;
+      });
+    }
+    return this.dockerCommandPromise;
+  }
+
+  private async runDocker(args: string[], timeout = 86_400_000): Promise<string> {
+    const dockerCommand = await this.resolveDockerCommand();
+    return new Promise((resolve, reject) => {
+      execFile(dockerCommand, args, {
+        encoding: "utf8",
+        maxBuffer: 4 * 1024 * 1024,
+        timeout,
+      }, (error, stdout, stderr) => {
+        if (error) {
+          const detail = String(stderr || error.message).trim();
+          reject(new Error(detail ? `Docker 操作失败：${detail}` : "Docker 操作失败"));
+          return;
+        }
+        resolve(String(stdout));
+      });
+    });
+  }
+
+  async dockerStatus(): Promise<DockerRuntimeStatus> {
+    let cliPath: string | undefined;
+    try {
+      cliPath = await this.resolveDockerCommand();
+      const output = await this.runDocker(["ps", "--format", "{{json .}}"], 10_000);
+      return { available: true, containers: parseDockerContainers(output), cliPath };
+    } catch (error) {
+      return {
+        available: false,
+        containers: [],
+        cliPath,
+        message: error instanceof Error ? error.message : "Docker 不可用",
+      };
+    }
+  }
+
+  async stageDockerImport(containerId: string): Promise<DockerTransferTarget | null> {
+    const target = validateDockerTarget(containerId);
+    const result = await dialog.showOpenDialog(this.window, {
+      title: "选择 TinkerPop GraphSON 整图文件",
+      properties: ["openFile"],
+      filters: [{ name: "TinkerPop GraphSON", extensions: ["json", "graphson"] }],
+    });
+    const localPath = result.filePaths[0];
+    if (result.canceled || !localPath) return null;
+    const file = await stat(localPath);
+    if (!file.isFile()) throw new Error("选择的 GraphSON 路径不是文件");
+    const extension = extname(localPath).toLowerCase().slice(1) || "graphson";
+    const serverPath = createDockerServerPath(extension);
+    try {
+      await this.runDocker(["cp", localPath, `${target}:${serverPath}`]);
+      await this.runDocker(dockerExecAsRoot(target, "chmod", "0644", serverPath), 30_000);
+    } catch (error) {
+      await this.runDocker(dockerExecAsRoot(target, "rm", "-f", serverPath), 30_000).catch(() => undefined);
+      throw error;
+    }
+    const transferId = randomUUID();
+    const name = localPath.split(/[\\/]/).at(-1) ?? "data.graphson";
+    this.dockerTransfers.set(transferId, {
+      containerId: target,
+      serverPath,
+      direction: "import",
+      name,
+      sizeBytes: file.size,
+    });
+    return { transferId, containerId: target, serverPath, name, sizeBytes: file.size };
+  }
+
+  async prepareDockerExport(containerId: string): Promise<DockerTransferTarget> {
+    const target = validateDockerTarget(containerId);
+    const transferId = randomUUID();
+    const serverPath = createDockerServerPath("graphson");
+    const name = `janusgraph-${Date.now()}.graphson`;
+    this.dockerTransfers.set(transferId, {
+      containerId: target,
+      serverPath,
+      direction: "export",
+      name,
+    });
+    return { transferId, containerId: target, serverPath, name };
+  }
+
+  async finishDockerExport(transferId: string, suggestedName: string): Promise<string | null> {
+    const transfer = this.dockerTransfers.get(transferId);
+    if (!transfer || transfer.direction !== "export") throw new Error("Docker 导出任务不存在或已过期");
+    const result = await dialog.showSaveDialog(this.window, {
+      title: "保存 TinkerPop GraphSON 整图文件",
+      defaultPath: suggestedName,
+      filters: [{ name: "TinkerPop GraphSON", extensions: ["graphson", "json"] }],
+    });
+    if (result.canceled || !result.filePath) return null;
+    await this.runDocker(["cp", `${transfer.containerId}:${transfer.serverPath}`, result.filePath]);
+    return result.filePath;
+  }
+
+  async cleanupDockerTransfer(transferId: string): Promise<boolean> {
+    const transfer = this.dockerTransfers.get(transferId);
+    if (!transfer) return false;
+    this.dockerTransfers.delete(transferId);
+    try {
+      await this.runDocker(dockerExecAsRoot(transfer.containerId, "rm", "-f", transfer.serverPath), 30_000);
+      return true;
+    } catch {
+      return false;
+    }
+  }
 
   async pickDataFile(): Promise<PickedDataFile | null> {
     const result = await dialog.showOpenDialog(this.window, {
@@ -32,10 +176,11 @@ export class FileService {
     const path = result.filePaths[0];
     if (result.canceled || !path) return null;
 
-    const content = await readFile(path, "utf8");
-    if (Buffer.byteLength(content, "utf8") > MAX_IMPORT_BYTES) {
-      throw new Error("导入文件不能超过 200 MB");
+    const file = await stat(path);
+    if (file.size > MAX_IMPORT_BYTES) {
+      throw new Error("该归档超出便携模式的单文件内存保护范围。请使用“大型 GraphSON”，应用会自动搬运完整文件。");
     }
+    const content = await readFile(path, "utf8");
     const extension = extname(path).toLowerCase().slice(1);
     if (extension !== "json") {
       throw new Error("整图导入仅支持 JSON 图归档");

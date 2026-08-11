@@ -152,3 +152,22 @@ test("applies a tab-level traversal source override without changing the stored 
   assert.equal(executedTraversalSource, "tenant_a_traversal");
   assert.equal(profile.traversalSource, "g");
 });
+
+test("passes an operation-specific timeout to long-running Gremlin work", async () => {
+  const result: QueryExecutionResult = {
+    executionId: request.executionId,
+    durationMs: 1,
+    items: [],
+    truncated: false,
+    totalCount: 0,
+  };
+  let executedTimeout: unknown;
+  const { service } = serviceFor(async (...args) => {
+    executedTimeout = args[6];
+    return result;
+  });
+
+  await service.execute({ ...request, timeoutMs: 86_400_000 });
+
+  assert.equal(executedTimeout, 86_400_000);
+});

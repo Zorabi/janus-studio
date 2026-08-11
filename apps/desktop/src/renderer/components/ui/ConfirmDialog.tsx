@@ -8,6 +8,7 @@ export interface ConfirmDialogProps {
   description: string;
   confirmLabel: string;
   confirmIcon?: ReactNode;
+  confirmationText?: string;
   onCancel: () => void;
   onConfirm: () => void | Promise<void>;
 }
@@ -17,11 +18,62 @@ export function ConfirmDialog({
   description,
   confirmLabel,
   confirmIcon,
+  confirmationText,
   onCancel,
   onConfirm,
 }: ConfirmDialogProps) {
   const t = useTranslate();
   const [busy, setBusy] = useState(false);
+  const [typedConfirmation, setTypedConfirmation] = useState("");
+  const confirmationMatches = !confirmationText || typedConfirmation === confirmationText;
+
+  const confirm = async () => {
+    if (!confirmationMatches || busy) return;
+    setBusy(true);
+    try {
+      await onConfirm();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (confirmationText) {
+    return (
+      <Modal title={title} eyebrow="IRREVERSIBLE OPERATION" onClose={onCancel} width="narrow">
+        <form
+          className="factory-drop-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void confirm();
+          }}
+        >
+          <div className="factory-drop-warning">
+            <AlertTriangle size={28} />
+            <p>{description}</p>
+          </div>
+          <label className="field">
+            <span>{t(`输入“${confirmationText}”以确认`, `Type “${confirmationText}” to confirm`)}</span>
+            <input
+              autoFocus
+              value={typedConfirmation}
+              onChange={(event) => setTypedConfirmation(event.target.value)}
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </label>
+          <footer className="modal-actions">
+            <button type="button" className="button secondary" onClick={onCancel}>
+              {t("取消", "Cancel")}
+            </button>
+            <button type="submit" className="button danger" disabled={busy || !confirmationMatches}>
+              {busy ? <LoaderCircle className="spin" size={17} /> : confirmIcon ?? <Trash2 size={17} />}
+              {confirmLabel}
+            </button>
+          </footer>
+        </form>
+      </Modal>
+    );
+  }
 
   return (
     <Modal title={title} eyebrow="CONFIRM ACTION" onClose={onCancel} width="narrow">
@@ -36,12 +88,8 @@ export function ConfirmDialog({
         <button
           type="button"
           className="button danger"
-          disabled={busy}
-          onClick={async () => {
-            setBusy(true);
-            await onConfirm();
-            setBusy(false);
-          }}
+          disabled={busy || !confirmationMatches}
+          onClick={() => void confirm()}
         >
           {busy ? <LoaderCircle className="spin" size={17} /> : confirmIcon ?? <Trash2 size={17} />}
           {confirmLabel}

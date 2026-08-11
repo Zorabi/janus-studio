@@ -42,7 +42,7 @@ export function isMutationQuery(query: string): boolean {
     .replace(/\/\*[\s\S]*?\*\//g, " ")
     .replace(/\/\/.*$/gm, " ")
     .replace(/'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"/g, "''");
-  return /\.(?:addV|addE|mergeV|mergeE|property|drop|sideEffect|write|makePropertyKey|makeVertexLabel|makeEdgeLabel|buildIndex|addIndexKey|updateIndex|changeName|setConsistency|setTTL|forceCloseInstance)\s*\(|\bcommit\s*\(|\bConfiguredGraphFactory\s*\.\s*(?:create|close|drop|createConfiguration|updateConfiguration|removeConfiguration|createTemplateConfiguration|updateTemplateConfiguration|removeTemplateConfiguration)\s*\(/i.test(normalized);
+  return /\.(?:addV|addE|mergeV|mergeE|property|drop|sideEffect|write|readGraph|makePropertyKey|makeVertexLabel|makeEdgeLabel|buildIndex|addIndexKey|updateIndex|changeName|setConsistency|setTTL|forceCloseInstance)\s*\(|\bcommit\s*\(|\bConfiguredGraphFactory\s*\.\s*(?:create|close|drop|createConfiguration|updateConfiguration|removeConfiguration|createTemplateConfiguration|updateTemplateConfiguration|removeTemplateConfiguration)\s*\(/i.test(normalized);
 }
 
 export function withTraversalConsoleText(

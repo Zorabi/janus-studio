@@ -9,6 +9,9 @@ import {
   connectionIdSchema,
   connectionInputSchema,
   clipboardTextSchema,
+  dockerContainerIdSchema,
+  dockerTransferIdSchema,
+  finishDockerExportSchema,
   historyIdSchema,
   historyListSchema,
   queryCancelSchema,
@@ -154,6 +157,32 @@ export function registerIpcHandlers({
   ipcMain.handle("files:save-schema", async (event, rawInput: unknown) => {
     assertTrustedSender(event, window);
     return fileService.saveSchemaFile(saveSchemaFileSchema.parse(rawInput));
+  });
+
+  ipcMain.handle("data-transfers:docker-status", async (event) => {
+    assertTrustedSender(event, window);
+    return fileService.dockerStatus();
+  });
+
+  ipcMain.handle("data-transfers:stage-docker-import", async (event, rawContainerId: unknown) => {
+    assertTrustedSender(event, window);
+    return fileService.stageDockerImport(dockerContainerIdSchema.parse(rawContainerId));
+  });
+
+  ipcMain.handle("data-transfers:prepare-docker-export", async (event, rawContainerId: unknown) => {
+    assertTrustedSender(event, window);
+    return fileService.prepareDockerExport(dockerContainerIdSchema.parse(rawContainerId));
+  });
+
+  ipcMain.handle("data-transfers:finish-docker-export", async (event, rawInput: unknown) => {
+    assertTrustedSender(event, window);
+    const input = finishDockerExportSchema.parse(rawInput);
+    return fileService.finishDockerExport(input.transferId, input.suggestedName);
+  });
+
+  ipcMain.handle("data-transfers:cleanup-docker", async (event, rawTransferId: unknown) => {
+    assertTrustedSender(event, window);
+    return fileService.cleanupDockerTransfer(dockerTransferIdSchema.parse(rawTransferId));
   });
 
   ipcMain.handle("security:status", async (event) => {

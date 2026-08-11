@@ -37,6 +37,7 @@ test("loads renderer styles through ordered responsibility-based modules", async
     "settings-overlays.css",
     "refinements.css",
     "schema-factory.css",
+    "transfer-server.css",
     "themes.css",
     "ide-overrides.css",
   ]);

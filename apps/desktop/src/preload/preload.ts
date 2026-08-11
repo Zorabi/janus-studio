@@ -39,6 +39,13 @@ const desktopApi: DesktopApi = {
     pickSchemaFile: () => ipcRenderer.invoke("files:pick-schema"),
     saveSchemaFile: (input) => ipcRenderer.invoke("files:save-schema", input),
   },
+  dataTransfers: {
+    dockerStatus: () => ipcRenderer.invoke("data-transfers:docker-status"),
+    stageDockerImport: (containerId) => ipcRenderer.invoke("data-transfers:stage-docker-import", containerId),
+    prepareDockerExport: (containerId) => ipcRenderer.invoke("data-transfers:prepare-docker-export", containerId),
+    finishDockerExport: (transferId, suggestedName) => ipcRenderer.invoke("data-transfers:finish-docker-export", { transferId, suggestedName }),
+    cleanupDockerTransfer: (transferId) => ipcRenderer.invoke("data-transfers:cleanup-docker", transferId),
+  },
   security: {
     status: () => ipcRenderer.invoke("security:status"),
   },

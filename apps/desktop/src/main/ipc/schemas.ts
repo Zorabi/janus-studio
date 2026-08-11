@@ -16,7 +16,7 @@ export const connectionInputSchema = z
     traversalSource: z.string().trim().min(1).max(80),
     graphBinding: z.string().trim().min(1).max(80),
     connectTimeoutMs: z.number().int().min(500).max(120_000),
-    queryTimeoutMs: z.number().int().min(500).max(3_600_000),
+    queryTimeoutMs: z.number().int().min(500).max(86_400_000),
     tlsRejectUnauthorized: z.boolean().default(true),
     enableCompression: z.boolean().default(false),
     customHeaders: z.string().max(32_768).default("{}"),
@@ -78,6 +78,7 @@ export const queryRequestSchema = z.object({
   bindings: z.record(z.string(), z.unknown()).optional(),
   recordHistory: z.boolean().optional().default(true),
   productionConfirmed: z.boolean().optional().default(false),
+  timeoutMs: z.number().int().min(500).max(86_400_000).optional(),
 });
 
 export const queryExportSchema = z.object({
@@ -125,6 +126,16 @@ export const saveGraphFileSchema = z.object({
   suggestedName: z.string().trim().min(1).max(255),
   format: z.enum(["png", "jpg", "svg", "json"]),
   content: z.string().max(60_000_000),
+});
+
+export const dockerContainerIdSchema = z.string().trim().min(1).max(160).regex(
+  /^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/,
+  "Docker 容器名称或 ID 格式无效",
+);
+export const dockerTransferIdSchema = z.string().uuid();
+export const finishDockerExportSchema = z.object({
+  transferId: dockerTransferIdSchema,
+  suggestedName: z.string().trim().min(1).max(255),
 });
 
 export const schemaJobIdSchema = z.string().uuid();

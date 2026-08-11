@@ -318,10 +318,11 @@ export function ConnectionDialog({
               name="queryTimeoutMs"
               type="number"
               min={500}
-              max={3600000}
+              max={86400000}
               defaultValue={defaults.queryTimeoutMs}
               required
             />
+            <small>{t("大型 GraphSON 迁移可按需提高，最高 24 小时。", "Large GraphSON transfers can use up to 24 hours when needed.")}</small>
           </label>
           <details className="connection-advanced field-span-2">
             <summary>

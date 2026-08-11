@@ -1,0 +1,677 @@
+.transfer-mode-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-1) 88%, transparent);
+}
+
+.transfer-mode-tabs button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  min-height: 62px;
+  padding: 10px 13px;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius-md) - 4px);
+  color: var(--muted);
+  background: transparent;
+  text-align: left;
+}
+
+.transfer-mode-tabs button:hover {
+  color: var(--bone);
+  background: var(--surface-2);
+}
+
+.transfer-mode-tabs button.is-active {
+  border-color: color-mix(in srgb, var(--acid) 44%, var(--line));
+  color: var(--acid);
+  background:
+    radial-gradient(circle at 18% 50%, color-mix(in srgb, var(--acid) 10%, transparent), transparent 58%),
+    color-mix(in srgb, var(--surface-2) 93%, var(--acid));
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14);
+}
+
+.transfer-mode-tabs button > span {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.transfer-mode-tabs strong {
+  overflow: hidden;
+  color: inherit;
+  font-size: var(--text-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transfer-mode-tabs small {
+  overflow: hidden;
+  color: var(--muted-2);
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transfer-recovery {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 13px 14px;
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--line));
+  border-radius: var(--radius-md);
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 7%, var(--surface-1));
+}
+
+.transfer-recovery > div {
+  display: grid;
+  gap: 3px;
+}
+
+.transfer-recovery small {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
+.server-transfer-workbench {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.server-transfer-context {
+  display: grid;
+  grid-template-columns: minmax(230px, 0.72fr) minmax(0, 1.55fr);
+  align-items: center;
+  gap: 24px;
+  padding: 17px 18px;
+}
+
+.server-transfer-context-title {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  color: var(--acid);
+}
+
+.server-transfer-context-title > span {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.server-transfer-context-title strong {
+  color: var(--bone);
+  font-size: var(--text-md);
+}
+
+.server-transfer-context-title small {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
+.server-transfer-targets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  min-width: 0;
+}
+
+.server-transfer-targets .field {
+  min-width: 0;
+}
+
+.server-transfer-targets .field > small,
+.server-transfer-card-body .field > small {
+  overflow: hidden;
+  color: var(--muted-2);
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.server-transfer-targets .field > small.is-error {
+  color: var(--danger);
+}
+
+.server-transfer-targets .field > small code {
+  color: inherit;
+  font-size: inherit;
+}
+
+.server-target-field > div,
+.server-container-field > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px;
+}
+
+.server-target-field .icon-button,
+.server-container-field .icon-button {
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+}
+
+.server-graph-select {
+  min-height: 54px;
+  height: auto;
+}
+
+.server-graph-select .select-trigger-copy strong,
+.server-graph-select .select-trigger-copy small,
+.server-graph-select-popover .select-option strong,
+.server-graph-select-popover .select-option small {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.server-graph-select-popover .select-option {
+  min-height: 66px;
+  align-items: start;
+  padding-block: 12px;
+}
+
+.server-graph-select-popover .select-option svg {
+  margin-top: 3px;
+}
+
+.server-container-field {
+  grid-column: 1 / -1;
+}
+
+.server-container-field .select-trigger-copy strong {
+  white-space: normal;
+}
+
+.server-container-single {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  min-width: 0;
+  padding: 7px 11px;
+  border: 1px solid color-mix(in srgb, var(--acid) 36%, var(--line));
+  border-radius: var(--radius-sm);
+  color: var(--acid);
+  background: color-mix(in srgb, var(--acid) 5%, var(--surface-1));
+}
+
+.server-container-single > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.server-container-single strong {
+  color: var(--bone);
+  font-size: var(--text-sm);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.server-container-single small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.server-transfer-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 16px;
+}
+
+.server-transfer-card {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.server-transfer-card > header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 84px;
+  padding: 15px 17px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface-2) 62%, transparent);
+}
+
+.server-transfer-card > header > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.server-transfer-card > header strong {
+  color: var(--bone);
+  font-size: var(--text-lg);
+}
+
+.server-transfer-card > header small:not(.eyebrow) {
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.server-transfer-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--acid) 34%, var(--line));
+  border-radius: 12px;
+  color: var(--acid);
+  background: color-mix(in srgb, var(--acid) 8%, var(--surface-1));
+}
+
+.server-transfer-card-body {
+  display: grid;
+  grid-template-rows: auto auto auto 1fr auto;
+  align-content: start;
+  gap: 14px;
+  min-width: 0;
+  padding: 17px;
+}
+
+.server-file-picker {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 84px;
+  padding: 13px 14px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-md);
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface-2) 62%, transparent);
+  text-align: left;
+}
+
+.server-file-picker:hover,
+.server-file-picker.has-file {
+  border-color: color-mix(in srgb, var(--acid) 48%, var(--line));
+  color: var(--acid);
+  background: color-mix(in srgb, var(--acid) 5%, var(--surface-1));
+}
+
+.server-file-picker > span {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.server-file-picker strong {
+  overflow: hidden;
+  color: var(--bone);
+  font-size: var(--text-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.server-file-picker small {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  line-height: 1.45;
+}
+
+.server-transfer-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.server-transfer-options .check-field {
+  align-items: start;
+  min-height: 76px;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+}
+
+.server-transfer-options .check-field small {
+  font-family: var(--font-code);
+  font-size: var(--text-xs);
+}
+
+.server-transfer-warning,
+.server-transfer-note,
+.server-static-graph-note {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+  padding: 11px 12px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  line-height: 1.55;
+}
+
+.server-transfer-warning {
+  border: 1px solid color-mix(in srgb, var(--amber) 30%, var(--line));
+  color: var(--amber);
+  background: color-mix(in srgb, var(--amber) 5%, var(--surface-1));
+}
+
+.server-transfer-note {
+  border: 1px solid var(--line);
+  color: var(--muted);
+  background: var(--surface-1);
+}
+
+.server-static-graph-note {
+  border: 1px solid color-mix(in srgb, var(--acid) 24%, var(--line));
+  color: var(--acid);
+  background: color-mix(in srgb, var(--acid) 4%, var(--surface-1));
+}
+
+.server-static-graph-note > span {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.server-static-graph-note strong {
+  color: var(--bone);
+  font-size: var(--text-xs);
+}
+
+.server-static-graph-note small {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
+.server-export-route {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 13px;
+  min-height: 84px;
+  padding: 13px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  color: var(--acid);
+  background:
+    linear-gradient(115deg, color-mix(in srgb, var(--acid) 7%, transparent), transparent 54%),
+    var(--surface-1);
+}
+
+.server-export-route > div {
+  display: grid;
+  gap: 5px;
+}
+
+.server-export-route strong {
+  color: var(--bone);
+  font-size: var(--text-sm);
+}
+
+.server-export-route small {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  line-height: 1.45;
+}
+
+.server-transfer-action {
+  align-self: end;
+  width: 100%;
+  min-height: 45px;
+}
+
+.server-purge-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 13px;
+  padding: 14px 15px;
+  border: 1px solid color-mix(in srgb, var(--danger) 32%, var(--line));
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(100deg, color-mix(in srgb, var(--danger) 8%, var(--surface-1)), var(--surface-1) 56%);
+}
+
+.server-purge-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+
+.server-purge-card > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.server-purge-card strong {
+  color: var(--bone);
+  font-size: var(--text-sm);
+}
+
+.server-purge-card small {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
+.server-purge-card > div > span {
+  color: var(--danger);
+  font-family: var(--font-code);
+  font-size: var(--text-xs);
+}
+
+.server-purge-card .button {
+  white-space: nowrap;
+}
+
+.server-transfer-status {
+  position: sticky;
+  bottom: 8px;
+  z-index: 4;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 11px;
+  padding: 13px 15px;
+  border: 1px solid color-mix(in srgb, var(--acid) 38%, var(--line));
+  border-radius: var(--radius-md);
+  color: var(--acid);
+  background: color-mix(in srgb, var(--surface-1) 95%, transparent);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(18px);
+}
+
+.server-transfer-status.is-purging {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  border-color: color-mix(in srgb, var(--danger) 42%, var(--line));
+}
+
+.server-transfer-status.is-succeeded,
+.server-transfer-status.is-failed,
+.server-transfer-status.is-stopped {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.server-transfer-status.is-succeeded {
+  color: var(--acid);
+}
+
+.server-transfer-status.is-failed {
+  border-color: color-mix(in srgb, var(--danger) 48%, var(--line));
+  color: var(--danger);
+}
+
+.server-transfer-status.is-stopped {
+  border-color: color-mix(in srgb, var(--amber) 44%, var(--line));
+  color: var(--amber);
+}
+
+.server-transfer-status > .icon-button {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+}
+
+.server-transfer-status > div {
+  display: grid;
+  gap: 3px;
+}
+
+.server-transfer-status strong {
+  color: var(--bone);
+  font-size: var(--text-sm);
+}
+
+.server-transfer-status small {
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.server-purge-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(72px, 1fr));
+  gap: 7px;
+  margin-block: 4px 2px;
+}
+
+.server-purge-metrics > span {
+  display: grid;
+  gap: 1px;
+  padding: 7px 9px;
+  border: 1px solid color-mix(in srgb, var(--danger) 20%, var(--line));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--danger) 4%, transparent);
+}
+
+.server-purge-metrics > span > small {
+  font-size: var(--text-2xs);
+}
+
+.server-purge-metrics > span > strong {
+  color: var(--bone);
+  font-family: var(--font-code);
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 1240px) {
+  .server-transfer-context {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+}
+
+@media (max-width: 980px) {
+  .server-transfer-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .server-transfer-targets {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+}
+
+@media (max-width: 720px) {
+  .transfer-mode-tabs,
+  .server-transfer-targets,
+  .server-transfer-options {
+    grid-template-columns: 1fr;
+  }
+
+  .transfer-recovery {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .transfer-recovery .button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .server-container-field {
+    grid-column: auto;
+  }
+
+  .server-transfer-context,
+  .server-transfer-card-body {
+    padding: 13px;
+  }
+
+  .server-purge-card,
+  .server-transfer-status.is-purging,
+  .server-transfer-status.is-succeeded,
+  .server-transfer-status.is-failed,
+  .server-transfer-status.is-stopped {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .server-purge-card .button,
+  .server-transfer-status.is-purging .button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .server-transfer-status > .icon-button {
+    grid-column: 2;
+    justify-self: end;
+  }
+}
+
+@media (max-width: 520px) {
+  .transfer-mode-tabs button {
+    min-height: 54px;
+  }
+
+  .transfer-mode-tabs small,
+  .server-transfer-context-title small {
+    white-space: normal;
+  }
+
+  .server-transfer-card > header {
+    min-height: 72px;
+    padding: 12px 13px;
+  }
+
+  .server-transfer-card > header small:not(.eyebrow) {
+    display: none;
+  }
+
+  .server-file-picker {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .server-file-picker > svg:last-child {
+    display: none;
+  }
+
+  .server-purge-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
