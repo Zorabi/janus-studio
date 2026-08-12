@@ -5,6 +5,7 @@
 @import "./styles/feature-pages.css";
 @import "./styles/settings-overlays.css";
 @import "./styles/refinements.css";
+@import "./styles/schema-import.css";
 @import "./styles/schema-factory.css";
 @import "./styles/transfer-server.css";
 @import "./styles/task-center.css";

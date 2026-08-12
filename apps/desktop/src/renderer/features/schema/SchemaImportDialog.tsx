@@ -54,20 +54,30 @@ export function SchemaImportDialog({
   const [view, setView] = useState<ImportView>("summary");
   const [search, setSearch] = useState("");
   const [batchIndex, setBatchIndex] = useState(0);
+  const [typedTarget, setTypedTarget] = useState("");
   const changes = useMemo(() => [
     ...value.plan.operations.map((item) => ({
       key: `${item.group}:${item.name}`,
       label: item.summary,
       meta: item.group,
       activation: false,
+      manual: false,
     })),
     ...value.plan.indexActivations.map((name) => ({
       key: `activate:${name}`,
       label: t(`启用 Graph Index · ${name}`, `Enable Graph Index · ${name}`),
       meta: "REGISTER → WAIT → REINDEX → ENABLED",
       activation: true,
+      manual: false,
     })),
-  ], [t, value.plan.indexActivations, value.plan.operations]);
+    ...value.plan.manual.map((item) => ({
+      key: `manual:${item.path}`,
+      label: t(`官方保留项 · ${item.path}`, `Official-only item · ${item.path}`),
+      meta: item.summary,
+      activation: false,
+      manual: true,
+    })),
+  ], [t, value.plan.indexActivations, value.plan.manual, value.plan.operations]);
   const normalizedSearch = search.trim().toLocaleLowerCase();
   const visibleChanges = normalizedSearch
     ? changes.filter((item) => `${item.label} ${item.meta}`.toLocaleLowerCase().includes(normalizedSearch))
@@ -77,6 +87,8 @@ export function SchemaImportDialog({
       ? `${activeConnection.name} / ${graphContext.name}`
       : activeConnection.name
     : t("未选择连接", "No connection selected");
+  const targetGraphName = graphContext?.name ?? activeConnection?.graphBinding ?? "";
+  const targetConfirmed = Boolean(targetGraphName) && typedTarget === targetGraphName;
 
   return (
     <Modal
@@ -103,7 +115,9 @@ export function SchemaImportDialog({
             onClick={() => setView("batches")}
           >
             <FileJson size={16} />
-            <span>{t("Gremlin 批次", "Gremlin batches")}</span>
+            <span>{value.plan.execution === "official-json"
+              ? t("官方导入批次", "Native import batches")
+              : t("Gremlin 批次", "Gremlin batches")}</span>
             <strong>{value.plan.scripts.length}</strong>
           </button>
         </nav>
@@ -115,9 +129,14 @@ export function SchemaImportDialog({
                 <FileJson size={22} />
                 <div>
                   <strong>{value.fileName}</strong>
-                  <small>{t("来源", "Source")}: {value.archive.source.connectionName} · {formatSchemaArchiveTime(value.archive.exportedAt)}</small>
+                  <small>
+                    {t("来源", "Source")}: {value.archive.source.connectionName}
+                    {value.archive.exportedAt ? ` · ${formatSchemaArchiveTime(value.archive.exportedAt)}` : ""}
+                  </small>
                 </div>
-                <span>{value.archive.format}</span>
+                <span className={value.plan.execution === "official-json" ? "is-official" : undefined}>
+                  {value.plan.execution === "official-json" ? "JsonSchemaInitStrategy" : value.archive.format}
+                </span>
               </div>
               <div className={`schema-import-target ${activeConnection?.environment === "prod" ? "is-production" : ""}`}>
                 {activeConnection?.environment === "prod" ? <AlertTriangle size={18} /> : <Database size={18} />}
@@ -132,6 +151,22 @@ export function SchemaImportDialog({
                 <article className="is-skip"><strong>{value.plan.skipped.length}</strong><span>{t("相同并跳过", "Matching and skipped")}</span></article>
                 <article className="is-activate"><strong>{value.plan.indexActivations.length}</strong><span>{t("待启用索引", "Indexes to enable")}</span></article>
                 <article className="is-conflict"><strong>{value.plan.conflicts.length}</strong><span>{t("冲突", "Conflicts")}</span></article>
+                <article className="is-manual"><strong>{value.plan.manual.length}</strong><span>{t("官方保留项", "Official-only")}</span></article>
+              </div>
+              <div className={`schema-import-route is-${value.plan.execution}`}>
+                <FileJson size={18} />
+                <div>
+                  <strong>{value.plan.execution === "official-json"
+                    ? t("JanusGraph 1.1 官方导入路径", "JanusGraph 1.1 native import path")
+                    : value.archive.format === "janusgraph.schema/json"
+                      ? t("Management API 无损兼容路径", "Lossless Management API compatibility path")
+                      : t("Janus Studio 增量导入路径", "Janus Studio additive import path")}</strong>
+                  <small>{value.plan.execution === "official-json"
+                    ? t("文件按官方 JsonSchemaInitStrategy 分批执行；官方专属字段保持原值，不会转换或丢弃。", "The file runs in batches through JsonSchemaInitStrategy; official-only fields remain unchanged.")
+                    : value.archive.format === "janusgraph.schema/json"
+                      ? t("当前文件可无损转换为通用 Management 操作，适用于未提供官方 JSON API 的服务端。", "This file can be converted losslessly to Management operations when the native JSON API is unavailable.")
+                      : t("仅创建缺少的定义，并在每个批次后回读校验。", "Only missing definitions are created and verified after every batch.")}</small>
+                </div>
               </div>
               <div className="schema-import-notice">
                 <ShieldCheck size={18} />
@@ -148,6 +183,18 @@ export function SchemaImportDialog({
                     "After creation, the import waits for REGISTERED, runs REINDEX, and then waits for every field to reach ENABLED.",
                   )}</small></div>
                 </div>
+              )}
+              {value.plan.manual.length > 0 && (
+                <section className="schema-import-manual" aria-label={t("官方保留项", "Official-only items")}>
+                  <header><AlertTriangle size={17} /><strong>{t("需审阅的官方专属配置", "Official-only configuration to review")}</strong></header>
+                  <p>{t(
+                    "这些字段无法用 Janus Studio 通用模型完整比较，将保持原始 JSON 并交给 JanusGraph 官方导入器处理。",
+                    "These fields cannot be fully compared by the Janus Studio common model. Their original JSON is preserved for the native JanusGraph importer.",
+                  )}</p>
+                  <div>
+                    {value.plan.manual.map((item) => <article key={`${item.path}:${item.summary}`}><code>{item.path}</code><span>{item.summary}</span></article>)}
+                  </div>
+                </section>
               )}
               {value.plan.conflicts.length > 0 && (
                 <section className="schema-import-conflicts" role="alert">
@@ -168,9 +215,9 @@ export function SchemaImportDialog({
               {visibleChanges.length > 0 ? (
                 <div className="schema-import-change-list">
                   {visibleChanges.map((item, index) => (
-                    <article key={item.key}>
+                    <article key={item.key} className={item.manual ? "is-manual" : item.activation ? "is-activation" : undefined}>
                       <span>{String(index + 1).padStart(4, "0")}</span>
-                      {item.activation ? <RefreshCw size={15} /> : <CheckCircle2 size={15} />}
+                      {item.manual ? <AlertTriangle size={15} /> : item.activation ? <RefreshCw size={15} /> : <CheckCircle2 size={15} />}
                       <strong>{item.label}</strong>
                       <code>{item.meta}</code>
                     </article>
@@ -183,11 +230,11 @@ export function SchemaImportDialog({
           {view === "batches" && (
             <section className="schema-import-batch-browser">
               <header>
-                <div><span className="eyebrow">GREMLIN PLAN</span><strong>{t(`批次 ${batchIndex + 1}`, `Batch ${batchIndex + 1}`)}</strong></div>
+                <div><span className="eyebrow">{value.plan.execution === "official-json" ? "JSONSCHEMAINITSTRATEGY" : "GREMLIN PLAN"}</span><strong>{t(`批次 ${batchIndex + 1}`, `Batch ${batchIndex + 1}`)}</strong></div>
                 <small>{batchIndex + 1} / {value.plan.scripts.length}</small>
               </header>
               <div className="schema-import-batch-list">
-                <nav aria-label={t("Gremlin 批次", "Gremlin batches")}>
+                <nav aria-label={value.plan.execution === "official-json" ? t("官方导入批次", "Native import batches") : t("Gremlin 批次", "Gremlin batches")}>
                   {value.plan.scripts.map((_script, index) => (
                     <button type="button" key={`schema-import-batch-${index + 1}`} className={batchIndex === index ? "is-active" : ""} aria-current={batchIndex === index ? "true" : undefined} onClick={() => setBatchIndex(index)}>
                       <span>{String(index + 1).padStart(2, "0")}</span>{t(`批次 ${index + 1}`, `Batch ${index + 1}`)}
@@ -207,7 +254,9 @@ export function SchemaImportDialog({
               <header>
                 <strong>{cancelRequested
                   ? t("正在停止 Schema 导入", "Stopping Schema import")
-                  : t("正在导入 Schema", "Importing Schema")}</strong>
+                  : value.plan.execution === "official-json"
+                    ? t("JsonSchemaInitStrategy 正在导入", "Importing with JsonSchemaInitStrategy")
+                    : t("正在导入 Schema", "Importing Schema")}</strong>
                 <span>{progress ? `${progress.current} / ${progress.total}` : t("准备批次…", "Preparing batches…")}</span>
               </header>
               <progress value={progress?.current ?? 0} max={progress?.total ?? 1} />
@@ -228,6 +277,24 @@ export function SchemaImportDialog({
           </section>
         )}
 
+        {!busy && !failureMessage && (
+          <section className={`schema-import-target-confirmation ${targetConfirmed ? "is-confirmed" : ""}`}>
+            <ShieldCheck size={19} />
+            <label>
+              <span>{t("输入完整图名以确认导入目标", "Type the full graph name to confirm the import target")}</span>
+              <strong>{targetGraphName}</strong>
+              <input
+                value={typedTarget}
+                onChange={(event) => setTypedTarget(event.target.value)}
+                placeholder={targetGraphName}
+                autoComplete="off"
+                spellCheck={false}
+                aria-label={t(`输入“${targetGraphName}”以确认`, `Type “${targetGraphName}” to confirm`)}
+              />
+            </label>
+          </section>
+        )}
+
         <footer className="schema-import-actions">
           <button type="button" className="button secondary" disabled={cancelRequested} onClick={busy ? onCancel : onClose}>
             {cancelRequested && <LoaderCircle className="spin" size={17} />}
@@ -242,7 +309,7 @@ export function SchemaImportDialog({
           <button
             type="button"
             className="button primary"
-            disabled={busy || (!failureMessage && (value.plan.conflicts.length > 0 || !value.plan.script))}
+            disabled={busy || (!failureMessage && (value.plan.conflicts.length > 0 || !value.plan.script || !targetConfirmed))}
             onClick={failureMessage ? onRegenerate : onApply}
           >
             {busy ? <LoaderCircle className="spin" size={17} /> : failureMessage ? <RefreshCw size={17} /> : <Upload size={17} />}

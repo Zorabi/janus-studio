@@ -51,7 +51,7 @@ test("persists schema job history and supports retrying or deleting records", as
       queries: ["batch-1", "batch-2", "batch-3"],
     });
     assert.deepEqual(executedQueries, ["batch-1", "batch-2", "batch-3"]);
-    assert.equal(batched.message, "Completed 3/3 batches");
+    assert.equal(batched.message, "Management API · Completed 3/3 batches");
 
     executedQueries.length = 0;
     const retriedBatch = await service.retry(batched.id);
@@ -113,11 +113,37 @@ test("cancels a running Schema import and records an interrupted batch boundary"
       queries: ["batch-1", "batch-2", "batch-3"],
     });
     await secondStarted;
-    assert.equal(repository.list("connection-1")[0]?.message, "Running batch 2/3");
+    assert.equal(repository.list("connection-1")[0]?.message, "Management API · Running batch 2/3");
     assert.equal(await service.cancel("connection-1"), true);
     await assert.rejects(running, /stopped after 1\/3 batches/);
     assert.equal(repository.list("connection-1")[0]?.status, "interrupted");
     assert.equal(executionCount, 2);
+  } finally {
+    database.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("persists the native Schema importer name in job progress and completion", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "janusgraph-schema-native-test-"));
+  const database = openApplicationDatabase(join(directory, "app.sqlite"));
+  const repository = new SchemaJobRepository(database);
+  const service = new SchemaJobService(
+    repository,
+    { profile: () => ({ name: "Docker" }) } as never,
+    {
+      execute: async () => ({ executionId: "native", durationMs: 1, items: [], truncated: false, totalCount: 0 }),
+      closeConsole: async () => undefined,
+    } as never,
+  );
+  try {
+    const completed = await service.run({
+      connectionId: "connection-1",
+      indexName: "official.json",
+      action: "IMPORT_SCHEMA",
+      query: "org.janusgraph.core.schema.JsonSchemaInitStrategy.initializeSchemaFromString(graph, '{}')",
+    });
+    assert.equal(completed.message, "JsonSchemaInitStrategy · Operation completed");
   } finally {
     database.close();
     rmSync(directory, { recursive: true, force: true });

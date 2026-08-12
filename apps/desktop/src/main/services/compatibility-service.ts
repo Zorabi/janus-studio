@@ -97,7 +97,7 @@ return [[
   configuredGraphFactory: __available("org.janusgraph.core.ConfiguredGraphFactory"),
   configurationManagementGraph: __available("org.janusgraph.graphdb.management.ConfigurationManagementGraph"),
   janusGraphManager: __available("org.janusgraph.graphdb.management.JanusGraphManager"),
-  jsonSchemaInitialization: __available("org.janusgraph.core.schema.json.definition.JsonSchemaDefinition"),
+  jsonSchemaInitialization: __available("org.janusgraph.core.schema.json.definition.JsonSchemaDefinition") && __methodAvailable("org.janusgraph.core.schema.JsonSchemaInitStrategy", "initializeSchemaFromString", 8),
   graphsonIo: __available("org.apache.tinkerpop.gremlin.structure.io.IoCore"),
   indexFieldStatus: __methodAvailable("org.janusgraph.core.schema.JanusGraphIndex", "getIndexStatus", 1),
   indexStatusAwait: __methodAvailable("org.janusgraph.graphdb.database.management.ManagementSystem", "awaitGraphIndexStatus", 2),

@@ -26,6 +26,7 @@ test("uses official JanusGraph capability classes in the read-only probe", () =>
   assert.match(COMPATIBILITY_PROBE_QUERY, /org\.janusgraph\.core\.ConfiguredGraphFactory/);
   assert.match(COMPATIBILITY_PROBE_QUERY, /org\.janusgraph\.graphdb\.management\.JanusGraphManager/);
   assert.match(COMPATIBILITY_PROBE_QUERY, /org\.janusgraph\.core\.schema\.json\.definition\.JsonSchemaDefinition/);
+  assert.match(COMPATIBILITY_PROBE_QUERY, /JsonSchemaInitStrategy", "initializeSchemaFromString", 8/);
   assert.match(COMPATIBILITY_PROBE_QUERY, /JanusGraphIndex", "getIndexStatus", 1/);
   assert.match(COMPATIBILITY_PROBE_QUERY, /ManagementSystem", "awaitGraphIndexStatus", 2/);
   assert.match(COMPATIBILITY_PROBE_QUERY, /Traversal", "explain", 0/);

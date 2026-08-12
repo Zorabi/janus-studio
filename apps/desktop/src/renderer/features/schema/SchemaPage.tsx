@@ -13,14 +13,13 @@ import {
   Database,
   Download,
   FileJson,
-  GitBranch,
+  GitCompareArrows,
   History,
   KeyRound,
   Layers3,
   LoaderCircle,
   Plus,
   RefreshCw,
-  Save,
   Search,
   ShieldCheck,
   TerminalSquare,
@@ -52,12 +51,25 @@ import {
 } from "../../lib/configured-graph-factory";
 import { errorMessage } from "../../lib/presentation";
 import {
+  buildExistingPropertyIndexScript,
+  buildPropertyKeySchemaScript,
+  sortSchemaNames,
+  type SchemaIndexElement,
+} from "../../lib/schema-create";
+import {
+  compareSchemaRows,
+  parseSchemaSnapshotBaseline,
+  schemaSnapshotRows,
+  type SchemaSnapshotBaseline,
+} from "../../lib/schema-snapshot";
+import {
   BACKGROUND_SCHEMA_TASK_STORAGE_KEY,
   findBackgroundSchemaJob,
   parseBackgroundSchemaTask,
   type BackgroundSchemaTask,
 } from "../../lib/schema-background-task";
 import {
+  createOfficialSchemaDefinition,
   createSchemaArchive,
   formatSchemaArchiveTime,
   parseSchemaArchive,
@@ -67,7 +79,9 @@ import {
 } from "../../lib/schema-files";
 import type { QueryState, ToastState } from "../query/query-workspace";
 import { SchemaHistory } from "./SchemaHistory";
+import { SchemaExportDialog, type SchemaExportFormat } from "./SchemaExportDialog";
 import { SchemaImportDialog } from "./SchemaImportDialog";
+import { SchemaSnapshotDialog } from "./SchemaSnapshotDialog";
 
 function schemaOverviewScripts(connection: ConnectionSummary): Array<{
   label: string;
@@ -95,7 +109,9 @@ ${body}
   const indexBody = (element: "Vertex" | "Edge") => `  mgmt.getGraphIndexes(org.apache.tinkerpop.gremlin.structure.${element}.class).each { index ->
     def fields = index.getFieldKeys()
     def statuses = fields.collectEntries { key -> [(key.name()): index.getIndexStatus(key).name()] }
-    rows << [group: "graphIndexes", name: index.name(), element: "${element}", type: index.isMixedIndex() ? "MIXED" : "COMPOSITE", unique: index.isUnique(), backingIndex: index.getBackingIndex(), fields: fields.collect { key -> key.name() }, fieldStatus: statuses, status: statuses.values().toSet().join(", ") ?: "UNKNOWN"]
+    def indexOnly = null
+    try { indexOnly = mgmt.getIndexOnlyConstraint(index.name())?.name() } catch (Throwable ignored) {}
+    rows << [group: "graphIndexes", name: index.name(), element: "${element}", type: index.isMixedIndex() ? "MIXED" : "COMPOSITE", unique: index.isUnique(), backingIndex: index.getBackingIndex(), fields: fields.collect { key -> key.name() }, indexOnly: indexOnly, fieldStatus: statuses, status: statuses.values().toSet().join(", ") ?: "UNKNOWN"]
   }`;
   return [
     {
@@ -119,23 +135,6 @@ ${body}
     { label: "Vertex Index", query: wrap(indexBody("Vertex")) },
     { label: "Edge Index", query: wrap(indexBody("Edge")) },
   ];
-}
-
-function schemaSnapshotRows(items: unknown[]) {
-  return schemaRowsFromItems(items)
-    .map((value) => ({ ...value }))
-    .sort((left, right) => `${left.group}:${left.name}`.localeCompare(`${right.group}:${right.name}`));
-}
-
-function compareSchemaRows(previous: Record<string, unknown>[], current: Record<string, unknown>[]) {
-  const keyed = (values: Record<string, unknown>[]) => new Map(values.map((value) => [`${value.group}:${value.name}`, JSON.stringify(value)]));
-  const before = keyed(previous);
-  const after = keyed(current);
-  return {
-    added: [...after.keys()].filter((key) => !before.has(key)),
-    removed: [...before.keys()].filter((key) => !after.has(key)),
-    changed: [...after.keys()].filter((key) => before.has(key) && before.get(key) !== after.get(key)),
-  };
 }
 
 function SchemaOverview({
@@ -249,6 +248,7 @@ function SchemaOverview({
               <strong>{name}</strong>
               <small>
                 {String(value.element ?? "Vertex")} · {String(value.backingIndex ?? "")}
+                {value.indexOnly ? ` · ${t("限定", "Only")} ${String(value.indexOnly)}` : ""}
               </small>
             </span>
           </div>
@@ -364,11 +364,19 @@ function SchemaOverview({
 
 function IndexFields({
   mixed,
+  element,
+  vertexLabels,
+  edgeLabels,
+  onElementChange,
   t,
   includeName = false,
   nameField = "name",
 }: {
   mixed: boolean;
+  element: SchemaIndexElement;
+  vertexLabels: string[];
+  edgeLabels: string[];
+  onElementChange: (value: SchemaIndexElement) => void;
   t: (chinese: string, english?: string) => string;
   includeName?: boolean;
   nameField?: string;
@@ -386,13 +394,34 @@ function IndexFields({
         <SelectControl
           name="indexElement"
           ariaLabel={t("索引元素", "Indexed element")}
-          defaultValue="Vertex"
+          value={element}
+          onValueChange={(value) => onElementChange(value === "Edge" ? "Edge" : "Vertex")}
           options={[
             { value: "Vertex", label: "Vertex" },
             { value: "Edge", label: "Edge" },
           ]}
         />
       </label>
+      {(
+        <label className="field field-span-2 index-only-field">
+          <span>{element === "Vertex"
+            ? t("限定 Vertex Label", "Limit to Vertex Label")
+            : t("限定 Edge Label", "Limit to Edge Label")}</span>
+          <SelectControl
+            name="indexOnlySchemaLabel"
+            ariaLabel={element === "Vertex" ? t("限定 Vertex Label", "Limit to Vertex Label") : t("限定 Edge Label", "Limit to Edge Label")}
+            defaultValue=""
+            options={[
+              { value: "", label: t("不限定（全局索引）", "No limit (global index)") },
+              ...(element === "Vertex" ? vertexLabels : edgeLabels).map((label) => ({ value: label, label, description: "indexOnly" })),
+            ]}
+          />
+          <small>{t(
+            "选择后会调用 indexOnly(schemaLabel)，索引只覆盖该类型。",
+            "When selected, indexOnly(schemaLabel) limits the index to that type.",
+          )}</small>
+        </label>
+      )}
       {mixed ? (
         <label className="field field-span-2">
           <span>{t("Mixed Index 后端", "Mixed index backend")}</span>
@@ -454,13 +483,17 @@ export function SchemaPage({
   );
   const [propertyComposite, setPropertyComposite] = useState(false);
   const [propertyMixed, setPropertyMixed] = useState(false);
+  const [propertyIndexElement, setPropertyIndexElement] = useState<SchemaIndexElement>("Vertex");
   const [existingIndexType, setExistingIndexType] = useState<
     "composite" | "mixed"
   >("composite");
+  const [existingIndexElement, setExistingIndexElement] = useState<SchemaIndexElement>("Vertex");
   const [busy, setBusy] = useState(false);
   const [indexBusy, setIndexBusy] = useState("");
   const [schemaWarnings, setSchemaWarnings] = useState<string[]>([]);
-  const [schemaDiff, setSchemaDiff] = useState<ReturnType<typeof compareSchemaRows> | null>(null);
+  const [schemaExportDialogOpen, setSchemaExportDialogOpen] = useState(false);
+  const [schemaSnapshotDialogOpen, setSchemaSnapshotDialogOpen] = useState(false);
+  const [schemaSnapshotBaseline, setSchemaSnapshotBaseline] = useState<SchemaSnapshotBaseline | null>(null);
   const [schemaJobs, setSchemaJobs] = useState<SchemaJob[]>([]);
   const [schemaImport, setSchemaImport] = useState<{
     fileName: string;
@@ -477,7 +510,7 @@ export function SchemaPage({
   );
   const schemaImportStartedAt = useRef("");
   const [schemaImportFailure, setSchemaImportFailure] = useState<string | null>(null);
-  const [schemaTransferBusy, setSchemaTransferBusy] = useState<"import" | "export" | null>(null);
+  const [schemaTransferBusy, setSchemaTransferBusy] = useState<"import" | "export-studio" | "export-official" | null>(null);
   const [schemaCancelRequested, setSchemaCancelRequested] = useState(false);
   const [schemaBatchIndex, setSchemaBatchIndex] = useState(0);
   const [factoryGraphs, setFactoryGraphs] = useState<ConfiguredGraphSummary[]>([]);
@@ -486,6 +519,10 @@ export function SchemaPage({
   const [pendingSchemaCreate, setPendingSchemaCreate] = useState<{
     script: string;
     form: HTMLFormElement;
+    createsIndex: boolean;
+    indexNames: string[];
+    targetName: string;
+    production: boolean;
   } | null>(null);
   const [pendingIndexAction, setPendingIndexAction] = useState<{
     name: string;
@@ -496,6 +533,10 @@ export function SchemaPage({
       ? `${activeConnection.id}.${graphContext.traversalSource}`
       : activeConnection.id
     : "";
+  const schemaSnapshotKey = schemaContextKey
+    ? `janusgraph.schemaSnapshot.v1.${schemaContextKey}`
+    : "";
+  const schemaTargetName = graphContext?.name ?? activeConnection?.graphBinding ?? t("当前图", "Current graph");
 
   const rememberBackgroundSchemaTask = (task: BackgroundSchemaTask | null) => {
     setBackgroundSchemaTask(task);
@@ -529,6 +570,12 @@ export function SchemaPage({
     const interval = window.setInterval(() => { void refreshJobs(); }, 500);
     return () => window.clearInterval(interval);
   }, [schemaTransferBusy, hasRunningSchemaImport, refreshJobs]);
+
+  useEffect(() => {
+    setSchemaSnapshotBaseline(parseSchemaSnapshotBaseline(schemaSnapshotKey ? localStorage.getItem(schemaSnapshotKey) : null));
+    setSchemaSnapshotDialogOpen(false);
+    setSchemaExportDialogOpen(false);
+  }, [schemaSnapshotKey]);
 
   const refreshFactoryGraphs = useCallback(async () => {
     if (!activeConnection) {
@@ -640,7 +687,9 @@ export function SchemaPage({
       form.reset();
       setPropertyComposite(false);
       setPropertyMixed(false);
+      setPropertyIndexElement("Vertex");
       setExistingIndexType("composite");
+      setExistingIndexElement("Vertex");
       await refresh();
     } catch (error) {
       setState({ status: "error", message: errorMessage(error) });
@@ -657,6 +706,8 @@ export function SchemaPage({
     const name = String(data.get("name") ?? "").trim();
     const graph = safeIdentifier(activeConnection.graphBinding);
     let script = "";
+    let createsIndex = false;
+    let indexNames: string[] = [];
     if (kind === "property") {
       const dataType = String(data.get("dataType") ?? "String");
       const cardinality = String(data.get("cardinality") ?? "SINGLE");
@@ -670,25 +721,24 @@ export function SchemaPage({
         String(data.get("indexElement") ?? "Vertex") === "Edge"
           ? "Edge"
           : "Vertex";
+      const indexOnlySchemaLabel = String(data.get("indexOnlySchemaLabel") ?? "").trim();
       const backend = String(data.get("mixedIndexBackend") ?? "search").trim();
       const unique = data.get("compositeUnique") === "on";
-      const indexScripts = [
-        createComposite
-          ? `compositeBuilder = mgmt.buildIndex(${stringLiteral(compositeIndexName)}, org.apache.tinkerpop.gremlin.structure.${indexElement}.class).addKey(key)
-${unique ? "compositeBuilder.unique()" : ""}
-compositeBuilder.buildCompositeIndex()`
-          : "",
-        createMixed
-          ? `mgmt.buildIndex(${stringLiteral(mixedIndexName)}, org.apache.tinkerpop.gremlin.structure.${indexElement}.class).addKey(key).buildMixedIndex(${stringLiteral(backend)})`
-          : "",
-      ]
-        .filter(Boolean)
-        .join("\n");
-      script = `mgmt = ${graph}.openManagement()
-key = mgmt.makePropertyKey(${stringLiteral(name)}).dataType(${dataType}.class).cardinality(org.janusgraph.core.Cardinality.${cardinality}).make()
-${indexScripts}
-mgmt.commit()
-${stringLiteral(`PropertyKey ${name} created`)}`;
+      createsIndex = createComposite || createMixed;
+      indexNames = [
+        ...(createComposite ? [compositeIndexName] : []),
+        ...(createMixed ? [mixedIndexName] : []),
+      ].filter(Boolean);
+      script = buildPropertyKeySchemaScript({
+        graphBinding: activeConnection.graphBinding,
+        name,
+        dataType,
+        cardinality,
+        element: indexElement,
+        schemaLabel: indexOnlySchemaLabel,
+        ...(createComposite ? { composite: { name: compositeIndexName, unique } } : {}),
+        ...(createMixed ? { mixed: { name: mixedIndexName, backend } } : {}),
+      });
     } else if (kind === "vertex") {
       script = `mgmt = ${graph}.openManagement()
 mgmt.makeVertexLabel(${stringLiteral(name)}).make()
@@ -708,22 +758,31 @@ ${stringLiteral(`EdgeLabel ${name} created`)}`;
         String(data.get("indexElement") ?? "Vertex") === "Edge"
           ? "Edge"
           : "Vertex";
+      const indexOnlySchemaLabel = String(data.get("indexOnlySchemaLabel") ?? "").trim();
       const unique = data.get("unique") === "on";
-      const buildIndex =
-        indexType === "mixed"
-          ? `mgmt.buildIndex(${stringLiteral(name)}, org.apache.tinkerpop.gremlin.structure.${indexElement}.class).addKey(key).buildMixedIndex(${stringLiteral(backend)})`
-          : `builder = mgmt.buildIndex(${stringLiteral(name)}, org.apache.tinkerpop.gremlin.structure.${indexElement}.class).addKey(key)
-${unique ? "builder.unique()" : ""}
-builder.buildCompositeIndex()`;
-      script = `mgmt = ${graph}.openManagement()
-key = mgmt.getPropertyKey(${stringLiteral(propertyKey)})
-if (key == null) { throw new IllegalArgumentException("PropertyKey not found") }
-${buildIndex}
-mgmt.commit()
-${stringLiteral(`${indexType} index ${name} created`)}`;
+      createsIndex = true;
+      indexNames = [name];
+      script = buildExistingPropertyIndexScript({
+        graphBinding: activeConnection.graphBinding,
+        indexName: name,
+        propertyKey,
+        type: indexType === "mixed" ? "mixed" : "composite",
+        element: indexElement,
+        schemaLabel: indexOnlySchemaLabel,
+        unique,
+        backend,
+      });
     }
-    if (activeConnection.environment === "prod") {
-      setPendingSchemaCreate({ script, form });
+    const production = activeConnection.environment === "prod";
+    if (createsIndex || production) {
+      setPendingSchemaCreate({
+        script,
+        form,
+        createsIndex,
+        indexNames,
+        targetName: schemaTargetName,
+        production,
+      });
       return;
     }
     void executeSchemaCreate(script, form);
@@ -821,46 +880,45 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
     }
   };
 
-  const schemaSnapshotKey = schemaContextKey
-    ? `janusgraph.schemaSnapshot.v1.${schemaContextKey}`
-    : "";
   const saveSchemaSnapshot = () => {
-    if (!schemaSnapshotKey || state.status !== "success") return;
-    localStorage.setItem(schemaSnapshotKey, JSON.stringify(schemaSnapshotRows(state.result.items)));
-    setSchemaDiff({ added: [], removed: [], changed: [] });
+    if (!schemaSnapshotKey || state.status !== "success" || schemaWarnings.length > 0) return;
+    const snapshot = {
+      savedAt: new Date().toISOString(),
+      rows: schemaSnapshotRows(state.result.items),
+    } satisfies SchemaSnapshotBaseline;
+    localStorage.setItem(schemaSnapshotKey, JSON.stringify(snapshot));
+    setSchemaSnapshotBaseline(snapshot);
+    notify({ tone: "success", message: t("Schema 比较基线已更新", "Schema comparison baseline updated") });
   };
-  const compareSchemaSnapshot = () => {
-    if (!schemaSnapshotKey || state.status !== "success") return;
-    try {
-      const previous = JSON.parse(localStorage.getItem(schemaSnapshotKey) ?? "[]") as Record<string, unknown>[];
-      if (!Array.isArray(previous) || previous.length === 0) {
-        setSchemaDiff(null);
-        return;
-      }
-      setSchemaDiff(compareSchemaRows(previous, schemaSnapshotRows(state.result.items)));
-    } catch {
-      setSchemaDiff(null);
-    }
-  };
+  const schemaDiff = state.status === "success" && schemaSnapshotBaseline && schemaWarnings.length === 0
+    ? compareSchemaRows(schemaSnapshotBaseline.rows, schemaSnapshotRows(state.result.items))
+    : null;
 
-  const exportSchema = async () => {
+  const exportSchema = async (format: SchemaExportFormat) => {
     if (!activeConnection || state.status !== "success" || !window.janusGraphDesktop) return;
-    setSchemaTransferBusy("export");
+    setSchemaTransferBusy(format === "studio" ? "export-studio" : "export-official");
     try {
-      const archive = createSchemaArchive(state.result.items, {
-        connectionName: activeConnection.name,
-        graphBinding: activeConnection.graphBinding,
-        traversalSource: activeConnection.traversalSource,
-      });
-      const safeName = (graphContext?.name ?? activeConnection.name).trim().replace(/[^\p{L}\p{N}._-]+/gu, "-") || "graph";
+      const document = format === "studio"
+        ? createSchemaArchive(state.result.items, {
+            connectionName: activeConnection.name,
+            graphBinding: activeConnection.graphBinding,
+            traversalSource: activeConnection.traversalSource,
+          })
+        : createOfficialSchemaDefinition(state.result.items);
+      const safeName = schemaTargetName.trim().replace(/[^\p{L}\p{N}._-]+/gu, "-") || "graph";
       const path = await window.janusGraphDesktop.files.saveSchemaFile({
-        suggestedName: `${safeName}.schema.json`,
-        content: `${JSON.stringify(archive, null, 2)}\n`,
+        suggestedName: format === "studio"
+          ? `${safeName}.schema.json`
+          : `${safeName}.janusgraph-schema.json`,
+        content: `${JSON.stringify(document, null, 2)}\n`,
       });
       if (path) {
+        setSchemaExportDialogOpen(false);
         notify({
           tone: "success",
-          message: t("Schema 已导出", "Schema exported"),
+          message: format === "studio"
+            ? t("Janus Studio Schema 归档已导出", "Janus Studio Schema archive exported")
+            : t("JanusGraph 官方 JSON 已导出，可直接用于 JsonSchemaInitStrategy", "Official JanusGraph JSON exported for direct use with JsonSchemaInitStrategy"),
         });
       }
     } catch (error) {
@@ -878,6 +936,8 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
       const file = await window.janusGraphDesktop.files.pickSchemaFile();
       if (!file) return;
       const archive = parseSchemaArchive(file);
+      const profile = await window.janusGraphDesktop.compatibility.get(activeConnection.id);
+      const officialRoute = routeCompatibility(profile, "officialSchemaJson");
       setSchemaImport({
         fileName: file.name,
         archive,
@@ -886,6 +946,7 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
           state.result.items,
           activeConnection.graphBinding,
           activeConnection.traversalSource,
+          officialRoute.status,
         ),
       });
       setBackgroundSchemaImport(null);
@@ -905,6 +966,15 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
     setSchemaCancelRequested(false);
     schemaImportStartedAt.current = new Date().toISOString();
     try {
+      if (schemaImport.plan.execution === "official-json") {
+        const profile = await window.janusGraphDesktop.compatibility.get(activeConnection.id);
+        if (routeCompatibility(profile, "officialSchemaJson").status !== "available") {
+          throw new Error(t(
+            "目标连接的 JanusGraph 官方 JSON Schema API 当前不可用，请重新探测能力并生成导入计划。",
+            "The JanusGraph official JSON Schema API is not currently available for the target connection. Refresh capabilities and regenerate the import plan.",
+          ));
+        }
+      }
       await window.janusGraphDesktop.schemaJobs.run({
         connectionId: activeConnection.id,
         indexName: schemaImport.fileName,
@@ -915,7 +985,7 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
       });
       notify({
         tone: "success",
-        message: `${t("Schema 导入并校验完成", "Schema import and verification completed")} · ${schemaImport.plan.operations.length} ${t("项定义已创建", "definitions created")} · ${schemaImport.plan.indexActivations.length} ${t("个索引已启用", "indexes enabled")}`,
+        message: `${t("Schema 导入并校验完成", "Schema import and verification completed")} · ${schemaImport.plan.execution === "official-json" ? "JsonSchemaInitStrategy" : "Management API"} · ${schemaImport.plan.operations.length} ${t("项定义已创建", "definitions created")} · ${schemaImport.plan.indexActivations.length} ${t("个索引已启用", "indexes enabled")}`,
         dismissOnly: true,
       });
       setSchemaImport(null);
@@ -964,6 +1034,22 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
         message: progressSchemaImport?.message ?? "",
       }
     : null;
+  const vertexLabelOptions = state.status === "success"
+    ? sortSchemaNames([...new Set(
+        schemaRowsFromItems(state.result.items)
+          .filter((row) => row.group === "vertexLabels")
+          .map((row) => String(row.name ?? "").trim())
+          .filter(Boolean),
+      )])
+    : [];
+  const edgeLabelOptions = state.status === "success"
+    ? sortSchemaNames([...new Set(
+        schemaRowsFromItems(state.result.items)
+          .filter((row) => row.group === "edgeLabels")
+          .map((row) => String(row.name ?? "").trim())
+          .filter(Boolean),
+      )])
+    : [];
 
   const schemaDefinitionActions = (
     <div className="schema-local-actions">
@@ -971,15 +1057,23 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
         {schemaTransferBusy === "import" ? <LoaderCircle className="spin" size={16} /> : <Upload size={16} />}
         {t("导入 Schema", "Import Schema")}
       </button>
-      <button type="button" className="button text" onClick={() => void exportSchema()} disabled={state.status !== "success" || schemaTransferBusy !== null}>
-        {schemaTransferBusy === "export" ? <LoaderCircle className="spin" size={16} /> : <Download size={16} />}
+      <button
+        type="button"
+        className="button text"
+        onClick={() => setSchemaExportDialogOpen(true)}
+        disabled={state.status !== "success" || schemaTransferBusy !== null}
+      >
+        {schemaTransferBusy === "export-official" || schemaTransferBusy === "export-studio" ? <LoaderCircle className="spin" size={16} /> : <Download size={16} />}
         {t("导出 Schema", "Export Schema")}
       </button>
-      <button type="button" className="button text" onClick={saveSchemaSnapshot} disabled={state.status !== "success"}>
-        <Save size={16} />{t("保存快照", "Save snapshot")}
-      </button>
-      <button type="button" className="button text" onClick={compareSchemaSnapshot} disabled={state.status !== "success"}>
-        <GitBranch size={16} />{t("比较快照", "Compare snapshot")}
+      <button
+        type="button"
+        className="button text"
+        onClick={() => setSchemaSnapshotDialogOpen(true)}
+        disabled={state.status !== "success"}
+      >
+        <GitCompareArrows size={16} />
+        {t("快照基线", "Snapshot baseline")}
       </button>
       <button type="button" className="button secondary" onClick={refresh} disabled={!activeConnection || state.status === "loading"}>
         <RefreshCw className={state.status === "loading" ? "spin" : ""} size={17} />{t("刷新 Schema")}
@@ -1200,14 +1294,19 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
                     </div>
                   )}
                   {schemaDiff && (
-                    <div className="schema-diff-summary">
-                      <GitBranch size={17} />
-                      <strong>{t("与已保存快照比较", "Compared with saved snapshot")}</strong>
+                    <button type="button" className="schema-diff-summary" onClick={() => setSchemaSnapshotDialogOpen(true)}>
+                      <GitCompareArrows size={17} />
+                      <span className="schema-diff-summary-copy">
+                        <strong>{t("自动比较快照基线", "Automatic baseline comparison")}</strong>
+                        <small>{schemaSnapshotBaseline?.savedAt
+                          ? `${t("基线", "Baseline")} · ${formatSchemaArchiveTime(schemaSnapshotBaseline.savedAt)}`
+                          : t("旧版本快照", "Legacy snapshot")}</small>
+                      </span>
                       <span className="is-added">+{schemaDiff.added.length}</span>
                       <span className="is-changed">~{schemaDiff.changed.length}</span>
-                      <span className="is-removed">−{schemaDiff.removed.length}</span>
-                      <small title={[...schemaDiff.added, ...schemaDiff.changed, ...schemaDiff.removed].join("\n")}>{t("悬停查看变更键", "Hover to inspect changed keys")}</small>
-                    </div>
+                      <span className="is-missing" title={t("当前缺失", "Missing now")}>!{schemaDiff.missing.length}</span>
+                      <small>{t("查看明细", "View details")}</small>
+                    </button>
                   )}
                   <SchemaOverview
                     items={state.result.items}
@@ -1337,12 +1436,34 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
                         <SelectControl
                           name="indexElement"
                           ariaLabel={t("索引元素", "Indexed element")}
-                          defaultValue="Vertex"
+                          value={propertyIndexElement}
+                          onValueChange={(value) => setPropertyIndexElement(value === "Edge" ? "Edge" : "Vertex")}
                           options={[
                             { value: "Vertex", label: "Vertex" },
                             { value: "Edge", label: "Edge" },
                           ]}
                         />
+                      </label>
+                    )}
+                    {(propertyComposite || propertyMixed) && (
+                      <label className="field index-only-field">
+                        <span>{propertyIndexElement === "Vertex"
+                          ? t("限定 Vertex Label", "Limit to Vertex Label")
+                          : t("限定 Edge Label", "Limit to Edge Label")}</span>
+                        <SelectControl
+                          name="indexOnlySchemaLabel"
+                          ariaLabel={propertyIndexElement === "Vertex" ? t("限定 Vertex Label", "Limit to Vertex Label") : t("限定 Edge Label", "Limit to Edge Label")}
+                          defaultValue=""
+                          options={[
+                            { value: "", label: t("不限定（全局索引）", "No limit (global index)") },
+                            ...(propertyIndexElement === "Vertex" ? vertexLabelOptions : edgeLabelOptions)
+                              .map((label) => ({ value: label, label, description: "indexOnly" })),
+                          ]}
+                        />
+                        <small>{t(
+                          "Composite 与 Mixed Index 将只覆盖所选 Schema Label。",
+                          "Composite and Mixed indexes will only cover the selected Schema Label.",
+                        )}</small>
                       </label>
                     )}
                     {(propertyComposite || propertyMixed) && (
@@ -1444,7 +1565,14 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
                       ]}
                     />
                   </label>
-                  <IndexFields mixed={existingIndexType === "mixed"} t={t} />
+                  <IndexFields
+                    mixed={existingIndexType === "mixed"}
+                    element={existingIndexElement}
+                    vertexLabels={vertexLabelOptions}
+                    edgeLabels={edgeLabelOptions}
+                    onElementChange={setExistingIndexElement}
+                    t={t}
+                  />
                 </>
               )}
               <div className="schema-warning">
@@ -1467,6 +1595,36 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
             </form>
           </section>
         </div>
+      )}
+      {schemaExportDialogOpen && state.status === "success" && (
+        <SchemaExportDialog
+          graphName={schemaTargetName}
+          unavailableReasons={schemaWarnings.length > 0
+            ? {
+                official: t("部分 Schema 分组读取失败。请先刷新并确保所有分组读取成功，避免导出不完整文件。", "Some Schema groups failed to load. Refresh until every group succeeds to avoid exporting an incomplete file."),
+                studio: t("部分 Schema 分组读取失败。请先刷新并确保所有分组读取成功，避免导出不完整文件。", "Some Schema groups failed to load. Refresh until every group succeeds to avoid exporting an incomplete file."),
+              }
+            : {}}
+          busy={schemaTransferBusy === "export-official"
+            ? "official"
+            : schemaTransferBusy === "export-studio"
+              ? "studio"
+              : null}
+          onClose={() => { if (!schemaTransferBusy) setSchemaExportDialogOpen(false); }}
+          onExport={(format) => void exportSchema(format)}
+        />
+      )}
+      {schemaSnapshotDialogOpen && state.status === "success" && (
+        <SchemaSnapshotDialog
+          graphName={schemaTargetName}
+          currentCount={schemaSnapshotRows(state.result.items).length}
+          savedAt={schemaSnapshotBaseline?.savedAt ?? ""}
+          baselineCount={schemaSnapshotBaseline?.rows.length ?? 0}
+          diff={schemaDiff}
+          incomplete={schemaWarnings.length > 0}
+          onClose={() => setSchemaSnapshotDialogOpen(false)}
+          onSave={saveSchemaSnapshot}
+        />
       )}
       {schemaImport && (
         <SchemaImportDialog
@@ -1668,18 +1826,34 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
       ))(schemaImport!, activeConnection!, graphContext!)}
       {pendingSchemaCreate && activeConnection && (
         <ConfirmDialog
-          title={t("确认生产环境 Schema 变更", "Confirm Production Schema Change")}
-          description={`${t("生产连接", "Production connection")} “${activeConnection.name}”. ${t(
-            "即将创建新的 Schema 定义；请再次确认目标连接和表单内容均正确。",
-            "A new schema definition will be created. Verify the target connection and form values before continuing.",
-          )}`}
-          confirmLabel={t("确认创建", "Confirm Creation")}
+          title={pendingSchemaCreate.createsIndex
+            ? t("确认创建 Graph Index", "Confirm Graph Index Creation")
+            : t("确认生产环境 Schema 变更", "Confirm Production Schema Change")}
+          description={pendingSchemaCreate.createsIndex
+            ? `${pendingSchemaCreate.production ? `${t("生产连接", "Production connection")} “${activeConnection.name}” · ` : ""}${t(
+                "即将在目标图中创建 Graph Index。",
+                "A Graph Index will be created in the target graph.",
+              )} ${t("目标图", "Target graph")}：“${pendingSchemaCreate.targetName}”${pendingSchemaCreate.indexNames.length > 0
+                ? ` · ${t("索引", "Index")}：“${pendingSchemaCreate.indexNames.join("、")}”`
+                : ""}。${t(
+                "索引创建会修改 Schema，请核对目标图后继续。",
+                "Index creation changes the schema. Verify the target graph before continuing.",
+              )}`
+            : `${t("生产连接", "Production connection")} “${activeConnection.name}”. ${t(
+                "即将创建新的 Schema 定义；请再次确认目标连接和表单内容均正确。",
+                "A new schema definition will be created. Verify the target connection and form values before continuing.",
+              )}`}
+          confirmLabel={pendingSchemaCreate.createsIndex
+            ? t("确认创建索引", "Create Index")
+            : t("确认创建", "Confirm Creation")}
           confirmIcon={<AlertTriangle size={17} />}
+          confirmationText={pendingSchemaCreate.createsIndex ? pendingSchemaCreate.targetName : undefined}
+          tone={pendingSchemaCreate.createsIndex ? "primary" : "danger"}
           onCancel={() => setPendingSchemaCreate(null)}
           onConfirm={async () => {
             const pending = pendingSchemaCreate;
             setPendingSchemaCreate(null);
-            await executeSchemaCreate(pending.script, pending.form, true);
+            await executeSchemaCreate(pending.script, pending.form, pending.production);
           }}
         />
       )}

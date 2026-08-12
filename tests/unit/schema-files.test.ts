@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  createOfficialSchemaDefinition,
   createSchemaArchive,
   formatSchemaArchiveTime,
   parseSchemaArchive,
@@ -32,6 +34,14 @@ test("exports a declarative Schema v1 archive without runtime index state", () =
   }, "2026-08-10T00:00:00.000Z");
 
   assert.equal(archive.format, "janus-studio.schema/v1");
+  assert.match(archive.exportedAt, /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+  assert.equal(archive.exportedAt.includes("T"), false);
+  assert.equal(archive.preferredImporter, "org.janusgraph.core.schema.JsonSchemaInitStrategy");
+  assert.deepEqual(archive.officialSchema?.propertyKeys, [{
+    key: "name",
+    className: "java.lang.String",
+    cardinality: "SINGLE",
+  }]);
   assert.deepEqual(archive.schema.graphIndexes[0], {
     name: "byName",
     element: "Vertex",
@@ -41,6 +51,46 @@ test("exports a declarative Schema v1 archive without runtime index state", () =
   });
   assert.equal(JSON.stringify(archive).includes("fieldStatus"), false);
   assert.equal(JSON.stringify(archive).includes("ENABLED"), false);
+});
+
+test("exports a pure JanusGraph JsonSchemaDefinition document", () => {
+  const definition = createOfficialSchemaDefinition(rows.map((row) =>
+    row.group === "graphIndexes" ? { ...row, indexOnly: "person" } : row,
+  ));
+
+  assert.deepEqual(Object.keys(definition), [
+    "vertexLabels",
+    "edgeLabels",
+    "propertyKeys",
+    "compositeIndexes",
+    "mixedIndexes",
+    "vertexCentricEdgeIndexes",
+    "vertexCentricPropertyIndexes",
+  ]);
+  assert.equal("format" in definition, false);
+  assert.equal("exportedAt" in definition, false);
+  assert.equal("source" in definition, false);
+  assert.deepEqual(definition.propertyKeys, [{
+    key: "name",
+    className: "java.lang.String",
+    cardinality: "SINGLE",
+  }]);
+  assert.deepEqual(definition.compositeIndexes, [{
+    name: "byName",
+    typeClass: "org.apache.tinkerpop.gremlin.structure.Vertex",
+    indexOnly: "person",
+    unique: false,
+    keys: [{ propertyKey: "name" }],
+  }]);
+
+  const archive = parseSchemaArchive({
+    name: "graph.janusgraph-schema.json",
+    content: JSON.stringify(definition),
+  });
+  const plan = planSchemaImport(archive, [], "graph", "g", "available");
+  assert.equal(archive.format, "janusgraph.schema/json");
+  assert.equal(plan.execution, "official-json");
+  assert.match(plan.script ?? "", /JsonSchemaInitStrategy\.initializeSchemaFromString/);
 });
 
 test("parses and validates Schema archives", () => {
@@ -205,4 +255,83 @@ test("splits large Schema imports into bounded dependency-ordered batches", () =
   assert.ok(plan.scripts.slice(0, 3).every((script) => script.includes("makePropertyKey")));
   assert.match(plan.scripts[3] ?? "", /makeVertexLabel/);
   assert.ok(plan.scripts.every((script) => script.length < 60_000));
+});
+
+test("parses JanusGraph 1.1 official JSON without dropping native-only fields", () => {
+  const content = readFileSync(
+    new URL("../fixtures/schema/janusgraph-1.1-official.json", import.meta.url),
+    "utf8",
+  );
+  const archive = parseSchemaArchive({ name: "official.json", content });
+
+  assert.equal(archive.format, "janusgraph.schema/json");
+  assert.deepEqual(archive.schema.propertyKeys.map((item) => item.name), ["name", "createdAt"]);
+  assert.deepEqual(archive.schema.graphIndexes.map((item) => item.name), ["byName", "searchByName"]);
+  assert.ok(archive.manual?.some((item) => item.path === "vertexLabels[1].ttl"));
+  assert.ok(archive.manual?.some((item) => item.path === "edgeLabels[0].unidirected"));
+  assert.ok(archive.manual?.some((item) => item.path === "mixedIndexes[0].keys[0].parameters"));
+  assert.ok(archive.manual?.some((item) => item.path === "vertexCentricEdgeIndexes[0]"));
+  assert.equal((archive.officialSchema?.vertexCentricEdgeIndexes as unknown[]).length, 1);
+});
+
+test("routes official JSON through bounded JanusGraph 1.1 native batches", () => {
+  const content = readFileSync(
+    new URL("../fixtures/schema/janusgraph-1.1-official.json", import.meta.url),
+    "utf8",
+  );
+  const archive = parseSchemaArchive({ name: "official.json", content });
+  const plan = planSchemaImport(archive, [], "graph", "g", "available");
+
+  assert.equal(plan.execution, "official-json");
+  assert.equal(plan.conflicts.length, 0);
+  assert.ok(plan.manual.length >= 4);
+  assert.equal(plan.scripts.length, 6);
+  assert.ok(plan.scripts.every((script) => script.includes("JsonSchemaInitStrategy.initializeSchemaFromString")));
+  assert.ok(plan.scripts.every((script) => script.includes("REINDEX_AND_ENABLE_UPDATED_ONLY")));
+  assert.ok(plan.scripts.every((script) => script.includes("false,")));
+  assert.ok(plan.scripts.every((script) => script.length < 60_000));
+  assert.match(plan.script ?? "", /vertexCentricEdgeIndexes/);
+});
+
+test("round-trips Studio exports through JsonSchemaInitStrategy when the server supports it", () => {
+  const source = createSchemaArchive(rows, {
+    connectionName: "Source",
+    graphBinding: "graph",
+    traversalSource: "g",
+  }, "2026-08-10T00:00:00.000Z");
+  const archive = parseSchemaArchive({ name: "studio.schema.json", content: JSON.stringify(source) });
+  const plan = planSchemaImport(archive, [], "graph", "g", "available");
+
+  assert.equal(archive.exportedAt, source.exportedAt);
+  assert.equal(plan.execution, "official-json");
+  assert.match(plan.script ?? "", /JsonSchemaInitStrategy\.initializeSchemaFromString/);
+});
+
+test("blocks lossy official JSON fallback but converts the common subset on JanusGraph 1.0", () => {
+  const advanced = parseSchemaArchive({
+    name: "advanced.json",
+    content: readFileSync(new URL("../fixtures/schema/janusgraph-1.1-official.json", import.meta.url), "utf8"),
+  });
+  const blocked = planSchemaImport(advanced, [], "graph", "g", "unavailable");
+  assert.equal(blocked.execution, "management");
+  assert.match(blocked.conflicts.find((item) => item.key === "officialSchemaJson")?.reason ?? "", /无法无损降级/);
+  assert.equal(blocked.scripts.length, 0);
+
+  const portable = parseSchemaArchive({
+    name: "portable.json",
+    content: JSON.stringify({
+      propertyKeys: [{ key: "name", className: "java.lang.String", cardinality: "SINGLE" }],
+      vertexLabels: [{ label: "person" }],
+      edgeLabels: [],
+      compositeIndexes: [],
+      mixedIndexes: [],
+      vertexCentricEdgeIndexes: [],
+      vertexCentricPropertyIndexes: [],
+    }),
+  });
+  const fallback = planSchemaImport(portable, [], "graph", "g", "unavailable");
+  assert.equal(fallback.execution, "management");
+  assert.equal(fallback.conflicts.length, 0);
+  assert.match(fallback.script ?? "", /makePropertyKey/);
+  assert.doesNotMatch(fallback.script ?? "", /JsonSchemaInitStrategy/);
 });

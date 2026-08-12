@@ -1866,54 +1866,6 @@ pre,
   gap: 7px;
 }
 
-.schema-diff-summary {
-  display: flex;
-  min-height: 44px;
-  align-items: center;
-  gap: 9px;
-  margin: 16px 16px 0;
-  padding: 0 12px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  color: var(--muted);
-  background: var(--surface-1);
-  font-size: var(--text-xs);
-}
-
-.schema-diff-summary > svg {
-  color: var(--acid);
-}
-
-.schema-diff-summary strong {
-  margin-right: auto;
-  color: var(--bone-soft);
-}
-
-.schema-diff-summary span {
-  padding: 3px 6px;
-  border-radius: 999px;
-  font-family: var(--font-code);
-}
-
-.schema-diff-summary .is-added {
-  color: var(--acid);
-  background: rgba(200, 255, 85, 0.08);
-}
-
-.schema-diff-summary .is-changed {
-  color: var(--amber);
-  background: rgba(239, 180, 94, 0.08);
-}
-
-.schema-diff-summary .is-removed {
-  color: var(--danger);
-  background: color-mix(in srgb, var(--danger) 8%, transparent);
-}
-
-.schema-diff-summary small {
-  color: var(--muted-2);
-}
-
 .schema-partial-warning {
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr);

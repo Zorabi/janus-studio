@@ -79,12 +79,16 @@ export class SchemaJobService {
     const started = performance.now();
     let completedBatches = 0;
     let totalBatches = 1;
+    let strategy = "Management API";
     try {
       const queries = decodeSchemaQueries(job.query);
+      strategy = queries.some((query) => query.includes("JsonSchemaInitStrategy.initializeSchemaFromString"))
+        ? "JsonSchemaInitStrategy"
+        : "Management API";
       totalBatches = queries.length;
       for (const query of queries) {
         if (this.cancellationRequests.has(job.id)) throw new Error("Schema operation stopped");
-        this.repository.progress(job.id, `Running batch ${completedBatches + 1}/${totalBatches}`);
+        this.repository.progress(job.id, `${strategy} · Running batch ${completedBatches + 1}/${totalBatches}`);
         const executionId = randomUUID();
         this.activeExecutions.set(job.id, executionId);
         await this.queries.execute({
@@ -98,7 +102,7 @@ export class SchemaJobService {
         });
         this.activeExecutions.delete(job.id);
         completedBatches += 1;
-        this.repository.progress(job.id, `Completed ${completedBatches}/${totalBatches} batches`);
+        this.repository.progress(job.id, `${strategy} · Completed ${completedBatches}/${totalBatches} batches`);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Schema operation failed";
@@ -124,9 +128,9 @@ export class SchemaJobService {
     const completed = this.repository.finish(
       job.id,
       "succeeded",
-      totalBatches > 1
+      `${strategy} · ${totalBatches > 1
         ? `Completed ${completedBatches}/${totalBatches} batches`
-        : "Operation completed",
+        : "Operation completed"}`,
       Math.round(performance.now() - started),
     );
     return completed;

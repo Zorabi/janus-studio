@@ -1,0 +1,24 @@
+{
+  "connectionId": "fixture-janusgraph-1.1",
+  "connectionSignature": "janusgraph-1.1",
+  "status": "ready",
+  "janusGraphVersion": "1.1.0",
+  "tinkerPopVersion": "3.7.3",
+  "capabilities": {
+    "sessionedClient": "supported",
+    "requestTimeout": "supported",
+    "serverCancellation": "supported",
+    "managementApi": "supported",
+    "configuredGraphFactory": "supported",
+    "configurationManagementGraph": "supported",
+    "janusGraphManager": "supported",
+    "jsonSchemaInitialization": "supported",
+    "graphsonIo": "supported",
+    "indexFieldStatus": "supported",
+    "indexStatusAwait": "supported",
+    "traversalExplain": "supported",
+    "traversalProfile": "supported"
+  },
+  "detectedAt": "2026-08-12T00:00:00.000Z",
+  "message": ""
+}

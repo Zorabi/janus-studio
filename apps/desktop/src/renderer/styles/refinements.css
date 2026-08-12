@@ -1198,14 +1198,6 @@
   font-size: 9px;
 }
 
-.schema-import-stats {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.schema-import-stats .is-activate strong {
-  color: var(--amber);
-}
-
 .schema-import-operations > div {
   height: clamp(220px, 32vh, 340px);
   min-height: 220px;
@@ -2074,6 +2066,20 @@
 .index-element-field {
   width: 100%;
   max-width: 100%;
+}
+
+.index-only-field {
+  padding: 11px 12px;
+  border: 1px solid color-mix(in srgb, var(--acid) 24%, var(--line));
+  border-radius: 7px;
+  background:
+    linear-gradient(112deg, color-mix(in srgb, var(--acid) 7%, transparent), transparent 62%),
+    var(--surface-2);
+}
+
+.index-only-field > span {
+  color: var(--bone-soft);
+  font-weight: 620;
 }
 
 .index-type-choice {

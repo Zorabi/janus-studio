@@ -1,0 +1,42 @@
+{
+  "vertexLabels": [
+    { "label": "person" },
+    { "label": "session", "staticVertex": true, "ttl": 7200000 }
+  ],
+  "edgeLabels": [
+    { "label": "knows", "multiplicity": "MULTI", "unidirected": true }
+  ],
+  "propertyKeys": [
+    { "key": "name", "className": "java.lang.String", "cardinality": "SINGLE" },
+    { "key": "createdAt", "className": "java.util.Date" }
+  ],
+  "compositeIndexes": [
+    {
+      "name": "byName",
+      "typeClass": "org.apache.tinkerpop.gremlin.structure.Vertex",
+      "unique": false,
+      "keys": [{ "propertyKey": "name" }]
+    }
+  ],
+  "mixedIndexes": [
+    {
+      "name": "searchByName",
+      "typeClass": "org.apache.tinkerpop.gremlin.structure.Vertex",
+      "indexBackend": "search",
+      "keys": [{
+        "propertyKey": "name",
+        "parameters": [{ "key": "mapping", "value": "org.janusgraph.core.schema.Mapping.STRING", "parser": "enum" }]
+      }]
+    }
+  ],
+  "vertexCentricEdgeIndexes": [
+    {
+      "name": "recentKnows",
+      "indexedEdgeLabel": "knows",
+      "direction": "BOTH",
+      "propertyKeys": ["createdAt"],
+      "order": "desc"
+    }
+  ],
+  "vertexCentricPropertyIndexes": []
+}
