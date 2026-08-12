@@ -687,6 +687,10 @@
   line-height: 1.7;
 }
 
+.confirm-content.primary {
+  color: var(--acid);
+}
+
 .toast {
   position: fixed;
   z-index: 120;

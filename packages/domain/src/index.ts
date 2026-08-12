@@ -54,6 +54,7 @@ export type QueryRequest = {
   recordHistory?: boolean;
   productionConfirmed?: boolean;
   timeoutMs?: number;
+  serverCancellation?: boolean;
 };
 
 export type QueryCancelRequest = {

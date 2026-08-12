@@ -79,6 +79,7 @@ export const queryRequestSchema = z.object({
   recordHistory: z.boolean().optional().default(true),
   productionConfirmed: z.boolean().optional().default(false),
   timeoutMs: z.number().int().min(500).max(86_400_000).optional(),
+  serverCancellation: z.boolean().optional().default(false),
 });
 
 export const queryExportSchema = z.object({

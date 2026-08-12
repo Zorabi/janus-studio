@@ -111,6 +111,19 @@ function customHeaders(profile: ConnectionProfile): Record<string, string> {
   );
 }
 
+async function closeClientTransport(
+  client: InstanceType<typeof gremlin.driver.Client>,
+): Promise<void> {
+  const transport = (client as unknown as {
+    _connection?: { close: () => Promise<void> };
+  })._connection;
+  if (transport) {
+    await transport.close().catch(() => undefined);
+    return;
+  }
+  await client.close().catch(() => undefined);
+}
+
 async function withTimeout<T>(
   operation: Promise<T>,
   timeoutMs: number,
@@ -191,6 +204,7 @@ export class GremlinService {
     query: string,
     bindings: Record<string, unknown>,
     timeoutMs = profile.queryTimeoutMs,
+    serverCancellation = false,
   ): Promise<QueryExecutionResult> {
     const startedAt = performance.now();
     const endpoint = connectionEndpoint(profile);
@@ -212,6 +226,7 @@ export class GremlinService {
             query,
             bindings,
             timeoutMs,
+            serverCancellation,
           )
         : await this.executeHttp(
             profile,
@@ -308,6 +323,7 @@ export class GremlinService {
     query: string,
     bindings: Record<string, unknown>,
     timeoutMs: number,
+    serverCancellation: boolean,
   ): Promise<CollectedItems> {
     const authenticator =
       profile.username && password
@@ -328,10 +344,13 @@ export class GremlinService {
           ? { processor: "session", session: randomUUID() }
           : {}),
       });
-    const sessioned = profile.clientMode === "sessioned";
+    const dedicatedSession = serverCancellation;
+    const sessioned = profile.clientMode === "sessioned" || dedicatedSession;
     const sessionKey = `${profile.id}\u0000${consoleId}`;
     let client: InstanceType<typeof gremlin.driver.Client>;
-    if (sessioned) {
+    if (dedicatedSession) {
+      client = createClient(true);
+    } else if (sessioned) {
       const credentialHash = createHash("sha256")
         .update(`${profile.username}\u0000${password}`)
         .digest("hex");
@@ -368,7 +387,11 @@ export class GremlinService {
       cancelled: false,
       cancel: async () => {
         execution.cancelled = true;
-        if (sessioned) this.sessionClients.delete(sessionKey);
+        if (sessioned && !dedicatedSession) this.sessionClients.delete(sessionKey);
+        if (sessioned) {
+          await closeClientTransport(client);
+          return;
+        }
         await client.close().catch(() => undefined);
       },
     };
@@ -381,15 +404,20 @@ export class GremlinService {
         profile.connectTimeoutMs,
         `WebSocket 连接超时（${profile.connectTimeoutMs} ms）`,
       );
+      if (execution.cancelled) {
+        await closeClientTransport(client);
+        throw new Error("查询已停止");
+      }
       const requestClient = client as typeof client & {
         stream: (
           message: string,
           requestBindings: Record<string, unknown>,
-          options: { evaluationTimeout: number },
+          options: { evaluationTimeout: number; requestId: string },
         ) => ReturnType<typeof client.stream>;
       };
       const stream = requestClient.stream(query, bindings, {
         evaluationTimeout: timeoutMs,
+        requestId: executionId,
       });
       const collected = await withTimeout(
         (async (): Promise<CollectedItems> => {
@@ -415,12 +443,17 @@ export class GremlinService {
       if (execution.cancelled) throw new Error("查询已停止");
       if (sessioned) {
         this.sessionClients.delete(sessionKey);
-        await client.close().catch(() => undefined);
+        await closeClientTransport(client);
       }
       throw error;
     } finally {
       this.activeExecutions.delete(executionId);
-      if (!sessioned) await client.close();
+      if (!sessioned) {
+        await client.close().catch(() => undefined);
+      } else if (dedicatedSession) {
+        if (execution.cancelled) await closeClientTransport(client);
+        else await client.close().catch(() => undefined);
+      }
     }
   }
 

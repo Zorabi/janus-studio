@@ -34,6 +34,11 @@ export type VertexCount = {
   total: number;
 };
 
+export type ExportProgress = {
+  exists: boolean;
+  sizeBytes: number;
+};
+
 export function graphsonExportFileName(graphName: string, date = new Date()): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -52,7 +57,9 @@ def __parent = __path.getParent()
 if (__parent == null || !java.nio.file.Files.isDirectory(__parent)) { throw new IllegalArgumentException("Server directory does not exist: " + __parent) }
 if (java.nio.file.Files.exists(__path) && !overwrite) { throw new IllegalStateException("SERVER_FILE_EXISTS: " + __path) }
 ${RESOLVE_GRAPH}
-def __temporary = __parent.resolve("." + __path.getFileName().toString() + ".janus-studio-partial-" + java.util.UUID.randomUUID().toString())
+def __temporary = java.nio.file.Paths.get(partialPath).normalize()
+if (!__temporary.isAbsolute() || __temporary.getParent() != __parent) { throw new IllegalArgumentException("Invalid export progress path: " + __temporary) }
+java.nio.file.Files.deleteIfExists(__temporary)
 try {
   __graph.io(${IO_CORE}.graphson()).writeGraph(__temporary.toString())
   try {
@@ -72,6 +79,10 @@ try {
   java.nio.file.Files.deleteIfExists(__temporary)
 }
 return [[graphName: graphName, serverPath: __path.toString(), sizeBytes: java.nio.file.Files.size(__path), completed: true]]`,
+  exportProgress: `def __path = java.nio.file.Paths.get(partialPath).normalize()
+if (!__path.isAbsolute()) { throw new IllegalArgumentException("Export progress path must be absolute") }
+def __exists = java.nio.file.Files.isRegularFile(__path)
+return [[exists: __exists, sizeBytes: __exists ? java.nio.file.Files.size(__path) : 0L]]`,
   importGraph: `def __path = java.nio.file.Paths.get(serverPath).normalize()
 if (!__path.isAbsolute()) { throw new IllegalArgumentException("Server GraphSON path must be absolute") }
 if (!java.nio.file.Files.isRegularFile(__path) || !java.nio.file.Files.isReadable(__path)) { throw new IllegalArgumentException("Server GraphSON file is not readable: " + __path) }
@@ -177,4 +188,12 @@ export function parseVertexCount(items: unknown[]): VertexCount | null {
   if (!value) return null;
   const total = Number(value.total);
   return Number.isSafeInteger(total) && total >= 0 ? { total } : null;
+}
+
+export function parseExportProgress(items: unknown[]): ExportProgress | null {
+  const value = items.map(record).find(Boolean);
+  if (!value) return null;
+  const sizeBytes = Number(value.sizeBytes);
+  if (!Number.isSafeInteger(sizeBytes) || sizeBytes < 0) return null;
+  return { exists: value.exists === true, sizeBytes };
 }

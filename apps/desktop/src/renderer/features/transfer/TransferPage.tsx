@@ -45,6 +45,7 @@ import {
   parseConfiguredGraphTargets,
   parseBatchLoadingSnapshot,
   parseDeletedVertexBatch,
+  parseExportProgress,
   parseVertexCount,
   SERVER_GRAPHSON_QUERIES,
   type BatchLoadingSnapshot,
@@ -69,6 +70,7 @@ type BatchRecoveryRecord = {
 const batchRecoveryKey = "janus-studio.transfer.batch-loading-recovery";
 const serverTaskEvent = "janus-studio:server-transfer-task";
 const serverTransferTimeoutMs = 86_400_000;
+let activeServerTaskId: string | null = null;
 
 function readServerTransferTask(): ServerTransferTask | null {
   return readStoredServerTransferTask(window.sessionStorage);
@@ -103,6 +105,8 @@ export function TransferPage({
     recordHistory?: boolean,
     productionConfirmed?: boolean,
     timeoutMs?: number,
+    executionId?: string,
+    serverCancellation?: boolean,
   ) => Promise<QueryExecutionResult>;
   notify: (toast: ToastState) => void;
 }) {
@@ -151,7 +155,8 @@ export function TransferPage({
     title: string;
     description: string;
     label: string;
-    icon?: "upload" | "trash";
+    icon?: "upload" | "download" | "trash";
+    tone?: "danger" | "primary";
     confirmationText?: string;
     run: () => Promise<void>;
   } | null>(null);
@@ -188,10 +193,18 @@ export function TransferPage({
       deletedVertices: 0,
       batches: 0,
       cancelRequested: false,
+      serverCancellation: activeConnection?.protocol === "ws" || activeConnection?.protocol === "wss",
+      exportedBytes: 0,
+      exportOutputStarted: false,
       updatedAt: new Date().toISOString(),
     };
+    activeServerTaskId = task.id;
     publishServerTask(task);
     return task.id;
+  };
+
+  const finishServerTask = (taskId: string) => {
+    if (activeServerTaskId === taskId) activeServerTaskId = null;
   };
 
   const setServerStage = (stage: ServerTransferStage | null) => {
@@ -216,8 +229,16 @@ export function TransferPage({
     ? { total: serverTask.totalVertices, deleted: serverTask.deletedVertices, batches: serverTask.batches }
     : { total: 0, deleted: 0, batches: 0 };
   const purgeStopRequested = serverTask?.action === "purge" && serverTask.cancelRequested;
-  const displayedTask = transientServerStage ? null : serverTask;
+  const transferStopRequested = (serverTask?.action === "import" || serverTask?.action === "export")
+    && serverTask.cancelRequested;
+  const displayedTask = transientServerStage && serverTask?.status !== "running" ? null : serverTask;
   const displayedStage = serverStage ?? displayedTask?.stage ?? null;
+  const canRetrySafetyCleanup = Boolean(
+    recovery
+    && activeConnection?.id === recovery.connectionId
+    && displayedTask?.status === "failed"
+    && displayedTask.stage === "restoring",
+  );
   const remainingVertices = Math.max(purgeProgress.total - purgeProgress.deleted, 0);
 
   const configuredTarget = graphTargetKey.startsWith("configured:")
@@ -316,13 +337,103 @@ export function TransferPage({
   };
 
   const recoverBatchLoadingConfiguration = async (record: BatchRecoveryRecord) => {
+    if (activeServerTaskId) return;
+    const storedTask = readServerTransferTask();
+    const tracksInterruptedImport = storedTask?.action === "import"
+      && storedTask.status !== "succeeded"
+      && storedTask.connectionId === record.connectionId
+      && storedTask.graphName === record.graphName;
+    const taskId = tracksInterruptedImport
+      ? storedTask.id
+      : beginServerTask(
+          "import",
+          "restoring",
+          record.graphName,
+          "configured",
+          t("正在重试导入安全清理", "Retrying import safety cleanup"),
+        );
+    if (tracksInterruptedImport) {
+      activeServerTaskId = taskId;
+      patchServerTask(taskId, {
+        status: "running",
+        stage: "restoring",
+        cancelRequested: false,
+        message: t("正在重试导入安全清理", "Retrying import safety cleanup"),
+      });
+    }
     try {
       await restoreBatchLoadingConfiguration(record);
-      notify({ tone: "success", message: t("原始批量加载配置已恢复", "Original batch-loading configuration restored"), dismissOnly: true });
+      patchServerTask(taskId, {
+        status: "stopped",
+        message: t("导入异常中断后的安全配置已恢复", "Safety settings from the interrupted import were restored"),
+      });
     } catch (error) {
-      notify({ tone: "error", message: errorMessage(error), dismissOnly: true });
+      patchServerTask(taskId, {
+        status: "failed",
+        message: t(
+          `恢复导入安全配置失败：${errorMessage(error)}。可在任务条中再次重试。`,
+          `Import safety cleanup failed: ${errorMessage(error)}. Retry again from the task bar.`,
+        ),
+      });
     } finally {
+      finishServerTask(taskId);
       setServerStage(null);
+    }
+  };
+
+  useEffect(() => {
+    if (!recovery || activeConnection?.id !== recovery.connectionId || activeServerTaskId) return;
+    const storedTask = readServerTransferTask();
+    const tracksInterruptedImport = storedTask?.action === "import"
+      && storedTask.status !== "succeeded"
+      && storedTask.connectionId === recovery.connectionId
+      && storedTask.graphName === recovery.graphName;
+    if (tracksInterruptedImport && storedTask.status === "failed" && storedTask.stage === "restoring") return;
+    publishServerTask({
+      ...(tracksInterruptedImport ? storedTask : {
+        id: crypto.randomUUID(),
+        action: "import" as const,
+        connectionId: recovery.connectionId,
+        graphName: recovery.graphName,
+        graphAccess: "configured" as const,
+        totalVertices: 0,
+        deletedVertices: 0,
+        batches: 0,
+      }),
+      status: "failed",
+      stage: "restoring",
+      cancelRequested: false,
+      message: t("上次导入的安全清理尚未完成，请在任务条中重试", "Safety cleanup from the previous import is incomplete. Retry from the task bar."),
+      updatedAt: new Date().toISOString(),
+    });
+  }, [activeConnection?.id, recovery]);
+
+  const stopServerTransfer = async (task: ServerTransferTask) => {
+    if (task.status !== "running" || task.cancelRequested || (task.stage !== "importing" && task.stage !== "exporting")) return;
+    patchServerTask(task.id, {
+      cancelRequested: true,
+      message: task.serverCancellation
+        ? task.action === "import"
+          ? t("正在中断 Gremlin Server 导入会话", "Interrupting the Gremlin Server import session")
+          : t("正在中断 Gremlin Server 导出会话", "Interrupting the Gremlin Server export session")
+        : t(
+            "正在停止客户端等待；HTTP 无法保证终止服务端任务",
+            "Stopping the client wait; HTTP cannot guarantee termination of the server task",
+          ),
+    });
+    try {
+      const cancelled = await window.janusGraphDesktop?.queries.cancel({ executionId: task.id });
+      if (!cancelled) {
+        patchServerTask(task.id, {
+          cancelRequested: false,
+          message: t("服务端请求已经结束，正在完成收尾", "The server request has already finished; completing cleanup"),
+        });
+      }
+    } catch (error) {
+      patchServerTask(task.id, {
+        cancelRequested: false,
+        message: t(`停止请求失败：${errorMessage(error)}`, `Could not stop the request: ${errorMessage(error)}`),
+      });
     }
   };
 
@@ -394,17 +505,17 @@ export function TransferPage({
       await execute(SERVER_GRAPHSON_QUERIES.importGraph, {
         ...target,
         serverPath: path,
-      }, false, true, serverTransferTimeoutMs);
+      }, false, true, serverTransferTimeoutMs, taskId, true);
       outcomeMessage = t(`GraphSON 已导入“${targetGraph}”`, `GraphSON imported into “${targetGraph}”`);
-      notify({
-        tone: "success",
-        message: outcomeMessage,
-        dismissOnly: true,
-      });
     } catch (error) {
-      outcome = "failed";
-      outcomeMessage = errorMessage(error);
-      notify({ tone: "error", message: outcomeMessage, dismissOnly: true });
+      const stopped = readServerTransferTask()?.id === taskId && readServerTransferTask()?.cancelRequested === true;
+      outcome = stopped ? "stopped" : "failed";
+      outcomeMessage = stopped
+        ? activeConnection.protocol === "ws" || activeConnection.protocol === "wss"
+          ? t("Gremlin Server 导入会话已中断；已经写入的数据不会回滚", "The Gremlin Server import session was interrupted; data already written was not rolled back")
+          : t("客户端已停止等待；HTTP 服务端导入可能继续运行至超时", "The client stopped waiting; the HTTP server import may continue until it times out")
+        : errorMessage(error);
+      if (!taskId) notify({ tone: "error", message: outcomeMessage, dismissOnly: true });
     } finally {
       if (recoveryRecord) {
         try {
@@ -415,11 +526,6 @@ export function TransferPage({
             `导入结束，但批量加载配置恢复失败：${errorMessage(error)}`,
             `Import ended, but restoring batch-loading configuration failed: ${errorMessage(error)}`,
           );
-          notify({
-            tone: "error",
-            message: outcomeMessage,
-            dismissOnly: true,
-          });
         }
       }
       if (stagedImport) {
@@ -430,6 +536,7 @@ export function TransferPage({
         status: outcome,
         message: outcomeMessage || t("GraphSON 导入已结束", "GraphSON import finished"),
       });
+      finishServerTask(taskId);
       setServerStage(null);
     }
   };
@@ -447,13 +554,15 @@ export function TransferPage({
         `This writes the complete GraphSON into “${targetGraphName.trim()}”. The target graph is not cleared automatically, and data already written is not rolled back if the import stops or fails.`,
       ),
       label: t("确认并开始导入", "Confirm and start import"),
+      icon: "upload" as const,
+      tone: "danger" as const,
+      confirmationText: targetGraphName.trim(),
       run: async () => {
         setPendingServerAction(null);
         await performServerImport();
       },
     };
-    if (activeConnection.environment === "prod" || (usesConfiguredTarget && enableBatchLoading)) setPendingServerAction(operation);
-    else void operation.run();
+    setPendingServerAction(operation);
   };
 
   const performServerPurge = async () => {
@@ -516,16 +625,11 @@ export function TransferPage({
         deletedVertices: deleted,
         batches,
       });
-      notify({
-        tone: stopped ? "info" : "success",
-        message,
-        dismissOnly: true,
-      });
     } catch (error) {
       const message = errorMessage(error);
       patchServerTask(taskId, { status: "failed", message, deletedVertices: deleted, batches });
-      notify({ tone: "error", message, dismissOnly: true });
     } finally {
+      finishServerTask(taskId);
       setServerStage(null);
     }
   };
@@ -557,6 +661,9 @@ export function TransferPage({
     let targetGraph = targetGraphName.trim();
     let dockerTarget: DockerTransferTarget | null = null;
     let taskId = "";
+    let progressTimer: number | undefined;
+    let progressRequestRunning = false;
+    let progressMonitoring = false;
     let outcome: ServerTransferTask["status"] = "succeeded";
     let outcomeMessage = "";
     try {
@@ -575,12 +682,54 @@ export function TransferPage({
         dockerTarget = await window.janusGraphDesktop.dataTransfers.prepareDockerExport(dockerContainerId);
         path = dockerTarget.serverPath;
       }
+      const partialPath = `${path}.janus-studio-partial-${taskId}`;
+      const updateExportProgress = async () => {
+        if (!progressMonitoring || progressRequestRunning) return;
+        progressRequestRunning = true;
+        try {
+          const response = await execute(
+            SERVER_GRAPHSON_QUERIES.exportProgress,
+            { partialPath },
+            false,
+            false,
+            10_000,
+          );
+          const next = parseExportProgress(response.items);
+          if (!next || !progressMonitoring) return;
+          patchServerTask(taskId, {
+            exportedBytes: next.sizeBytes,
+            exportOutputStarted: next.exists,
+            message: next.exists
+              ? t(
+                  `正在生成 GraphSON，临时文件已写入 ${formatBytes(next.sizeBytes)}`,
+                  `Generating GraphSON; ${formatBytes(next.sizeBytes)} written to the temporary file`,
+                )
+              : t(
+                  "正在等待服务器生成第一个 GraphSON 数据块",
+                  "Waiting for the server to produce the first GraphSON data block",
+                ),
+          });
+        } catch {
+          // Progress probing is best effort and must never fail the export itself.
+        } finally {
+          progressRequestRunning = false;
+        }
+      };
+      progressMonitoring = true;
+      void updateExportProgress();
+      progressTimer = window.setInterval(() => void updateExportProgress(), 1_500);
       setServerStage("exporting");
       await execute(SERVER_GRAPHSON_QUERIES.exportGraph, {
         ...target,
         serverPath: path,
+        partialPath,
         overwrite: serverAccessMode === "docker" || overwriteServerFile,
-      }, false, false, serverTransferTimeoutMs);
+      }, false, false, serverTransferTimeoutMs, taskId, true);
+      progressMonitoring = false;
+      if (progressTimer !== undefined) {
+        window.clearInterval(progressTimer);
+        progressTimer = undefined;
+      }
       if (dockerTarget) {
         setServerStage("docker-download");
         const savedPath = await window.janusGraphDesktop.dataTransfers.finishDockerExport(
@@ -589,27 +738,55 @@ export function TransferPage({
         );
         if (savedPath) {
           outcomeMessage = t(`GraphSON 已保存到 ${savedPath}`, `GraphSON saved to ${savedPath}`);
-          notify({ tone: "success", message: outcomeMessage, dismissOnly: true });
         } else {
           outcome = "stopped";
           outcomeMessage = t("已取消保存导出文件", "Saving the exported file was cancelled");
         }
       } else {
         outcomeMessage = t(`GraphSON 已写入服务器 ${path}`, `GraphSON written to server path ${path}`);
-        notify({ tone: "success", message: outcomeMessage, dismissOnly: true });
       }
     } catch (error) {
-      outcome = "failed";
-      outcomeMessage = errorMessage(error);
-      notify({ tone: "error", message: outcomeMessage, dismissOnly: true });
+      const stopped = readServerTransferTask()?.id === taskId && readServerTransferTask()?.cancelRequested === true;
+      outcome = stopped ? "stopped" : "failed";
+      outcomeMessage = stopped
+        ? activeConnection.protocol === "ws" || activeConnection.protocol === "wss"
+          ? t("Gremlin Server 导出会话已中断，未保留不完整文件", "The Gremlin Server export session was interrupted; no incomplete file was kept")
+          : t("客户端已停止等待；HTTP 服务端导出可能继续运行至超时", "The client stopped waiting; the HTTP server export may continue until it times out")
+        : errorMessage(error);
+      if (!taskId) notify({ tone: "error", message: outcomeMessage, dismissOnly: true });
     } finally {
+      progressMonitoring = false;
+      if (progressTimer !== undefined) window.clearInterval(progressTimer);
       if (dockerTarget) await window.janusGraphDesktop.dataTransfers.cleanupDockerTransfer(dockerTarget.transferId);
       if (taskId) patchServerTask(taskId, {
         status: outcome,
         message: outcomeMessage || t("GraphSON 导出已结束", "GraphSON export finished"),
       });
+      finishServerTask(taskId);
       setServerStage(null);
     }
+  };
+
+  const requestServerExport = () => {
+    if (!activeConnection) return;
+    const destination = serverAccessMode === "docker"
+      ? t("生成完成后将打开本机保存位置选择器", "A local save-location picker will open after generation")
+      : t(`写入服务器路径 ${serverExportPath.trim()}${overwriteServerFile ? "，并覆盖同名文件" : ""}`, `Write to server path ${serverExportPath.trim()}${overwriteServerFile ? " and replace an existing file" : ""}`);
+    setPendingServerAction({
+      title: t("确认服务端 GraphSON 导出", "Confirm Server-side GraphSON Export"),
+      description: t(
+        `将从“${targetGraphName.trim()}”生成完整 GraphSON。${destination}。大型图可能需要较长时间，开始后可在任务条中停止。`,
+        `Generate a complete GraphSON from “${targetGraphName.trim()}”. ${destination}. Large graphs may take a while; the task can be stopped from the task bar after it starts.`,
+      ),
+      label: t("确认并开始导出", "Confirm and start export"),
+      icon: "download",
+      tone: "primary",
+      confirmationText: targetGraphName.trim(),
+      run: async () => {
+        setPendingServerAction(null);
+        await performServerExport();
+      },
+    });
   };
 
   const pick = async () => {
@@ -908,23 +1085,6 @@ rows.size()`,
           <span><strong>{t("大型 GraphSON", "Large GraphSON")}</strong><small>{t("服务端原生读写，适合超大图", "Native server-side I/O for very large graphs")}</small></span>
         </button>
       </nav>
-
-      {recovery && activeConnection?.id === recovery.connectionId && (
-        <section className="transfer-recovery" role="alert">
-          <ShieldAlert size={20} />
-          <div>
-            <strong>{t("检测到未恢复的批量加载配置", "Unrestored batch-loading configuration detected")}</strong>
-            <small>{t(
-              `图“${recovery.graphName}”上一次迁移可能异常中断，请立即恢复原始配置。`,
-              `The previous transfer for “${recovery.graphName}” may have ended unexpectedly. Restore its original configuration now.`,
-            )}</small>
-          </div>
-          <button type="button" className="button danger ghost" disabled={Boolean(serverStage)} onClick={() => void recoverBatchLoadingConfiguration(recovery)}>
-            {serverStage === "restoring" ? <LoaderCircle className="spin" size={16} /> : <RefreshCw size={16} />}
-            {t("恢复原始配置", "Restore original configuration")}
-          </button>
-        </section>
-      )}
 
       {mode === "archive" ? <>
       <div className="transfer-grid">
@@ -1318,7 +1478,7 @@ rows.size()`,
                     "Uses TinkerPop adjacency-list GraphSON and can be restored directly with graph.io(graphson()).readGraph().",
                   )}</span>
                 </div>
-                <button type="button" className="button secondary server-transfer-action" disabled={Boolean(serverStage) || !activeConnection || (serverAccessMode === "docker" ? !dockerContainerId : !serverExportPath.trim())} onClick={() => void performServerExport()}>
+                <button type="button" className="button secondary server-transfer-action" disabled={Boolean(serverStage) || !activeConnection || (serverAccessMode === "docker" ? !dockerContainerId : !serverExportPath.trim())} onClick={requestServerExport}>
                   {serverStage === "exporting" || serverStage === "docker-download" ? <LoaderCircle className="spin" size={17} /> : <Download size={17} />}
                   {t("导出完整文件", "Export complete file")}
                 </button>
@@ -1348,7 +1508,7 @@ rows.size()`,
           </section>
 
           {displayedStage && (
-            <div className={`server-transfer-status${displayedStage === "purging" ? " is-purging" : ""}${displayedTask && displayedTask.status !== "running" ? ` is-${displayedTask.status}` : ""}`} role="status" aria-live="polite">
+            <div className={`server-transfer-status${displayedStage === "purging" ? " is-purging" : ""}${displayedTask?.status === "running" && (displayedStage === "importing" || displayedStage === "exporting") ? " is-cancellable" : ""}${displayedTask && displayedTask.status !== "running" ? ` is-${displayedTask.status}` : ""}`} role="status" aria-live="polite">
               {displayedTask?.status === "succeeded" ? <CheckCircle2 size={19} />
                 : displayedTask?.status === "failed" ? <XCircle size={19} />
                   : displayedTask?.status === "stopped" ? <Square size={17} />
@@ -1374,14 +1534,36 @@ rows.size()`,
                     <span><small>{t("完成批次", "Batches")}</small><strong>{purgeProgress.batches}</strong></span>
                   </span>
                 )}
+                {displayedStage === "exporting" && displayedTask?.status === "running" && (
+                  <span className="server-export-progress">
+                    <small>{displayedTask.exportOutputStarted
+                      ? t("临时文件已写入", "Temporary file written")
+                      : t("等待首个数据块", "Waiting for first data block")}</small>
+                    <strong>{formatBytes(displayedTask.exportedBytes ?? 0)}</strong>
+                  </span>
+                )}
                 <small>{displayedTask && displayedTask.status !== "running"
                   ? t(`目标图：${displayedTask.graphName} · 状态保留至本次应用会话结束`, `Target: ${displayedTask.graphName} · retained for this app session`)
                   : displayedStage === "purging"
                   ? (purgeStopRequested
                       ? t("将在当前 100 顶点批次完成后停止", "Stopping after the current 100-vertex batch")
                       : t("每个批次独立提交，Schema 始终保留", "Each batch is committed independently; schema is always preserved"))
+                  : transferStopRequested
+                    ? displayedTask?.serverCancellation
+                      ? t("已关闭专用 Gremlin Session，正在等待服务端中断并执行安全收尾。", "The dedicated Gremlin Session was closed. Waiting for server interruption and cleanup.")
+                      : t("客户端已停止等待；HTTP 无法确认服务端任务是否结束。", "The client stopped waiting; HTTP cannot confirm whether the server task ended.")
                   : t("大型服务端 I/O 可能持续较长时间，请保持当前连接可用。", "Large server-side I/O can take a while. Keep the current connection available.")}</small>
               </div>
+              {displayedTask?.status === "running" && (displayedStage === "importing" || displayedStage === "exporting") && (
+                <button type="button" className="button danger ghost" disabled={transferStopRequested} onClick={() => void stopServerTransfer(displayedTask)}>
+                  {transferStopRequested ? <LoaderCircle className="spin" size={15} /> : <Square size={15} fill="currentColor" />}
+                  {transferStopRequested
+                    ? t("正在停止…", "Stopping…")
+                    : displayedTask.serverCancellation
+                      ? t("中断服务端任务", "Interrupt server task")
+                      : t("停止客户端等待", "Stop client wait")}
+                </button>
+              )}
               {displayedTask?.status === "running" && displayedStage === "purging" && (
                 <button type="button" className="button secondary" disabled={purgeStopRequested} onClick={() => {
                   patchServerTask(displayedTask.id, { cancelRequested: true });
@@ -1390,7 +1572,13 @@ rows.size()`,
                   {purgeStopRequested ? t("等待当前批次", "Waiting for current batch") : t("当前批次后停止", "Stop after current batch")}
                 </button>
               )}
-              {displayedTask && displayedTask.status !== "running" && (
+              {canRetrySafetyCleanup && recovery && (
+                <button type="button" className="button secondary server-transfer-retry" disabled={Boolean(activeServerTaskId)} onClick={() => void recoverBatchLoadingConfiguration(recovery)}>
+                  <RefreshCw size={15} />
+                  {t("重试安全清理", "Retry safety cleanup")}
+                </button>
+              )}
+              {displayedTask && displayedTask.status !== "running" && !canRetrySafetyCleanup && (
                 <button type="button" className="icon-button" onClick={() => publishServerTask(null)} title={t("关闭任务状态", "Dismiss task status")}>
                   <X size={16} />
                 </button>
@@ -1405,8 +1593,9 @@ rows.size()`,
           title={pendingServerAction.title}
           description={pendingServerAction.description}
           confirmLabel={pendingServerAction.label}
-          confirmIcon={pendingServerAction.icon === "trash" ? <Trash2 size={17} /> : <Upload size={17} />}
+          confirmIcon={pendingServerAction.icon === "trash" ? <Trash2 size={17} /> : pendingServerAction.icon === "download" ? <Download size={17} /> : <Upload size={17} />}
           confirmationText={pendingServerAction.confirmationText}
+          tone={pendingServerAction.tone}
           onCancel={() => setPendingServerAction(null)}
           onConfirm={pendingServerAction.run}
         />

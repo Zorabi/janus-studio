@@ -40,6 +40,7 @@ export class QueryService {
         normalizeTraversalConsoleText(request.query),
         request.bindings ?? {},
         request.timeoutMs,
+        request.serverCancellation,
       );
       if (request.recordHistory !== false) {
         this.history.add(

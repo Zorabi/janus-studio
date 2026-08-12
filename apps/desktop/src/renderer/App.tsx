@@ -454,9 +454,10 @@ export default function App() {
       nextQuery: string,
       bindings: Record<string, unknown> = {},
       recordHistory = true,
-      executionId = crypto.randomUUID(),
+      executionId: string = crypto.randomUUID(),
       productionConfirmed = false,
       traversalSource?: string, timeoutMs?: number,
+      serverCancellation = false,
     ): Promise<QueryExecutionResult> => {
       if (!window.janusGraphDesktop) throw new Error("桌面 API 未加载");
       if (!connectionId) throw new Error("请先选择连接");
@@ -485,7 +486,7 @@ export default function App() {
         traversalSource,
         bindings,
         recordHistory,
-        productionConfirmed, timeoutMs,
+        productionConfirmed, timeoutMs, serverCancellation,
       });
       if (recordHistory) void loadHistory();
       return response;
@@ -1035,13 +1036,13 @@ export default function App() {
         {view === "transfer" && (
           <TransferPage
             activeConnection={activeConnection}
-            execute={(nextQuery, bindings, recordHistory, productionConfirmed, timeoutMs) =>
+            execute={(nextQuery, bindings, recordHistory, productionConfirmed, timeoutMs, executionId, serverCancellation) =>
               executeFor(
                 activeConnectionId, "transfer-console",
                 nextQuery,
                 bindings,
                 recordHistory,
-                crypto.randomUUID(), productionConfirmed, undefined, timeoutMs,
+                executionId ?? crypto.randomUUID(), productionConfirmed, undefined, timeoutMs, serverCancellation,
               )
             }
             notify={notify}

@@ -30,6 +30,7 @@ test("persists migration progress for the lifetime of a renderer session", () =>
     deletedVertices: 300,
     batches: 3,
     cancelRequested: false,
+    serverCancellation: true,
     updatedAt: "2026-08-11T00:00:00.000Z",
   };
 

@@ -9,6 +9,7 @@ export interface ConfirmDialogProps {
   confirmLabel: string;
   confirmIcon?: ReactNode;
   confirmationText?: string;
+  tone?: "danger" | "primary";
   onCancel: () => void;
   onConfirm: () => void | Promise<void>;
 }
@@ -19,6 +20,7 @@ export function ConfirmDialog({
   confirmLabel,
   confirmIcon,
   confirmationText,
+  tone = "danger",
   onCancel,
   onConfirm,
 }: ConfirmDialogProps) {
@@ -39,7 +41,7 @@ export function ConfirmDialog({
 
   if (confirmationText) {
     return (
-      <Modal title={title} eyebrow="IRREVERSIBLE OPERATION" onClose={onCancel} width="narrow">
+      <Modal title={title} eyebrow={tone === "danger" ? "IRREVERSIBLE OPERATION" : "CONFIRM TARGET"} onClose={onCancel} width="narrow">
         <form
           className="factory-drop-form"
           onSubmit={(event) => {
@@ -47,7 +49,7 @@ export function ConfirmDialog({
             void confirm();
           }}
         >
-          <div className="factory-drop-warning">
+          <div className={`factory-drop-warning ${tone}`}>
             <AlertTriangle size={28} />
             <p>{description}</p>
           </div>
@@ -65,7 +67,7 @@ export function ConfirmDialog({
             <button type="button" className="button secondary" onClick={onCancel}>
               {t("取消", "Cancel")}
             </button>
-            <button type="submit" className="button danger" disabled={busy || !confirmationMatches}>
+            <button type="submit" className={`button ${tone}`} disabled={busy || !confirmationMatches}>
               {busy ? <LoaderCircle className="spin" size={17} /> : confirmIcon ?? <Trash2 size={17} />}
               {confirmLabel}
             </button>
@@ -77,7 +79,7 @@ export function ConfirmDialog({
 
   return (
     <Modal title={title} eyebrow="CONFIRM ACTION" onClose={onCancel} width="narrow">
-      <div className="confirm-content">
+      <div className={`confirm-content ${tone}`}>
         <AlertTriangle size={28} />
         <p>{description}</p>
       </div>
@@ -87,7 +89,7 @@ export function ConfirmDialog({
         </button>
         <button
           type="button"
-          className="button danger"
+          className={`button ${tone}`}
           disabled={busy || !confirmationMatches}
           onClick={() => void confirm()}
         >

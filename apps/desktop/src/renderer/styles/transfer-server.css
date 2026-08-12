@@ -60,30 +60,6 @@
   white-space: nowrap;
 }
 
-.transfer-recovery {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-  padding: 13px 14px;
-  border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--line));
-  border-radius: var(--radius-md);
-  color: var(--danger);
-  background: color-mix(in srgb, var(--danger) 7%, var(--surface-1));
-}
-
-.transfer-recovery > div {
-  display: grid;
-  gap: 3px;
-}
-
-.transfer-recovery small {
-  color: var(--muted);
-  font-size: var(--text-xs);
-  line-height: 1.5;
-}
-
 .server-transfer-workbench {
   display: grid;
   gap: 16px;
@@ -509,9 +485,23 @@
   backdrop-filter: blur(18px);
 }
 
-.server-transfer-status.is-purging {
+.server-transfer-status.is-purging,
+.server-transfer-status.is-cancellable {
   grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.server-transfer-status.is-purging {
   border-color: color-mix(in srgb, var(--danger) 42%, var(--line));
+}
+
+.server-transfer-status.is-cancellable > .button {
+  min-width: 122px;
+  white-space: nowrap;
+}
+
+.server-transfer-retry {
+  min-width: 144px;
+  white-space: nowrap;
 }
 
 .server-transfer-status.is-succeeded,
@@ -581,6 +571,24 @@
   font-size: var(--text-sm);
 }
 
+.server-export-progress {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 9px;
+  width: fit-content;
+  margin-block: 4px 2px;
+  padding: 6px 9px;
+  border: 1px solid color-mix(in srgb, var(--acid) 22%, var(--line));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--acid) 5%, transparent);
+}
+
+.server-export-progress > strong {
+  color: var(--acid);
+  font-family: var(--font-code);
+  font-size: var(--text-sm);
+}
+
 @media (max-width: 1240px) {
   .server-transfer-context {
     grid-template-columns: 1fr;
@@ -606,15 +614,6 @@
     grid-template-columns: 1fr;
   }
 
-  .transfer-recovery {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  .transfer-recovery .button {
-    grid-column: 1 / -1;
-    width: 100%;
-  }
-
   .server-container-field {
     grid-column: auto;
   }
@@ -626,6 +625,7 @@
 
   .server-purge-card,
   .server-transfer-status.is-purging,
+  .server-transfer-status.is-cancellable,
   .server-transfer-status.is-succeeded,
   .server-transfer-status.is-failed,
   .server-transfer-status.is-stopped {
@@ -633,7 +633,9 @@
   }
 
   .server-purge-card .button,
-  .server-transfer-status.is-purging .button {
+  .server-transfer-status.is-purging .button,
+  .server-transfer-status.is-cancellable .button,
+  .server-transfer-status.is-failed .button {
     grid-column: 1 / -1;
     width: 100%;
   }

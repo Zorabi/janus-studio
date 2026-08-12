@@ -79,6 +79,24 @@ test("records a reliably identified cancellation separately from errors", async 
   assert.equal(historyCalls[0]?.[3], "cancelled");
 });
 
+test("forwards server cancellation mode for interruptible transfer sessions", async () => {
+  let executeArguments: unknown[] = [];
+  const result: QueryExecutionResult = {
+    executionId: request.executionId,
+    durationMs: 1,
+    items: [],
+    truncated: false,
+    totalCount: 0,
+  };
+  const { service } = serviceFor(async (...args) => {
+    executeArguments = args;
+    return result;
+  });
+
+  await service.execute({ ...request, serverCancellation: true });
+  assert.equal(executeArguments[7], true);
+});
+
 test("enforces connection-level read-only protection before reaching Gremlin", async () => {
   let executions = 0;
   const { service } = serviceFor(async () => {

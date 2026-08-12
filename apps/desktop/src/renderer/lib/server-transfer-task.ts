@@ -20,6 +20,9 @@ export type ServerTransferTask = {
   deletedVertices: number;
   batches: number;
   cancelRequested: boolean;
+  serverCancellation?: boolean;
+  exportedBytes?: number;
+  exportOutputStarted?: boolean;
   updatedAt: string;
 };
 
@@ -44,6 +47,15 @@ export function readServerTransferTask(storage: SessionStorageLike): ServerTrans
       deletedVertices: Number.isSafeInteger(value.deletedVertices) ? value.deletedVertices! : 0,
       batches: Number.isSafeInteger(value.batches) ? value.batches! : 0,
       cancelRequested: value.cancelRequested === true,
+      ...(typeof value.serverCancellation === "boolean"
+        ? { serverCancellation: value.serverCancellation }
+        : {}),
+      ...(Number.isSafeInteger(value.exportedBytes) && value.exportedBytes! >= 0
+        ? { exportedBytes: value.exportedBytes }
+        : {}),
+      ...(typeof value.exportOutputStarted === "boolean"
+        ? { exportOutputStarted: value.exportOutputStarted }
+        : {}),
       updatedAt: typeof value.updatedAt === "string" ? value.updatedAt : new Date().toISOString(),
     };
   } catch {

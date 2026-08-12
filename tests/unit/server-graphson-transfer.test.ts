@@ -5,6 +5,7 @@ import {
   parseConfiguredGraphTargets,
   parseBatchLoadingSnapshot,
   parseDeletedVertexBatch,
+  parseExportProgress,
   parseVertexCount,
   SERVER_GRAPHSON_QUERIES,
 } from "../../apps/desktop/src/renderer/lib/server-graphson-transfer.ts";
@@ -18,10 +19,19 @@ test("uses server-side TinkerPop GraphSON IO with validated absolute paths", () 
   assert.match(SERVER_GRAPHSON_QUERIES.exportGraph, /writeGraph/);
   assert.match(SERVER_GRAPHSON_QUERIES.exportGraph, /graphAccess == "configured"/);
   assert.match(SERVER_GRAPHSON_QUERIES.exportGraph, /getGraph\(graphBinding\)/);
-  assert.match(SERVER_GRAPHSON_QUERIES.exportGraph, /janus-studio-partial/);
+  assert.match(SERVER_GRAPHSON_QUERIES.exportGraph, /Paths\.get\(partialPath\)/);
+  assert.match(SERVER_GRAPHSON_QUERIES.exportProgress, /Files\.size/);
   assert.match(SERVER_GRAPHSON_QUERIES.exportGraph, /ATOMIC_MOVE/);
   assert.match(SERVER_GRAPHSON_QUERIES.importGraph, /readGraph/);
   assert.match(SERVER_GRAPHSON_QUERIES.importGraph, /isReadable/);
+});
+
+test("parses observable server export progress", () => {
+  assert.deepEqual(parseExportProgress([{ exists: true, sizeBytes: 12_345 }]), {
+    exists: true,
+    sizeBytes: 12_345,
+  });
+  assert.equal(parseExportProgress([{ exists: true, sizeBytes: -1 }]), null);
 });
 
 test("captures and restores the complete batch-loading configuration state", () => {

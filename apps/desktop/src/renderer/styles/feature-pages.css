@@ -1504,6 +1504,12 @@
   line-height: 1.55;
 }
 
+.factory-drop-warning.primary {
+  border-color: color-mix(in srgb, var(--acid) 34%, var(--line));
+  color: var(--acid);
+  background: color-mix(in srgb, var(--acid) 6%, var(--surface-1));
+}
+
 @media (max-width: 980px) {
   .factory-overview {
     grid-template-columns: 1fr;
