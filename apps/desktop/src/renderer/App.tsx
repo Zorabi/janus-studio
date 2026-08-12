@@ -18,14 +18,10 @@ import {
   Waypoints,
   X,
 } from "lucide-react";
-import {
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { SelectControl } from "./components/SelectControl";
+import { TaskCenterHost } from "./components/tasks/TaskCenterHost";
+import { useBackgroundTasks } from "./components/tasks/useBackgroundTasks";
 import { ConfirmDialog, IconButton } from "./components/ui";
 import { ConnectionDialog } from "./features/connections/ConnectionDialog";
 import { ConnectionsPage } from "./features/connections/ConnectionsPage";
@@ -50,10 +46,7 @@ import {
 import { SchemaPage } from "./features/schema/SchemaPage";
 import { SettingsPage } from "./features/settings/SettingsPage";
 import { TransferPage } from "./features/transfer/TransferPage";
-import {
-  LocaleProvider,
-  translate,
-} from "./lib/i18n";
+import { LocaleProvider, translate } from "./lib/i18n";
 import {
   connectionWithGraphContext,
   dynamicGraphContext,
@@ -63,9 +56,7 @@ import {
 } from "./lib/dynamic-graph-context";
 import { matchesShortcut, shortcutLabel } from "./lib/keyboard";
 import { errorMessage } from "./lib/presentation";
-import {
-  buildGraphModel,
-} from "./lib/result-model";
+import { buildGraphModel } from "./lib/result-model";
 import {
   applySettings,
   loadSettings,
@@ -364,6 +355,13 @@ export default function App() {
   }, [activeQueryTabId, queryTabs, rememberClosedQueryTabs]);
 
   const notify = useCallback((next: ToastState) => setToast(next), []);
+  const backgroundTaskCenter = useBackgroundTasks({
+    translate: tx,
+    notify,
+    navigate: (kind) => setView(
+      kind === "schema" ? "schema" : kind === "maintenance" ? "graphFactory" : "transfer",
+    ),
+  });
 
   const loadConnections = useCallback(async () => {
     if (!window.janusGraphDesktop) return;
@@ -1065,6 +1063,7 @@ export default function App() {
           )}
         </div>
         <div>
+          <TaskCenterHost center={backgroundTaskCenter} />
           <GitBranch size={14} />
           <span>local workspace</span>
           <span>History {history.length}</span>

@@ -18,6 +18,9 @@ const desktopApi: DesktopApi = {
     remove: (id) => ipcRenderer.invoke("connections:remove", id),
     test: (input) => ipcRenderer.invoke("connections:test", input),
   },
+  compatibility: {
+    get: (connectionId, refresh) => ipcRenderer.invoke("compatibility:get", { connectionId, refresh }),
+  },
   queries: {
     execute: (input) => ipcRenderer.invoke("queries:execute", input),
     cancel: (input) => ipcRenderer.invoke("queries:cancel", input),
@@ -55,6 +58,12 @@ const desktopApi: DesktopApi = {
     cancel: (connectionId) => ipcRenderer.invoke("schema-jobs:cancel", connectionId),
     retry: (id) => ipcRenderer.invoke("schema-jobs:retry", id),
     dismiss: (id) => ipcRenderer.invoke("schema-jobs:dismiss", id),
+  },
+  tasks: {
+    list: (limit) => ipcRenderer.invoke("tasks:list", limit),
+    publish: (input) => ipcRenderer.invoke("tasks:publish", input),
+    acknowledge: (id) => ipcRenderer.invoke("tasks:acknowledge", id),
+    dismiss: (id) => ipcRenderer.invoke("tasks:dismiss", id),
   },
 };
 

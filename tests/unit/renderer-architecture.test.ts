@@ -38,6 +38,8 @@ test("loads renderer styles through ordered responsibility-based modules", async
     "refinements.css",
     "schema-factory.css",
     "transfer-server.css",
+    "task-center.css",
+    "compatibility.css",
     "themes.css",
     "ide-overrides.css",
   ]);

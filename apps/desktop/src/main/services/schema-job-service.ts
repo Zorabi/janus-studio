@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { ConnectionService } from "./connection-service";
 import { QueryService } from "./query-service";
 import { SchemaJobRepository } from "../storage/schema-job-repository";
+import { BackgroundTaskRepository } from "../storage/background-task-repository";
 
 const SCHEMA_BATCH_PREFIX = "/* janus-studio.schema-batches/v1 */\n";
 
@@ -29,6 +30,7 @@ export class SchemaJobService {
     private readonly repository: SchemaJobRepository,
     private readonly connections: ConnectionService,
     private readonly queries: QueryService,
+    private readonly tasks?: BackgroundTaskRepository,
   ) {}
 
   list(connectionId?: string): SchemaJob[] {
@@ -68,6 +70,8 @@ export class SchemaJobService {
     const job = this.repository.get(id);
     if (!job) return;
     if (job.status === "running") throw new Error("Schema job is still running");
+    this.tasks?.syncSchema(job);
+    this.tasks?.dismiss(id);
     this.repository.remove(id);
   }
 

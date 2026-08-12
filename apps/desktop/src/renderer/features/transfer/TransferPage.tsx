@@ -53,6 +53,7 @@ import {
 } from "../../lib/server-graphson-transfer";
 import {
   readServerTransferTask as readStoredServerTransferTask,
+  serverTransferTaskPublication,
   writeServerTransferTask,
   type ServerTransferStage,
   type ServerTransferTask,
@@ -165,6 +166,9 @@ export function TransferPage({
     writeServerTransferTask(window.sessionStorage, task);
     setServerTask(task);
     window.dispatchEvent(new Event(serverTaskEvent));
+    if (task?.connectionId && window.janusGraphDesktop) {
+      void window.janusGraphDesktop.tasks.publish(serverTransferTaskPublication(task)).catch(() => undefined);
+    }
   };
 
   const patchServerTask = (taskId: string, patch: Partial<ServerTransferTask>) => {

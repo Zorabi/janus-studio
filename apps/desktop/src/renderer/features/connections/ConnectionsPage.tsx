@@ -3,6 +3,7 @@ import type { ConnectionSummary } from "@janusgraph/domain";
 import {
   Activity,
   Check,
+  Cpu,
   Database,
   Edit3,
   LoaderCircle,
@@ -14,6 +15,7 @@ import {
 import { useState } from "react";
 import { EmptyState, IconButton, PageHeader } from "../../components/ui";
 import { useTranslate } from "../../lib/i18n";
+import { CompatibilityDialog } from "./CompatibilityDialog";
 
 export interface ConnectionsPageProps {
   connections: ConnectionSummary[];
@@ -36,6 +38,7 @@ export function ConnectionsPage({
 }: ConnectionsPageProps) {
   const t = useTranslate();
   const [testingId, setTestingId] = useState("");
+  const [compatibilityConnection, setCompatibilityConnection] = useState<ConnectionSummary | null>(null);
 
   return (
     <div className="page-scroll">
@@ -157,6 +160,14 @@ export function ConnectionsPage({
                   <button
                     type="button"
                     className="button secondary"
+                    onClick={() => setCompatibilityConnection(connection)}
+                  >
+                    <Cpu size={16} />
+                    {t("能力", "Capabilities")}
+                  </button>
+                  <button
+                    type="button"
+                    className="button secondary"
                     disabled={testingId === connection.id}
                     onClick={async () => {
                       setTestingId(connection.id);
@@ -199,6 +210,13 @@ export function ConnectionsPage({
             );
           })}
         </div>
+      )}
+      {compatibilityConnection && (
+        <CompatibilityDialog
+          key={`${compatibilityConnection.id}:${compatibilityConnection.updatedAt}`}
+          connection={compatibilityConnection}
+          onClose={() => setCompatibilityConnection(null)}
+        />
       )}
     </div>
   );

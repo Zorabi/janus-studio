@@ -8,6 +8,7 @@ import { ConnectionRepository } from "../../apps/desktop/src/main/storage/connec
 import { openApplicationDatabase } from "../../apps/desktop/src/main/storage/database.ts";
 import { HistoryRepository } from "../../apps/desktop/src/main/storage/history-repository.ts";
 import { SchemaJobRepository } from "../../apps/desktop/src/main/storage/schema-job-repository.ts";
+import { BackgroundTaskRepository } from "../../apps/desktop/src/main/storage/background-task-repository.ts";
 
 test("persists connection profiles, advanced transport settings and history", () => {
   const directory = mkdtempSync(join(tmpdir(), "janus-studio-test-"));
@@ -124,6 +125,68 @@ test("persists completed, failed and interrupted schema operation history", () =
   }
 });
 
+test("persists unified background tasks, unread results and interrupted recovery", () => {
+  const directory = mkdtempSync(join(tmpdir(), "janusgraph-background-task-test-"));
+  const path = join(directory, "app.sqlite");
+  let database = openApplicationDatabase(path);
+  const tasks = new BackgroundTaskRepository(database);
+  const running = tasks.publish({
+    id: "00000000-0000-4000-8000-000000000001",
+    kind: "transfer",
+    action: "import",
+    title: "graph2",
+    connectionId: "connection-1",
+    graphName: "graph2",
+    status: "running",
+    stage: "importing",
+    message: "Importing",
+    progressCurrent: 0,
+    progressTotal: 0,
+    progressUnit: "file",
+    cancellable: true,
+    retriable: false,
+  }, "Docker");
+  assert.equal(running.acknowledged, true);
+
+  const failed = tasks.publish({
+    ...running,
+    kind: "transfer",
+    status: "failed",
+    message: "Server failed",
+    cancellable: false,
+    retriable: true,
+  }, "Docker");
+  assert.equal(failed.acknowledged, false);
+  tasks.acknowledge(failed.id);
+  assert.equal(tasks.get(failed.id)?.acknowledged, true);
+
+  tasks.publish({
+    ...running,
+    id: "00000000-0000-4000-8000-000000000002",
+    kind: "transfer",
+    action: "export",
+    status: "cancel_requested",
+    stage: "exporting",
+    message: "Cancellation requested",
+    cancellable: false,
+  }, "Docker");
+  database.close();
+
+  database = openApplicationDatabase(path);
+  try {
+    const recovered = new BackgroundTaskRepository(database);
+    const interrupted = recovered.get("00000000-0000-4000-8000-000000000002");
+    assert.equal(interrupted?.status, "interrupted");
+    assert.equal(interrupted?.acknowledged, false);
+    assert.equal(interrupted?.retriable, true);
+    recovered.dismiss(interrupted!.id);
+    assert.equal(recovered.get(interrupted!.id), undefined);
+  } finally {
+    database.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test("keeps schema operation history after its connection is removed", () => {
   const directory = mkdtempSync(join(tmpdir(), "janusgraph-schema-connection-test-"));
   const database = openApplicationDatabase(join(directory, "app.sqlite"));
@@ -203,7 +266,7 @@ test("migrates existing connection profiles to development with write access", (
     const migrated = new ConnectionRepository(database).find("legacy")?.profile;
     assert.equal(migrated?.environment, "dev");
     assert.equal(migrated?.connectionReadOnly, false);
-    assert.equal(database.prepare("PRAGMA user_version").get()?.user_version, 6);
+    assert.equal(database.prepare("PRAGMA user_version").get()?.user_version, 7);
   } finally {
     database.close();
     rmSync(directory, { recursive: true, force: true });

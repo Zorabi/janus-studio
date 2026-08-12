@@ -432,6 +432,11 @@ export function GraphFactoryPage({
   const [createGraphName, setCreateGraphName] = useState<string | null>(null);
   const [dropGraph, setDropGraph] = useState<ConfiguredGraphSummary | null>(null);
   const [dropPhrase, setDropPhrase] = useState("");
+  const [clearOtherInstances, setClearOtherInstances] = useState<{
+    graph: ConfiguredGraphSummary;
+    count: number;
+  } | null>(null);
+  const [clearInstancesPhrase, setClearInstancesPhrase] = useState("");
   const [confirmation, setConfirmation] = useState<PendingConfirmation | null>(null);
   const [instances, setInstances] = useState<InstanceLoadState>({ status: "idle" });
 
@@ -746,38 +751,105 @@ export function GraphFactoryPage({
   ) => {
     const others = sessions.filter((session) => !session.current);
     if (others.length === 0) return;
-    requestMutation({
-      title: t("清除全部其他实例注册", "Clear All Other Instance Registrations"),
-      description: t(
-        `将从“${graph.name}”中强制清除 ${others.length} 个非当前实例注册。只有确认这些实例已经停止运行时才能继续；当前实例会被保留。`,
-        `Force-remove ${others.length} non-current instance registrations from “${graph.name}”. Continue only after confirming those instances have stopped. The current instance is preserved.`,
-      ),
-      label: t(`确认清除 ${others.length} 个实例`, `Clear ${others.length} instances`),
-      run: async () => {
-        setConfirmation(null);
-        setBusy(`instances:all:${graph.name}`);
-        try {
-          await execute(
-            GRAPH_FACTORY_QUERIES.forceCloseOtherInstances,
-            { graphName: graph.name },
-            production,
-          );
-          notify({
-            tone: "success",
-            message: t(
-              `已清除“${graph.name}”的 ${others.length} 个其他实例注册`,
-              `Cleared ${others.length} other instance registrations from “${graph.name}”`,
-            ),
-            dismissOnly: true,
-          });
-          await loadInstances(graph.name);
-        } catch (error) {
-          notify({ tone: "error", message: errorMessage(error), dismissOnly: true });
-        } finally {
-          setBusy("");
-        }
-      },
-    }, true);
+    setClearInstancesPhrase("");
+    setClearOtherInstances({ graph, count: others.length });
+  };
+
+  const confirmForceCloseOtherInstances = async () => {
+    if (!clearOtherInstances || clearInstancesPhrase !== clearOtherInstances.graph.name) return;
+    const { graph, count } = clearOtherInstances;
+    setBusy(`instances:all:${graph.name}`);
+    try {
+      await execute(
+        GRAPH_FACTORY_QUERIES.forceCloseOtherInstances,
+        { graphName: graph.name },
+        production,
+      );
+      setClearOtherInstances(null);
+      setClearInstancesPhrase("");
+      notify({
+        tone: "success",
+        message: t(
+          `已清除“${graph.name}”的 ${count} 个其他实例注册`,
+          `Cleared ${count} other instance registrations from “${graph.name}”`,
+        ),
+        dismissOnly: true,
+      });
+      await loadInstances(graph.name);
+    } catch (error) {
+      notify({ tone: "error", message: errorMessage(error), dismissOnly: true });
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const publishDropTask = async (
+    id: string,
+    graph: ConfiguredGraphSummary,
+    status: "running" | "succeeded" | "failed",
+    message: string,
+  ) => {
+    if (!activeConnection || !window.janusGraphDesktop) {
+      throw new Error(t("桌面任务服务不可用", "Desktop task service is unavailable"));
+    }
+    await window.janusGraphDesktop.tasks.publish({
+      id,
+      kind: "maintenance",
+      action: "drop",
+      title: graph.name,
+      connectionId: activeConnection.id,
+      graphName: graph.name,
+      status,
+      stage: status === "running" ? "dropping" : "completed",
+      message,
+      progressCurrent: status === "succeeded" ? 1 : 0,
+      progressTotal: 1,
+      progressUnit: "graph",
+      cancellable: false,
+      retriable: false,
+    });
+    window.dispatchEvent(new CustomEvent("janus-studio:background-task", {
+      detail: { open: status === "running" },
+    }));
+  };
+
+  const performDrop = async (graph: ConfiguredGraphSummary) => {
+    const taskId = crypto.randomUUID();
+    setBusy(`drop:${graph.name}`);
+    try {
+      await publishDropTask(
+        taskId,
+        graph,
+        "running",
+        t(`正在永久删除“${graph.name}”`, `Permanently dropping “${graph.name}”`),
+      );
+      setDropGraph(null);
+      setDropPhrase("");
+      await execute(GRAPH_FACTORY_QUERIES.dropGraph, { graphName: graph.name }, production);
+      await publishDropTask(
+        taskId,
+        graph,
+        "succeeded",
+        t(`“${graph.name}”及其数据已永久删除`, `“${graph.name}” and its data were permanently deleted`),
+      );
+      setInstances({ status: "idle" });
+      notify({
+        tone: "success",
+        message: t(`“${graph.name}”及其数据已永久删除`, `“${graph.name}” and its data were permanently deleted`),
+        dismissOnly: true,
+      });
+      await refresh();
+    } catch (error) {
+      const message = errorMessage(error);
+      try {
+        await publishDropTask(taskId, graph, "failed", message);
+      } catch {
+        // The original failure remains the user-facing error when persistence is unavailable.
+      }
+      notify({ tone: "error", message, dismissOnly: true });
+    } finally {
+      setBusy("");
+    }
   };
 
   const selectedInstanceSessions =
@@ -1235,7 +1307,7 @@ export function GraphFactoryPage({
             event.preventDefault();
             if (dropPhrase !== dropGraph.name || !dropPreflightReady) return;
             const graph = dropGraph;
-            void perform(`drop:${graph.name}`, GRAPH_FACTORY_QUERIES.dropGraph, { graphName: graph.name }, t(`“${graph.name}”及其数据已永久删除`, `“${graph.name}” and its data were permanently deleted`), production, () => { setDropGraph(null); setDropPhrase(""); setInstances({ status: "idle" }); });
+            void performDrop(graph);
           }}>
             <div className="factory-drop-warning"><AlertTriangle size={28} /><p>{production
               ? t("当前为生产连接。Drop 会永久删除图数据、索引数据和 Configuration，无法撤销。", "This is a production connection. Drop permanently deletes graph data, index data, and the Configuration. It cannot be undone.")
@@ -1265,6 +1337,47 @@ export function GraphFactoryPage({
             </section>
             <label className="field"><span>{t(`输入“${dropGraph.name}”以确认`, `Type “${dropGraph.name}” to confirm`)}</span><input autoFocus value={dropPhrase} onChange={(event) => setDropPhrase(event.target.value)} autoComplete="off" /></label>
             <footer className="modal-actions"><button type="button" className="button secondary" onClick={() => setDropGraph(null)}>{t("取消", "Cancel")}</button><button type="submit" className="button danger" disabled={dropPhrase !== dropGraph.name || !dropPreflightReady || busy !== ""}>{busy ? <LoaderCircle className="spin" size={17} /> : <Trash2 size={17} />}{t("永久删除", "Drop permanently")}</button></footer>
+          </form>
+        </Modal>
+      )}
+      {clearOtherInstances && (
+        <Modal
+          title={t("确认清除其他实例", "Confirm Clearing Other Instances")}
+          eyebrow="CLUSTER SAFETY CHECK"
+          onClose={() => { if (!busy.startsWith("instances:all:")) setClearOtherInstances(null); }}
+          width="narrow"
+        >
+          <form className="factory-drop-form" onSubmit={(event) => {
+            event.preventDefault();
+            void confirmForceCloseOtherInstances();
+          }}>
+            <div className="factory-drop-warning">
+              <AlertTriangle size={28} />
+              <p>{t(
+                `将强制清除“${clearOtherInstances.graph.name}”的 ${clearOtherInstances.count} 个非当前实例注册。请先确认对应 JanusGraph 节点均已停止，否则可能造成数据不一致。当前实例会被保留。`,
+                `This force-removes ${clearOtherInstances.count} non-current instance registrations from “${clearOtherInstances.graph.name}”. Confirm that every corresponding JanusGraph node has stopped, or data inconsistency may result. The current instance is preserved.`,
+              )}</p>
+            </div>
+            <label className="field">
+              <span>{t(
+                `输入“${clearOtherInstances.graph.name}”以确认实例均已停止`,
+                `Type “${clearOtherInstances.graph.name}” to confirm the instances are stopped`,
+              )}</span>
+              <input
+                autoFocus
+                value={clearInstancesPhrase}
+                disabled={busy.startsWith("instances:all:")}
+                onChange={(event) => setClearInstancesPhrase(event.target.value)}
+                autoComplete="off"
+              />
+            </label>
+            <footer className="modal-actions">
+              <button type="button" className="button secondary" disabled={busy.startsWith("instances:all:")} onClick={() => setClearOtherInstances(null)}>{t("取消", "Cancel")}</button>
+              <button type="submit" className="button danger" disabled={clearInstancesPhrase !== clearOtherInstances.graph.name || busy !== ""}>
+                {busy.startsWith("instances:all:") ? <LoaderCircle className="spin" size={17} /> : <CircleOff size={17} />}
+                {t(`清除 ${clearOtherInstances.count} 个实例`, `Clear ${clearOtherInstances.count} instances`)}
+              </button>
+            </footer>
           </form>
         </Modal>
       )}

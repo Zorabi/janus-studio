@@ -47,6 +47,10 @@ export const connectionInputSchema = z
   });
 
 export const connectionIdSchema = z.string().uuid();
+export const compatibilityRequestSchema = z.object({
+  connectionId: connectionIdSchema,
+  refresh: z.boolean().optional().default(false),
+});
 export const clipboardTextSchema = z.string().max(5_242_880);
 export const historyIdSchema = z.string().uuid();
 export const historyLimitSchema = z.number().int().min(1).max(2_000).optional();
@@ -140,6 +144,24 @@ export const finishDockerExportSchema = z.object({
 });
 
 export const schemaJobIdSchema = z.string().uuid();
+export const backgroundTaskIdSchema = z.string().uuid();
+export const backgroundTaskLimitSchema = z.number().int().min(1).max(1_000).optional();
+export const publishBackgroundTaskSchema = z.object({
+  id: backgroundTaskIdSchema,
+  kind: z.enum(["transfer", "maintenance"]),
+  action: z.enum(["import", "export", "purge", "drop"]),
+  title: z.string().trim().min(1).max(255),
+  connectionId: connectionIdSchema,
+  graphName: z.string().trim().min(1).max(255),
+  status: z.enum(["running", "cancel_requested", "succeeded", "failed", "interrupted"]),
+  stage: z.string().trim().min(1).max(80),
+  message: z.string().max(32_768),
+  progressCurrent: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+  progressTotal: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+  progressUnit: z.string().trim().min(1).max(40),
+  cancellable: z.boolean(),
+  retriable: z.boolean(),
+});
 export const runSchemaJobSchema = z.object({
   connectionId: connectionIdSchema,
   indexName: z.string().trim().min(1).max(255),

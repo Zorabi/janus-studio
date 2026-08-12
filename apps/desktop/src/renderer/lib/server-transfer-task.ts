@@ -1,3 +1,5 @@
+import type { PublishBackgroundTaskInput } from "@janusgraph/domain";
+
 export type ServerTransferStage =
   | "docker-upload"
   | "configuring"
@@ -66,4 +68,48 @@ export function readServerTransferTask(storage: SessionStorageLike): ServerTrans
 export function writeServerTransferTask(storage: SessionStorageLike, task: ServerTransferTask | null): void {
   if (task) storage.setItem(serverTransferTaskStorageKey, JSON.stringify(task));
   else storage.removeItem(serverTransferTaskStorageKey);
+}
+
+export function requestServerTransferTaskCancellation(
+  storage: SessionStorageLike,
+  taskId: string,
+): ServerTransferTask | null {
+  const task = readServerTransferTask(storage);
+  if (!task || task.id !== taskId || task.status !== "running") return null;
+  const next = {
+    ...task,
+    cancelRequested: true,
+    message: "Cancellation requested",
+    updatedAt: new Date().toISOString(),
+  };
+  writeServerTransferTask(storage, next);
+  return next;
+}
+
+export function serverTransferTaskPublication(
+  task: ServerTransferTask,
+): PublishBackgroundTaskInput {
+  const status = task.status === "stopped"
+    ? "interrupted"
+    : task.cancelRequested && task.status === "running"
+      ? "cancel_requested"
+      : task.status;
+  return {
+    id: task.id,
+    kind: "transfer",
+    action: task.action,
+    title: task.graphName,
+    connectionId: task.connectionId,
+    graphName: task.graphName,
+    status,
+    stage: task.stage,
+    message: task.message,
+    progressCurrent: task.action === "purge"
+      ? task.deletedVertices
+      : task.action === "export" ? task.exportedBytes ?? 0 : 0,
+    progressTotal: task.action === "purge" ? task.totalVertices : 0,
+    progressUnit: task.action === "purge" ? "vertex" : task.action === "export" ? "byte" : "file",
+    cancellable: task.status === "running" && !task.cancelRequested,
+    retriable: task.status === "failed" || task.status === "stopped",
+  };
 }

@@ -44,6 +44,30 @@ export type ConnectionTestReport = {
   message: string;
 };
 
+export type CompatibilityCapability =
+  | "sessionedClient"
+  | "requestTimeout"
+  | "serverCancellation"
+  | "managementApi"
+  | "configuredGraphFactory"
+  | "configurationManagementGraph"
+  | "janusGraphManager"
+  | "jsonSchemaInitialization"
+  | "graphsonIo";
+
+export type CompatibilityCapabilityState = "supported" | "unsupported" | "unknown";
+
+export type CompatibilityProfile = {
+  connectionId: string;
+  connectionSignature: string;
+  status: "ready" | "partial" | "unavailable";
+  janusGraphVersion: string;
+  tinkerPopVersion: string;
+  capabilities: Record<CompatibilityCapability, CompatibilityCapabilityState>;
+  detectedAt: string;
+  message: string;
+};
+
 export type QueryRequest = {
   connectionId: string;
   consoleId: string;
@@ -217,6 +241,43 @@ export type RunSchemaJobInput = {
   productionConfirmed?: boolean;
 };
 
+export type BackgroundTaskKind = "schema" | "transfer" | "maintenance";
+export type BackgroundTaskStatus =
+  | "running"
+  | "cancel_requested"
+  | "succeeded"
+  | "failed"
+  | "interrupted";
+
+export type BackgroundTask = {
+  id: string;
+  kind: BackgroundTaskKind;
+  action: string;
+  title: string;
+  connectionId: string;
+  connectionName: string;
+  graphName: string;
+  status: BackgroundTaskStatus;
+  stage: string;
+  message: string;
+  progressCurrent: number;
+  progressTotal: number;
+  progressUnit: string;
+  cancellable: boolean;
+  retriable: boolean;
+  acknowledged: boolean;
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string;
+};
+
+export type PublishBackgroundTaskInput = Omit<
+  BackgroundTask,
+  "kind" | "connectionName" | "acknowledged" | "createdAt" | "updatedAt" | "completedAt"
+> & {
+  kind: "transfer" | "maintenance";
+};
+
 export type DesktopApi = {
   runtime: {
     platform(): Promise<string>;
@@ -228,6 +289,9 @@ export type DesktopApi = {
     save(input: SaveConnectionInput): Promise<ConnectionSummary>;
     remove(id: string): Promise<void>;
     test(input: SaveConnectionInput): Promise<ConnectionTestReport>;
+  };
+  compatibility: {
+    get(connectionId: string, refresh?: boolean): Promise<CompatibilityProfile>;
   };
   queries: {
     execute(input: QueryRequest): Promise<QueryExecutionResult>;
@@ -265,6 +329,12 @@ export type DesktopApi = {
     run(input: RunSchemaJobInput): Promise<SchemaJob>;
     cancel(connectionId: string): Promise<boolean>;
     retry(id: string): Promise<SchemaJob>;
+    dismiss(id: string): Promise<void>;
+  };
+  tasks: {
+    list(limit?: number): Promise<BackgroundTask[]>;
+    publish(input: PublishBackgroundTaskInput): Promise<BackgroundTask>;
+    acknowledge(id?: string): Promise<void>;
     dismiss(id: string): Promise<void>;
   };
 };

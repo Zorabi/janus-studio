@@ -5,10 +5,15 @@ import { QueryService } from "../services/query-service";
 import { HistoryRepository } from "../storage/history-repository";
 import { CredentialVault } from "../security/credential-vault";
 import { SchemaJobService } from "../services/schema-job-service";
+import { BackgroundTaskService } from "../services/background-task-service";
+import { CompatibilityService } from "../services/compatibility-service";
 import {
+  backgroundTaskIdSchema,
+  backgroundTaskLimitSchema,
   connectionIdSchema,
   connectionInputSchema,
   clipboardTextSchema,
+  compatibilityRequestSchema,
   dockerContainerIdSchema,
   dockerTransferIdSchema,
   finishDockerExportSchema,
@@ -18,6 +23,7 @@ import {
   queryConsoleSchema,
   queryRequestSchema,
   queryExportSchema,
+  publishBackgroundTaskSchema,
   saveDataFileSchema,
   saveGraphFileSchema,
   saveResultFileSchema,
@@ -35,6 +41,8 @@ type RegisterIpcOptions = {
   fileService: FileService;
   credentialVault: CredentialVault;
   schemaJobService: SchemaJobService;
+  backgroundTaskService: BackgroundTaskService;
+  compatibilityService: CompatibilityService;
 };
 
 function assertTrustedSender(event: IpcMainInvokeEvent, window: BrowserWindow): void {
@@ -51,6 +59,8 @@ export function registerIpcHandlers({
   fileService,
   credentialVault,
   schemaJobService,
+  backgroundTaskService,
+  compatibilityService,
 }: RegisterIpcOptions): void {
   ipcMain.handle("runtime:platform", (event) => {
     assertTrustedSender(event, window);
@@ -80,6 +90,12 @@ export function registerIpcHandlers({
   ipcMain.handle("connections:test", async (event, rawInput: unknown) => {
     assertTrustedSender(event, window);
     return connectionService.test(connectionInputSchema.parse(rawInput));
+  });
+
+  ipcMain.handle("compatibility:get", async (event, rawInput: unknown) => {
+    assertTrustedSender(event, window);
+    const input = compatibilityRequestSchema.parse(rawInput);
+    return compatibilityService.get(input.connectionId, input.refresh);
   });
 
   ipcMain.handle("queries:execute", async (event, rawRequest: unknown) => {
@@ -214,5 +230,26 @@ export function registerIpcHandlers({
   ipcMain.handle("schema-jobs:dismiss", (event, rawId: unknown) => {
     assertTrustedSender(event, window);
     schemaJobService.dismiss(schemaJobIdSchema.parse(rawId));
+  });
+
+  ipcMain.handle("tasks:list", (event, rawLimit: unknown) => {
+    assertTrustedSender(event, window);
+    return backgroundTaskService.list(backgroundTaskLimitSchema.parse(rawLimit));
+  });
+
+  ipcMain.handle("tasks:publish", (event, rawInput: unknown) => {
+    assertTrustedSender(event, window);
+    return backgroundTaskService.publish(publishBackgroundTaskSchema.parse(rawInput));
+  });
+
+  ipcMain.handle("tasks:acknowledge", (event, rawId: unknown) => {
+    assertTrustedSender(event, window);
+    const id = rawId == null ? undefined : backgroundTaskIdSchema.parse(rawId);
+    backgroundTaskService.acknowledge(id);
+  });
+
+  ipcMain.handle("tasks:dismiss", (event, rawId: unknown) => {
+    assertTrustedSender(event, window);
+    backgroundTaskService.dismiss(backgroundTaskIdSchema.parse(rawId));
   });
 }

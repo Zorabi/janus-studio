@@ -15,7 +15,10 @@ import { FileService } from "./services/file-service";
 import { QueryService } from "./services/query-service";
 import { registerIpcHandlers } from "./ipc/register-ipc";
 import { SchemaJobRepository } from "./storage/schema-job-repository";
+import { BackgroundTaskRepository } from "./storage/background-task-repository";
 import { SchemaJobService } from "./services/schema-job-service";
+import { BackgroundTaskService } from "./services/background-task-service";
+import { CompatibilityService } from "./services/compatibility-service";
 import { HistoryRepository } from "./storage/history-repository";
 import { UpdateSourceType, updateElectronApp } from "update-electron-app";
 
@@ -171,6 +174,7 @@ app.whenReady().then(() => {
   const repository = new ConnectionRepository(database);
   const historyRepository = new HistoryRepository(database);
   const schemaJobRepository = new SchemaJobRepository(database);
+  const backgroundTaskRepository = new BackgroundTaskRepository(database);
   const forceLocalCredentialVault =
     process.env.JANUS_STUDIO_FORCE_LOCAL_CREDENTIAL_VAULT === "1" ||
     process.platform === "darwin";
@@ -199,7 +203,14 @@ app.whenReady().then(() => {
     schemaJobRepository,
     connectionService,
     queryService,
+    backgroundTaskRepository,
   );
+  const backgroundTaskService = new BackgroundTaskService(
+    backgroundTaskRepository,
+    schemaJobRepository,
+    connectionService,
+  );
+  const compatibilityService = new CompatibilityService(connectionService, queryService);
   registerIpcHandlers({
     window: mainWindow,
     connectionService,
@@ -208,6 +219,8 @@ app.whenReady().then(() => {
     fileService,
     credentialVault,
     schemaJobService,
+    backgroundTaskService,
+    compatibilityService,
   });
 
   app.on("activate", () => {

@@ -74,6 +74,34 @@ export function openApplicationDatabase(path: string): DatabaseSync {
     CREATE INDEX IF NOT EXISTS idx_schema_jobs_connection_created
       ON schema_jobs(connection_id, created_at DESC);
 
+    CREATE TABLE IF NOT EXISTS background_tasks (
+      id TEXT PRIMARY KEY,
+      kind TEXT NOT NULL,
+      action TEXT NOT NULL,
+      title TEXT NOT NULL,
+      connection_id TEXT NOT NULL,
+      connection_name TEXT NOT NULL,
+      graph_name TEXT NOT NULL,
+      status TEXT NOT NULL,
+      stage TEXT NOT NULL,
+      message TEXT NOT NULL,
+      progress_current INTEGER NOT NULL DEFAULT 0,
+      progress_total INTEGER NOT NULL DEFAULT 0,
+      progress_unit TEXT NOT NULL,
+      cancellable INTEGER NOT NULL DEFAULT 0,
+      retriable INTEGER NOT NULL DEFAULT 0,
+      acknowledged INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      completed_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_background_tasks_updated
+      ON background_tasks(updated_at DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_background_tasks_status_updated
+      ON background_tasks(status, updated_at DESC);
+
   `);
 
   const connectionColumns = database
@@ -100,7 +128,22 @@ export function openApplicationDatabase(path: string): DatabaseSync {
     database.exec("ALTER TABLE connection_profiles ADD COLUMN connection_read_only INTEGER NOT NULL DEFAULT 0");
   }
   database.exec("UPDATE schema_jobs SET status = 'interrupted', message = 'Application closed before the operation completed', updated_at = datetime('now') WHERE status = 'running';");
-  database.exec("PRAGMA user_version = 6;");
+  database.exec("UPDATE background_tasks SET status = 'interrupted', stage = 'completed', message = 'Application closed before the operation completed', cancellable = 0, retriable = 1, acknowledged = 0, completed_at = datetime('now'), updated_at = datetime('now') WHERE status IN ('running', 'cancel_requested');");
+  database.exec(`
+    INSERT OR IGNORE INTO background_tasks (
+      id, kind, action, title, connection_id, connection_name, graph_name,
+      status, stage, message, progress_current, progress_total, progress_unit,
+      cancellable, retriable, acknowledged, created_at, updated_at, completed_at
+    )
+    SELECT id, 'schema', action, index_name, connection_id, connection_name, '',
+      status, CASE WHEN status = 'running' THEN 'executing' ELSE 'completed' END,
+      message, 0, 0, 'batch', CASE WHEN status = 'running' THEN 1 ELSE 0 END,
+      CASE WHEN status IN ('failed', 'interrupted') THEN 1 ELSE 0 END,
+      CASE WHEN status = 'running' THEN 1 ELSE 0 END, created_at, updated_at,
+      CASE WHEN status = 'running' THEN '' ELSE updated_at END
+    FROM schema_jobs;
+  `);
+  database.exec("PRAGMA user_version = 7;");
 
   return database;
 }

@@ -7,5 +7,7 @@
 @import "./styles/refinements.css";
 @import "./styles/schema-factory.css";
 @import "./styles/transfer-server.css";
+@import "./styles/task-center.css";
+@import "./styles/compatibility.css";
 @import "./styles/themes.css";
 @import "./styles/ide-overrides.css";

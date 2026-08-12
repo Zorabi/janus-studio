@@ -1,0 +1,52 @@
+.compatibility-dialog { display: grid; gap: 18px; padding: 22px; }
+.compatibility-dialog > header { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--surface-1) 88%, transparent); }
+.compatibility-server-mark { display: grid; width: 44px; height: 44px; place-items: center; border-radius: 10px; color: var(--acid); background: rgba(200, 255, 85, 0.09); }
+.compatibility-dialog > header > div:nth-child(2) { display: grid; gap: 3px; min-width: 0; }
+.compatibility-dialog > header strong { font-size: var(--text-md); }
+.compatibility-dialog > header span { color: var(--muted); font-family: var(--font-code); font-size: var(--text-xs); }
+.compatibility-versions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.compatibility-versions > div { display: grid; gap: 6px; padding: 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-1); }
+.compatibility-versions span { color: var(--muted); font-size: var(--text-xs); }
+.compatibility-versions strong { font-family: var(--font-code); font-size: var(--text-md); }
+.compatibility-detecting { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: var(--text-sm) !important; font-weight: 600; }
+.compatibility-versions.is-loading > div { border-color: color-mix(in srgb, var(--acid) 22%, var(--line)); background: linear-gradient(100deg, var(--surface-1) 15%, color-mix(in srgb, var(--acid) 5%, var(--surface-1)) 50%, var(--surface-1) 85%); background-size: 220% 100%; animation: compatibility-scan 1.8s ease-in-out infinite; }
+.compatibility-versions strong.is-ready { color: var(--acid); }
+.compatibility-versions strong.is-partial { color: #f0b14d; }
+.compatibility-versions strong.is-unavailable { color: var(--danger); }
+.compatibility-capabilities { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.compatibility-capability { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; align-items: center; min-height: 48px; padding: 8px 11px; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); background: color-mix(in srgb, var(--surface-1) 82%, transparent); }
+.compatibility-capability span { color: var(--bone-soft); font-size: var(--text-sm); }
+.compatibility-capability small { font-size: var(--text-xs); }
+.compatibility-capability.is-supported svg,
+.compatibility-capability.is-supported small { color: var(--acid); }
+.compatibility-capability.is-unsupported svg,
+.compatibility-capability.is-unsupported small { color: var(--danger); }
+.compatibility-capability.is-unknown svg,
+.compatibility-capability.is-unknown small { color: #f0b14d; }
+.compatibility-capability.is-loading { border-color: color-mix(in srgb, var(--acid) 18%, var(--line)); }
+.compatibility-capability.is-loading svg { color: var(--acid); }
+.compatibility-capability.is-loading small { color: var(--muted); }
+.compatibility-warning { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; padding: 12px 14px; border: 1px solid rgba(255, 116, 106, 0.38); border-radius: 8px; color: var(--danger); background: rgba(255, 116, 106, 0.06); }
+.compatibility-warning p { margin: 4px 0 0; color: var(--muted); font-family: var(--font-code); font-size: var(--text-xs); line-height: 1.5; }
+.compatibility-loading { display: flex; min-height: 260px; align-items: center; justify-content: center; gap: 10px; color: var(--muted); }
+.compatibility-dialog > footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--muted); font-size: var(--text-xs); }
+.compatibility-dialog > footer time { color: var(--bone-soft); font-family: var(--font-code); }
+.compatibility-footer-loading { display: inline-flex; align-items: center; gap: 5px; color: var(--bone-soft); }
+.compatibility-dialog > footer p { flex-basis: 100%; margin: 0; }
+
+@keyframes compatibility-scan {
+  0%, 100% { background-position: 100% 0; }
+  50% { background-position: 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .compatibility-versions.is-loading > div { animation: none; }
+}
+
+@media (max-width: 760px) {
+  .compatibility-dialog { padding: 16px; }
+  .compatibility-versions,
+  .compatibility-capabilities { grid-template-columns: 1fr; }
+  .compatibility-dialog > header { grid-template-columns: 40px minmax(0, 1fr); }
+  .compatibility-dialog > header .button { grid-column: 1 / -1; }
+}
