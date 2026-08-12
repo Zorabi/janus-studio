@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   createOfficialSchemaDefinition,
   createSchemaArchive,
+  createSchemaConversionPreview,
   formatSchemaArchiveTime,
   parseSchemaArchive,
   planSchemaImport,
@@ -93,6 +94,21 @@ test("exports a pure JanusGraph JsonSchemaDefinition document", () => {
   assert.match(plan.script ?? "", /JsonSchemaInitStrategy\.initializeSchemaFromString/);
 });
 
+test("previews official and Studio formats without losing native-only fields", () => {
+  const archive = parseSchemaArchive({
+    name: "official.json",
+    content: readFileSync(new URL("../fixtures/schema/janusgraph-1.1-official.json", import.meta.url), "utf8"),
+  });
+  const preview = createSchemaConversionPreview(archive, "2026-08-12T10:00:00.000Z");
+
+  assert.equal(preview.preservedOfficialSource, true);
+  assert.deepEqual(preview.official, archive.officialSchema);
+  assert.deepEqual(preview.studio.officialSchema, archive.officialSchema);
+  assert.deepEqual(preview.studio.manual, archive.manual);
+  assert.equal(preview.studio.format, "janus-studio.schema/v1");
+  assert.equal(preview.studio.preferredImporter, "org.janusgraph.core.schema.JsonSchemaInitStrategy");
+});
+
 test("parses and validates Schema archives", () => {
   const source = createSchemaArchive(rows, {
     connectionName: "Local",
@@ -132,6 +148,7 @@ test("plans additive imports in dependency order and skips matching definitions"
   assert.equal(plan.skipped.length, 1);
   assert.deepEqual(plan.operations.map((item) => item.name), ["person", "knows", "byName"]);
   assert.equal(plan.conflicts.length, 0);
+  assert.deepEqual(plan.review.map((item) => item.kind), ["dangerous", "create", "create", "create", "skip"]);
   assert.match(plan.script ?? "", /hasVariable\("targetGraph"\)/);
   assert.match(plan.script ?? "", /hasVariable\("targetG"\)/);
   assert.match(plan.script ?? "", /__graph\.openManagement\(\)/);
@@ -208,6 +225,7 @@ test("blocks incompatible definitions and missing index dependencies", () => {
   ], "graph");
   assert.equal(incompatible.script, null);
   assert.ok(incompatible.conflicts.some((item) => item.key === "propertyKeys:name"));
+  assert.equal(incompatible.review[0]?.kind, "conflict");
 
   const missingDependency = parseSchemaArchive({
     name: "missing.json",
@@ -285,6 +303,8 @@ test("routes official JSON through bounded JanusGraph 1.1 native batches", () =>
   assert.equal(plan.execution, "official-json");
   assert.equal(plan.conflicts.length, 0);
   assert.ok(plan.manual.length >= 4);
+  assert.ok(plan.review.some((item) => item.kind === "manual"));
+  assert.ok(plan.review.some((item) => item.kind === "dangerous"));
   assert.equal(plan.scripts.length, 6);
   assert.ok(plan.scripts.every((script) => script.includes("JsonSchemaInitStrategy.initializeSchemaFromString")));
   assert.ok(plan.scripts.every((script) => script.includes("REINDEX_AND_ENABLE_UPDATED_ONLY")));

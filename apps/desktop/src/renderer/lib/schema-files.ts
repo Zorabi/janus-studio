@@ -64,6 +64,15 @@ export type SchemaImportConflict = {
   reason: string;
 };
 
+export type SchemaImportReviewKind = "create" | "skip" | "conflict" | "manual" | "dangerous";
+
+export type SchemaImportReviewItem = {
+  kind: SchemaImportReviewKind;
+  key: string;
+  label: string;
+  detail: string;
+};
+
 export type SchemaImportPlan = {
   execution: "management" | "official-json";
   operations: SchemaImportOperation[];
@@ -71,8 +80,15 @@ export type SchemaImportPlan = {
   skipped: string[];
   conflicts: SchemaImportConflict[];
   manual: SchemaImportManual[];
+  review: SchemaImportReviewItem[];
   script: string | null;
   scripts: string[];
+};
+
+export type SchemaConversionPreview = {
+  official: Record<string, unknown>;
+  studio: SchemaArchive;
+  preservedOfficialSource: boolean;
 };
 
 export type SchemaImportCompatibility = "available" | "unverified" | "unavailable";
@@ -302,6 +318,26 @@ export function createSchemaArchive(
   };
 }
 
+export function createSchemaConversionPreview(
+  archive: SchemaArchive,
+  exportedAt = new Date().toISOString(),
+): SchemaConversionPreview {
+  const official = archive.officialSchema ?? schemaToOfficialJson(archive.schema);
+  return {
+    official,
+    studio: {
+      format: "janus-studio.schema/v1",
+      exportedAt: archive.exportedAt || formatSchemaArchiveTime(exportedAt),
+      source: archive.source,
+      schema: archive.schema,
+      officialSchema: official,
+      preferredImporter: "org.janusgraph.core.schema.JsonSchemaInitStrategy",
+      ...(archive.manual?.length ? { manual: archive.manual } : {}),
+    },
+    preservedOfficialSource: Boolean(archive.officialSchema),
+  };
+}
+
 export function parseSchemaArchive(file: PickedSchemaFile): SchemaArchive {
   let decoded: unknown;
   try {
@@ -519,6 +555,68 @@ function operation(group: SchemaImportOperation["group"], value: { name: string 
     graphIndexes: "Graph Index",
   };
   return { group, name: value.name, summary: `${labels[group]} · ${value.name}` };
+}
+
+function reviewItems(
+  operations: SchemaImportOperation[],
+  skipped: string[],
+  conflicts: SchemaImportConflict[],
+  manual: SchemaImportManual[],
+  indexActivations: string[],
+): SchemaImportReviewItem[] {
+  const groupLabels: Record<SchemaImportOperation["group"], string> = {
+    propertyKeys: "Property Key",
+    vertexLabels: "Vertex Label",
+    edgeLabels: "Edge Label",
+    graphIndexes: "Graph Index",
+  };
+  const items: SchemaImportReviewItem[] = [
+    ...operations.map((item) => ({
+      kind: "create" as const,
+      key: `${item.group}:${item.name}`,
+      label: item.summary,
+      detail: item.group,
+    })),
+    ...skipped.map((key) => {
+      const separator = key.indexOf(":");
+      const group = key.slice(0, separator) as SchemaImportOperation["group"];
+      const name = key.slice(separator + 1);
+      return {
+        kind: "skip" as const,
+        key,
+        label: `${groupLabels[group] ?? group} · ${name}`,
+        detail: "UNCHANGED",
+      };
+    }),
+    ...conflicts.map((item) => ({
+      kind: "conflict" as const,
+      key: item.key,
+      label: item.key,
+      detail: item.reason,
+    })),
+    ...manual.map((item) => ({
+      kind: "manual" as const,
+      key: `manual:${item.path}`,
+      label: item.path,
+      detail: item.summary,
+    })),
+    ...indexActivations.map((name) => ({
+      kind: "dangerous" as const,
+      key: `activate:${name}`,
+      label: `Graph Index · ${name}`,
+      detail: "REGISTER → WAIT → REINDEX → ENABLED",
+    })),
+  ];
+  const order: Record<SchemaImportReviewKind, number> = {
+    conflict: 0,
+    dangerous: 1,
+    manual: 2,
+    create: 3,
+    skip: 4,
+  };
+  return items.sort((left, right) =>
+    order[left.kind] - order[right.kind] || left.label.localeCompare(right.label, undefined, { numeric: true }),
+  );
 }
 
 function buildImportScript(
@@ -910,6 +1008,7 @@ export function planSchemaImport(
     skipped,
     conflicts: uniqueConflicts,
     manual: archive.manual ?? [],
+    review: reviewItems(operations, skipped, uniqueConflicts, archive.manual ?? [], indexActivations),
     script: scripts.length > 0
       ? scripts.map((script, index) => `// Schema import batch ${index + 1}/${scripts.length}\n${script}`).join("\n\n")
       : null,

@@ -2,26 +2,37 @@ import type { ConnectionSummary } from "@janusgraph/domain";
 import {
   AlertTriangle,
   CheckCircle2,
+  CircleDashed,
+  CirclePlus,
+  ClipboardCopy,
   Database,
   FileJson,
+  Flame,
   LoaderCircle,
   Minimize2,
   RefreshCw,
   Search,
   ShieldCheck,
   Upload,
+  Wrench,
+  XCircle,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Modal } from "../../components/ui";
 import type { DynamicGraphContext } from "../../lib/dynamic-graph-context";
 import { useTranslate } from "../../lib/i18n";
 import {
+  createSchemaConversionPreview,
   formatSchemaArchiveTime,
   type SchemaArchive,
   type SchemaImportPlan,
+  type SchemaImportReviewKind,
 } from "../../lib/schema-files";
 
-type ImportView = "summary" | "changes" | "batches";
+type ImportView = "summary" | "changes" | "conversion" | "batches";
+type ReviewFilter = "all" | SchemaImportReviewKind;
+
+const reviewKinds: SchemaImportReviewKind[] = ["create", "skip", "conflict", "manual", "dangerous"];
 
 export function SchemaImportDialog({
   activeConnection,
@@ -55,33 +66,40 @@ export function SchemaImportDialog({
   const [search, setSearch] = useState("");
   const [batchIndex, setBatchIndex] = useState(0);
   const [typedTarget, setTypedTarget] = useState("");
-  const changes = useMemo(() => [
-    ...value.plan.operations.map((item) => ({
-      key: `${item.group}:${item.name}`,
-      label: item.summary,
-      meta: item.group,
-      activation: false,
-      manual: false,
-    })),
-    ...value.plan.indexActivations.map((name) => ({
-      key: `activate:${name}`,
-      label: t(`启用 Graph Index · ${name}`, `Enable Graph Index · ${name}`),
-      meta: "REGISTER → WAIT → REINDEX → ENABLED",
-      activation: true,
-      manual: false,
-    })),
-    ...value.plan.manual.map((item) => ({
-      key: `manual:${item.path}`,
-      label: t(`官方保留项 · ${item.path}`, `Official-only item · ${item.path}`),
-      meta: item.summary,
-      activation: false,
-      manual: true,
-    })),
-  ], [t, value.plan.indexActivations, value.plan.manual, value.plan.operations]);
+  const [reviewFilter, setReviewFilter] = useState<ReviewFilter>("all");
+  const [conversionFormat, setConversionFormat] = useState<"official" | "studio">("official");
+  const conversion = useMemo(() => createSchemaConversionPreview(value.archive), [value.archive]);
+  const reviewCounts = useMemo(() => Object.fromEntries(reviewKinds.map((kind) => [
+    kind,
+    value.plan.review.filter((item) => item.kind === kind).length,
+  ])) as Record<SchemaImportReviewKind, number>, [value.plan.review]);
   const normalizedSearch = search.trim().toLocaleLowerCase();
-  const visibleChanges = normalizedSearch
-    ? changes.filter((item) => `${item.label} ${item.meta}`.toLocaleLowerCase().includes(normalizedSearch))
-    : changes;
+  const visibleChanges = value.plan.review.filter((item) =>
+    (reviewFilter === "all" || item.kind === reviewFilter) &&
+    (!normalizedSearch || `${item.label} ${item.detail} ${item.key}`.toLocaleLowerCase().includes(normalizedSearch)),
+  );
+  const conversionText = JSON.stringify(
+    conversionFormat === "official" ? conversion.official : conversion.studio,
+    null,
+    2,
+  );
+  const reviewLabel = (kind: ReviewFilter) => ({
+    all: t("全部", "All"),
+    create: t("创建", "Create"),
+    skip: t("跳过", "Skip"),
+    conflict: t("冲突", "Conflict"),
+    manual: t("人工审阅", "Manual review"),
+    dangerous: t("高影响", "High impact"),
+  })[kind];
+  const reviewIcon = (kind: SchemaImportReviewKind) => kind === "create"
+    ? <CirclePlus size={15} />
+    : kind === "skip"
+      ? <CircleDashed size={15} />
+      : kind === "conflict"
+        ? <XCircle size={15} />
+        : kind === "manual"
+          ? <Wrench size={15} />
+          : <Flame size={15} />;
   const targetName = activeConnection
     ? graphContext
       ? `${activeConnection.name} / ${graphContext.name}`
@@ -105,8 +123,12 @@ export function SchemaImportDialog({
           </button>
           <button type="button" className={view === "changes" ? "is-active" : ""} onClick={() => setView("changes")}>
             <CheckCircle2 size={16} />
-            <span>{t("变更清单", "Change set")}</span>
-            <strong>{changes.length}</strong>
+            <span>{t("审阅清单", "Review set")}</span>
+            <strong>{value.plan.review.length}</strong>
+          </button>
+          <button type="button" className={view === "conversion" ? "is-active" : ""} onClick={() => setView("conversion")}>
+            <RefreshCw size={16} />
+            <span>{t("格式转换", "Format conversion")}</span>
           </button>
           <button
             type="button"
@@ -147,11 +169,11 @@ export function SchemaImportDialog({
                 )}</small>}
               </div>
               <div className="schema-import-stats">
-                <article className="is-create"><strong>{value.plan.operations.length}</strong><span>{t("待创建", "To create")}</span></article>
-                <article className="is-skip"><strong>{value.plan.skipped.length}</strong><span>{t("相同并跳过", "Matching and skipped")}</span></article>
-                <article className="is-activate"><strong>{value.plan.indexActivations.length}</strong><span>{t("待启用索引", "Indexes to enable")}</span></article>
-                <article className="is-conflict"><strong>{value.plan.conflicts.length}</strong><span>{t("冲突", "Conflicts")}</span></article>
-                <article className="is-manual"><strong>{value.plan.manual.length}</strong><span>{t("官方保留项", "Official-only")}</span></article>
+                <article className="is-create"><strong>{reviewCounts.create}</strong><span>{reviewLabel("create")}</span></article>
+                <article className="is-skip"><strong>{reviewCounts.skip}</strong><span>{reviewLabel("skip")}</span></article>
+                <article className="is-conflict"><strong>{reviewCounts.conflict}</strong><span>{reviewLabel("conflict")}</span></article>
+                <article className="is-manual"><strong>{reviewCounts.manual}</strong><span>{reviewLabel("manual")}</span></article>
+                <article className="is-dangerous"><strong>{reviewCounts.dangerous}</strong><span>{reviewLabel("dangerous")}</span></article>
               </div>
               <div className={`schema-import-route is-${value.plan.execution}`}>
                 <FileJson size={18} />
@@ -208,22 +230,61 @@ export function SchemaImportDialog({
           {view === "changes" && (
             <section className="schema-import-change-browser">
               <header>
-                <div><span className="eyebrow">CHANGE SET</span><strong>{t("即将应用的变更", "Planned changes")}</strong></div>
+                <div><span className="eyebrow">REVIEW MATRIX</span><strong>{t("导入影响审阅", "Import impact review")}</strong></div>
                 <label><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("搜索名称或类型", "Search name or type")} /></label>
-                <output>{visibleChanges.length} / {changes.length}</output>
+                <output>{visibleChanges.length} / {value.plan.review.length}</output>
               </header>
+              <div className="schema-import-review-filters">
+                {(["all", ...reviewKinds] as ReviewFilter[]).map((kind) => (
+                  <button type="button" key={kind} className={`is-${kind} ${reviewFilter === kind ? "is-active" : ""}`} onClick={() => setReviewFilter(kind)}>
+                    {kind !== "all" && reviewIcon(kind)}
+                    <span>{reviewLabel(kind)}</span>
+                    <strong>{kind === "all" ? value.plan.review.length : reviewCounts[kind]}</strong>
+                  </button>
+                ))}
+              </div>
               {visibleChanges.length > 0 ? (
                 <div className="schema-import-change-list">
                   {visibleChanges.map((item, index) => (
-                    <article key={item.key} className={item.manual ? "is-manual" : item.activation ? "is-activation" : undefined}>
+                    <article key={`${item.kind}:${item.key}`} className={`is-${item.kind}`}>
                       <span>{String(index + 1).padStart(4, "0")}</span>
-                      {item.manual ? <AlertTriangle size={15} /> : item.activation ? <RefreshCw size={15} /> : <CheckCircle2 size={15} />}
+                      {reviewIcon(item.kind)}
                       <strong>{item.label}</strong>
-                      <code>{item.meta}</code>
+                      <code>{item.detail === "UNCHANGED"
+                        ? t("目标定义相同，不执行写入", "Target definition matches; no write")
+                        : item.detail === "REGISTER → WAIT → REINDEX → ENABLED"
+                          ? t("REGISTER → WAIT → REINDEX → ENABLED；可能长时间占用后端资源", "REGISTER → WAIT → REINDEX → ENABLED; may consume backend resources for a long time")
+                          : item.detail}</code>
                     </article>
                   ))}
                 </div>
               ) : <p className="schema-import-browser-empty">{t("没有匹配的变更。", "No matching changes.")}</p>}
+            </section>
+          )}
+
+          {view === "conversion" && (
+            <section className="schema-conversion-browser">
+              <header>
+                <div>
+                  <span className="eyebrow">LOSSLESS FORMAT VIEW</span>
+                  <strong>{t("Schema 格式转换预览", "Schema format conversion preview")}</strong>
+                  <small>{conversion.preservedOfficialSource
+                    ? t("官方 JSON 原文已完整保留；Studio 归档在其外层增加来源与迁移元数据。", "The native JSON source is preserved intact; the Studio archive adds source and migration metadata around it.")
+                    : t("此 Studio 归档可由通用模型生成等价的官方 JSON。", "This Studio archive can generate equivalent native JSON from its portable model.")}</small>
+                </div>
+                <div className="schema-conversion-switch" role="group" aria-label={t("预览格式", "Preview format")}>
+                  <button type="button" className={conversionFormat === "official" ? "is-active" : ""} onClick={() => setConversionFormat("official")}>
+                    <FileJson size={15} />{t("官方 JSON", "Native JSON")}
+                  </button>
+                  <button type="button" className={conversionFormat === "studio" ? "is-active" : ""} onClick={() => setConversionFormat("studio")}>
+                    <Database size={15} />{t("Studio 归档", "Studio archive")}
+                  </button>
+                </div>
+                <button type="button" className="button secondary" onClick={() => void window.janusGraphDesktop?.runtime.writeClipboard(conversionText)}>
+                  <ClipboardCopy size={15} />{t("复制预览", "Copy preview")}
+                </button>
+              </header>
+              <pre>{conversionText}</pre>
             </section>
           )}
 
