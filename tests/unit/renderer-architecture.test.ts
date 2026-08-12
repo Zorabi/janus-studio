@@ -72,3 +72,10 @@ test("keeps dynamic graph capability probing stable across parent renders", asyn
     /\}, \[[^\]]*\bexecute\b[^\]]*\]\);/,
   );
 });
+
+test("keeps GraphSON task execution out of renderer session storage", async () => {
+  const transferPage = await readFile(`${rendererRoot}/features/transfer/TransferPage.tsx`, "utf8");
+  assert.doesNotMatch(transferPage, /sessionStorage|serverTransferTaskStorageKey|writeServerTransferTask/);
+  assert.match(transferPage, /dataTransfers\.start/);
+  assert.match(transferPage, /tasks\.list/);
+});

@@ -48,6 +48,9 @@ const desktopApi: DesktopApi = {
     prepareDockerExport: (containerId) => ipcRenderer.invoke("data-transfers:prepare-docker-export", containerId),
     finishDockerExport: (transferId, suggestedName) => ipcRenderer.invoke("data-transfers:finish-docker-export", { transferId, suggestedName }),
     cleanupDockerTransfer: (transferId) => ipcRenderer.invoke("data-transfers:cleanup-docker", transferId),
+    start: (input) => ipcRenderer.invoke("data-transfers:start", input),
+    cancel: (taskId) => ipcRenderer.invoke("data-transfers:cancel", taskId),
+    retry: (taskId) => ipcRenderer.invoke("data-transfers:retry", taskId),
   },
   security: {
     status: () => ipcRenderer.invoke("security:status"),

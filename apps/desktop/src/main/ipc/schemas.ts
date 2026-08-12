@@ -143,6 +143,33 @@ export const finishDockerExportSchema = z.object({
   suggestedName: z.string().trim().min(1).max(255),
 });
 
+export const startGraphTransferSchema = z.object({
+  connectionId: connectionIdSchema,
+  action: z.enum(["import", "export", "purge"]),
+  graphName: z.string().trim().min(1).max(120).regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/),
+  graphBinding: z.string().trim().min(1).max(120).regex(/^[a-zA-Z_$][a-zA-Z0-9_$]*$/),
+  graphAccess: z.enum(["configured", "binding"]),
+  fileAccess: z.enum(["docker", "path"]),
+  serverPath: z.string().trim().max(4_096).optional(),
+  dockerContainerId: dockerContainerIdSchema.optional(),
+  dockerTransferId: dockerTransferIdSchema.optional(),
+  enableBatchLoading: z.boolean().optional().default(false),
+  disableAutomaticSchema: z.boolean().optional().default(true),
+  overwrite: z.boolean().optional().default(false),
+  productionConfirmed: z.boolean().optional().default(false),
+}).superRefine((value, context) => {
+  if (value.action === "purge") return;
+  if (value.fileAccess === "path" && !value.serverPath) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["serverPath"], message: "Server path is required" });
+  }
+  if (value.action === "import" && value.fileAccess === "docker" && !value.dockerTransferId) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["dockerTransferId"], message: "Staged Docker import is required" });
+  }
+  if (value.action === "export" && value.fileAccess === "docker" && !value.dockerContainerId) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["dockerContainerId"], message: "Docker container is required" });
+  }
+});
+
 export const schemaJobIdSchema = z.string().uuid();
 export const backgroundTaskIdSchema = z.string().uuid();
 export const backgroundTaskLimitSchema = z.number().int().min(1).max(1_000).optional();

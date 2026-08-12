@@ -165,6 +165,20 @@ export class FileService {
     }
   }
 
+  dockerTransfer(transferId: string, direction: "import" | "export"): DockerTransferTarget {
+    const transfer = this.dockerTransfers.get(transferId);
+    if (!transfer || transfer.direction !== direction) {
+      throw new Error("Docker 迁移任务不存在、方向不匹配或已过期");
+    }
+    return {
+      transferId,
+      containerId: transfer.containerId,
+      serverPath: transfer.serverPath,
+      name: transfer.name,
+      ...(transfer.sizeBytes === undefined ? {} : { sizeBytes: transfer.sizeBytes }),
+    };
+  }
+
   async pickDataFile(): Promise<PickedDataFile | null> {
     const result = await dialog.showOpenDialog(this.window, {
       title: "选择图数据文件",

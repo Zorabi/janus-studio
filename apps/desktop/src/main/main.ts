@@ -20,6 +20,8 @@ import { SchemaJobService } from "./services/schema-job-service";
 import { BackgroundTaskService } from "./services/background-task-service";
 import { CompatibilityService } from "./services/compatibility-service";
 import { HistoryRepository } from "./storage/history-repository";
+import { GraphTransferRepository } from "./storage/graph-transfer-repository";
+import { GraphTransferService } from "./services/graph-transfer-service";
 import { UpdateSourceType, updateElectronApp } from "update-electron-app";
 
 declare const __UPDATE_REPOSITORY__: string;
@@ -175,6 +177,7 @@ app.whenReady().then(() => {
   const historyRepository = new HistoryRepository(database);
   const schemaJobRepository = new SchemaJobRepository(database);
   const backgroundTaskRepository = new BackgroundTaskRepository(database);
+  const graphTransferRepository = new GraphTransferRepository(database);
   const forceLocalCredentialVault =
     process.env.JANUS_STUDIO_FORCE_LOCAL_CREDENTIAL_VAULT === "1" ||
     process.platform === "darwin";
@@ -211,6 +214,14 @@ app.whenReady().then(() => {
     connectionService,
   );
   const compatibilityService = new CompatibilityService(connectionService, queryService);
+  const graphTransferService = new GraphTransferService(
+    backgroundTaskRepository,
+    graphTransferRepository,
+    connectionService,
+    queryService,
+    fileService,
+    compatibilityService,
+  );
   registerIpcHandlers({
     window: mainWindow,
     connectionService,
@@ -221,6 +232,7 @@ app.whenReady().then(() => {
     schemaJobService,
     backgroundTaskService,
     compatibilityService,
+    graphTransferService,
   });
 
   app.on("activate", () => {

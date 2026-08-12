@@ -102,6 +102,12 @@ export function openApplicationDatabase(path: string): DatabaseSync {
     CREATE INDEX IF NOT EXISTS idx_background_tasks_status_updated
       ON background_tasks(status, updated_at DESC);
 
+    CREATE TABLE IF NOT EXISTS graph_transfer_runs (
+      task_id TEXT PRIMARY KEY,
+      input_json TEXT NOT NULL,
+      recovery_json TEXT NOT NULL DEFAULT ''
+    );
+
   `);
 
   const connectionColumns = database
@@ -128,7 +134,7 @@ export function openApplicationDatabase(path: string): DatabaseSync {
     database.exec("ALTER TABLE connection_profiles ADD COLUMN connection_read_only INTEGER NOT NULL DEFAULT 0");
   }
   database.exec("UPDATE schema_jobs SET status = 'interrupted', message = 'Application closed before the operation completed', updated_at = datetime('now') WHERE status = 'running';");
-  database.exec("UPDATE background_tasks SET status = 'interrupted', stage = 'completed', message = 'Application closed before the operation completed', cancellable = 0, retriable = 1, acknowledged = 0, completed_at = datetime('now'), updated_at = datetime('now') WHERE status IN ('running', 'cancel_requested');");
+  database.exec("UPDATE background_tasks SET status = 'interrupted', message = 'Application closed before the operation completed', cancellable = 0, retriable = 1, acknowledged = 0, completed_at = datetime('now'), updated_at = datetime('now') WHERE status IN ('running', 'cancel_requested');");
   database.exec(`
     INSERT OR IGNORE INTO background_tasks (
       id, kind, action, title, connection_id, connection_name, graph_name,
@@ -143,7 +149,7 @@ export function openApplicationDatabase(path: string): DatabaseSync {
       CASE WHEN status = 'running' THEN '' ELSE updated_at END
     FROM schema_jobs;
   `);
-  database.exec("PRAGMA user_version = 7;");
+  database.exec("PRAGMA user_version = 8;");
 
   return database;
 }

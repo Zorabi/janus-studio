@@ -9,6 +9,7 @@ import { openApplicationDatabase } from "../../apps/desktop/src/main/storage/dat
 import { HistoryRepository } from "../../apps/desktop/src/main/storage/history-repository.ts";
 import { SchemaJobRepository } from "../../apps/desktop/src/main/storage/schema-job-repository.ts";
 import { BackgroundTaskRepository } from "../../apps/desktop/src/main/storage/background-task-repository.ts";
+import { GraphTransferRepository } from "../../apps/desktop/src/main/storage/graph-transfer-repository.ts";
 
 test("persists connection profiles, advanced transport settings and history", () => {
   const directory = mkdtempSync(join(tmpdir(), "janus-studio-test-"));
@@ -187,6 +188,46 @@ test("persists unified background tasks, unread results and interrupted recovery
   }
 });
 
+test("persists GraphSON task inputs and batch-loading recovery outside the renderer session", () => {
+  const directory = mkdtempSync(join(tmpdir(), "janusgraph-transfer-run-test-"));
+  const path = join(directory, "app.sqlite");
+  let database = openApplicationDatabase(path);
+  const runs = new GraphTransferRepository(database);
+  const input = {
+    connectionId: "connection-1",
+    action: "import" as const,
+    graphName: "graph2",
+    graphBinding: "graph2",
+    graphAccess: "configured" as const,
+    fileAccess: "path" as const,
+    serverPath: "/data/graph2.graphson",
+    enableBatchLoading: true,
+    disableAutomaticSchema: true,
+    productionConfirmed: true,
+  };
+  const recovery = {
+    hasBatchLoading: true,
+    batchLoading: false,
+    hasSchemaDefault: true,
+    schemaDefault: "tp3",
+  };
+  runs.save("task-1", input);
+  runs.setRecovery("task-1", recovery);
+  database.close();
+
+  database = openApplicationDatabase(path);
+  try {
+    const restored = new GraphTransferRepository(database);
+    assert.deepEqual(restored.input("task-1"), input);
+    assert.deepEqual(restored.recovery("task-1"), recovery);
+    restored.setRecovery("task-1", null);
+    assert.equal(restored.recovery("task-1"), undefined);
+  } finally {
+    database.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test("keeps schema operation history after its connection is removed", () => {
   const directory = mkdtempSync(join(tmpdir(), "janusgraph-schema-connection-test-"));
   const database = openApplicationDatabase(join(directory, "app.sqlite"));
@@ -266,7 +307,7 @@ test("migrates existing connection profiles to development with write access", (
     const migrated = new ConnectionRepository(database).find("legacy")?.profile;
     assert.equal(migrated?.environment, "dev");
     assert.equal(migrated?.connectionReadOnly, false);
-    assert.equal(database.prepare("PRAGMA user_version").get()?.user_version, 7);
+    assert.equal(database.prepare("PRAGMA user_version").get()?.user_version, 8);
   } finally {
     database.close();
     rmSync(directory, { recursive: true, force: true });

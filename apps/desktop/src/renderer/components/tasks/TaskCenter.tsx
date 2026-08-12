@@ -137,7 +137,7 @@ export function TaskCenter({
             )}
             {task.retriable && (
               <button type="button" onClick={() => void onRetry(task)}>
-                <RotateCcw size={15} />{task.kind === "schema" ? t("重试", "Retry") : t("前往重试", "Go to retry")}
+                <RotateCcw size={15} />{task.kind === "maintenance" ? t("前往重试", "Go to retry") : t("重试", "Retry")}
               </button>
             )}
             {terminalStatuses.has(task.status) && (

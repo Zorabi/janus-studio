@@ -7,6 +7,7 @@ import { CredentialVault } from "../security/credential-vault";
 import { SchemaJobService } from "../services/schema-job-service";
 import { BackgroundTaskService } from "../services/background-task-service";
 import { CompatibilityService } from "../services/compatibility-service";
+import { GraphTransferService } from "../services/graph-transfer-service";
 import {
   backgroundTaskIdSchema,
   backgroundTaskLimitSchema,
@@ -31,6 +32,7 @@ import {
   saveSchemaFileSchema,
   runSchemaJobSchema,
   schemaJobIdSchema,
+  startGraphTransferSchema,
 } from "./schemas";
 
 type RegisterIpcOptions = {
@@ -43,6 +45,7 @@ type RegisterIpcOptions = {
   schemaJobService: SchemaJobService;
   backgroundTaskService: BackgroundTaskService;
   compatibilityService: CompatibilityService;
+  graphTransferService: GraphTransferService;
 };
 
 function assertTrustedSender(event: IpcMainInvokeEvent, window: BrowserWindow): void {
@@ -61,6 +64,7 @@ export function registerIpcHandlers({
   schemaJobService,
   backgroundTaskService,
   compatibilityService,
+  graphTransferService,
 }: RegisterIpcOptions): void {
   ipcMain.handle("runtime:platform", (event) => {
     assertTrustedSender(event, window);
@@ -199,6 +203,21 @@ export function registerIpcHandlers({
   ipcMain.handle("data-transfers:cleanup-docker", async (event, rawTransferId: unknown) => {
     assertTrustedSender(event, window);
     return fileService.cleanupDockerTransfer(dockerTransferIdSchema.parse(rawTransferId));
+  });
+
+  ipcMain.handle("data-transfers:start", (event, rawInput: unknown) => {
+    assertTrustedSender(event, window);
+    return graphTransferService.start(startGraphTransferSchema.parse(rawInput));
+  });
+
+  ipcMain.handle("data-transfers:cancel", async (event, rawTaskId: unknown) => {
+    assertTrustedSender(event, window);
+    return graphTransferService.cancel(backgroundTaskIdSchema.parse(rawTaskId));
+  });
+
+  ipcMain.handle("data-transfers:retry", (event, rawTaskId: unknown) => {
+    assertTrustedSender(event, window);
+    return graphTransferService.retry(backgroundTaskIdSchema.parse(rawTaskId));
   });
 
   ipcMain.handle("security:status", async (event) => {

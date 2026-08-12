@@ -282,6 +282,26 @@ export type PublishBackgroundTaskInput = Omit<
   kind: "transfer" | "maintenance";
 };
 
+export type GraphTransferAction = "import" | "export" | "purge";
+export type GraphTransferAccess = "configured" | "binding";
+export type GraphTransferFileAccess = "docker" | "path";
+
+export type StartGraphTransferInput = {
+  connectionId: string;
+  action: GraphTransferAction;
+  graphName: string;
+  graphBinding: string;
+  graphAccess: GraphTransferAccess;
+  fileAccess: GraphTransferFileAccess;
+  serverPath?: string;
+  dockerContainerId?: string;
+  dockerTransferId?: string;
+  enableBatchLoading?: boolean;
+  disableAutomaticSchema?: boolean;
+  overwrite?: boolean;
+  productionConfirmed?: boolean;
+};
+
 export type DesktopApi = {
   runtime: {
     platform(): Promise<string>;
@@ -324,6 +344,9 @@ export type DesktopApi = {
     prepareDockerExport(containerId: string): Promise<DockerTransferTarget>;
     finishDockerExport(transferId: string, suggestedName: string): Promise<string | null>;
     cleanupDockerTransfer(transferId: string): Promise<boolean>;
+    start(input: StartGraphTransferInput): Promise<BackgroundTask>;
+    cancel(taskId: string): Promise<boolean>;
+    retry(taskId: string): Promise<BackgroundTask>;
   };
   security: {
     status(): Promise<SecurityStorageStatus>;

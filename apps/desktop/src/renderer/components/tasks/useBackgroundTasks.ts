@@ -1,11 +1,6 @@
 import type { BackgroundTask } from "@janusgraph/domain";
 import { useCallback, useEffect, useState } from "react";
 import { errorMessage } from "../../lib/presentation";
-import {
-  readServerTransferTask,
-  requestServerTransferTaskCancellation,
-  serverTransferTaskPublication,
-} from "../../lib/server-transfer-task";
 import type { ToastState } from "../../features/query/query-workspace";
 
 type UseBackgroundTasksInput = {
@@ -23,24 +18,15 @@ export function useBackgroundTasks({ translate, notify, navigate }: UseBackgroun
   }, []);
 
   useEffect(() => {
-    const legacyTransferTask = readServerTransferTask(window.sessionStorage);
-    if (legacyTransferTask?.connectionId && window.janusGraphDesktop) {
-      void window.janusGraphDesktop.tasks.publish(
-        serverTransferTaskPublication(legacyTransferTask),
-      ).then(() => refresh()).catch(() => undefined);
-    }
     void refresh();
     const timer = window.setInterval(() => void refresh(), 2_500);
-    const refreshAfterTransferUpdate = () => window.setTimeout(() => void refresh(), 120);
     const refreshAfterTaskUpdate = (event: Event) => {
       if (event instanceof CustomEvent && event.detail?.open === true) setOpen(true);
       window.setTimeout(() => void refresh(), 120);
     };
-    window.addEventListener("janus-studio:server-transfer-task", refreshAfterTransferUpdate);
     window.addEventListener("janus-studio:background-task", refreshAfterTaskUpdate);
     return () => {
       window.clearInterval(timer);
-      window.removeEventListener("janus-studio:server-transfer-task", refreshAfterTransferUpdate);
       window.removeEventListener("janus-studio:background-task", refreshAfterTaskUpdate);
     };
   }, [refresh]);
@@ -51,27 +37,7 @@ export function useBackgroundTasks({ translate, notify, navigate }: UseBackgroun
       if (task.kind === "schema") {
         await window.janusGraphDesktop.schemaJobs.cancel(task.connectionId);
       } else if (task.kind === "transfer") {
-        const transferTask = requestServerTransferTaskCancellation(window.sessionStorage, task.id);
-        window.dispatchEvent(new Event("janus-studio:server-transfer-task"));
-        await window.janusGraphDesktop.queries.cancel({ executionId: task.id });
-        if (transferTask) {
-          await window.janusGraphDesktop.tasks.publish({
-            id: task.id,
-            kind: "transfer",
-            action: task.action as "import" | "export" | "purge",
-            title: task.title,
-            connectionId: task.connectionId,
-            graphName: task.graphName,
-            status: "cancel_requested",
-            stage: task.stage,
-            message: translate("已请求停止任务", "Cancellation requested"),
-            progressCurrent: task.progressCurrent,
-            progressTotal: task.progressTotal,
-            progressUnit: task.progressUnit,
-            cancellable: false,
-            retriable: false,
-          });
-        }
+        await window.janusGraphDesktop.dataTransfers.cancel(task.id);
       }
       await refresh();
     } catch (error) {
@@ -85,6 +51,10 @@ export function useBackgroundTasks({ translate, notify, navigate }: UseBackgroun
     setOpen(false);
     if (task.kind === "schema") {
       void window.janusGraphDesktop.schemaJobs.retry(task.id)
+        .catch((error) => notify({ tone: "error", message: errorMessage(error) }))
+        .finally(() => void refresh());
+    } else if (task.kind === "transfer") {
+      void window.janusGraphDesktop.dataTransfers.retry(task.id)
         .catch((error) => notify({ tone: "error", message: errorMessage(error) }))
         .finally(() => void refresh());
     }

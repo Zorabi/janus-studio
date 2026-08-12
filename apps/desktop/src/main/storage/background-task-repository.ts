@@ -150,6 +150,18 @@ export class BackgroundTaskRepository {
     this.database.prepare("DELETE FROM background_tasks WHERE id = ?").run(id);
   }
 
+  requestCancellation(id: string, message = "Cancellation requested"): BackgroundTask {
+    const task = this.get(id);
+    if (!task) throw new Error("Task not found");
+    if (task.status !== "running") throw new Error("Only a running task can be cancelled");
+    this.database.prepare(`
+      UPDATE background_tasks
+      SET status = 'cancel_requested', message = ?, cancellable = 0, updated_at = ?
+      WHERE id = ?
+    `).run(message, new Date().toISOString(), id);
+    return this.get(id)!;
+  }
+
   private upsert(task: BackgroundTask): void {
     this.database.prepare(`
       INSERT OR REPLACE INTO background_tasks (

@@ -201,7 +201,8 @@
 - Schema 导入执行前必须输入完整目标图名；动态图使用 ConfiguredGraphFactory 图名，连接默认图使用 Graph Binding。Schema 工具栏只展示导入、导出、快照基线和刷新；导出通过格式选择弹窗并列展示官方 JSON 与 Studio 归档，不可用格式保留可见并说明禁用原因。
 - Schema 快照以当前图为独立基线，首次建立后每次刷新自动比较；工作区显示基线时间、定义数量和新增/变更/当前缺失逐项明细，并由用户显式更新基线。“当前缺失”只表达基线中存在但本次未读取到，不得暗示 Janus Studio 支持删除通用 Schema 定义。旧版数组快照需兼容迁移。
 - Schema 创建脚本不得使用 `key` 作为 Groovy 顶层变量名，避免与 TinkerPop `T.key` 冲突。同步创建 Composite/Mixed Index 或为已有属性创建索引时可选择 Vertex/Edge Label，通过官方 `indexOnly(schemaLabel)` 限定索引；读取、Studio/官方导出和导入规划必须保留并校验该约束。
-- i18n 消息目录当前为每种语言 1003 条，并会在生成时清理已从源码移除的废弃文案。
+- 服务端 GraphSON 导入、导出和每批 100 顶点清空由主进程 `GraphTransferService` 编排，任务输入、目标图、进度和批量加载恢复载荷存入 SQLite；Renderer 不得使用 `sessionStorage` 或组件生命周期作为任务事实来源。取消、显式重试和安全配置恢复统一通过任务 IPC。
+- i18n 消息目录当前为每种语言 984 条，并会在生成时清理已从源码移除的废弃文案。
 
 ## 9. 开发与验证命令
 
@@ -216,7 +217,7 @@ pnpm build
 ```
 
 - `pnpm typecheck`：全部 workspace TypeScript 检查。
-- `pnpm test`：当前 136 项测试，其中 132 项本地通过，4 项真实 JanusGraph 集成测试在未配置环境时跳过。
+- `pnpm test`：当前 137 项测试，其中 133 项本地通过，4 项真实 JanusGraph 集成测试在未配置环境时跳过。
 - `pnpm build`：Electron Forge 生产打包。
 - macOS ARM64 打包输出：
   `apps/desktop/out/Janus Studio-darwin-arm64/Janus Studio.app`。
