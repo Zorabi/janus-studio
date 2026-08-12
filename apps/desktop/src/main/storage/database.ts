@@ -108,6 +108,71 @@ export function openApplicationDatabase(path: string): DatabaseSync {
       recovery_json TEXT NOT NULL DEFAULT ''
     );
 
+    CREATE TABLE IF NOT EXISTS query_asset_tags (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+      color TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS query_asset_folders (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      parent_id TEXT REFERENCES query_asset_folders(id) ON DELETE SET NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_query_asset_folders_parent_sort
+      ON query_asset_folders(parent_id, sort_order, name COLLATE NOCASE);
+
+    CREATE TABLE IF NOT EXISTS query_snippets (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL,
+      query_text TEXT NOT NULL,
+      bindings_text TEXT NOT NULL,
+      connection_id TEXT NOT NULL,
+      graph_name TEXT NOT NULL,
+      folder_id TEXT REFERENCES query_asset_folders(id) ON DELETE SET NULL,
+      starred INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_query_snippets_updated
+      ON query_snippets(updated_at DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_query_snippets_folder_updated
+      ON query_snippets(folder_id, updated_at DESC);
+
+    CREATE TABLE IF NOT EXISTS query_snippet_tags (
+      snippet_id TEXT NOT NULL REFERENCES query_snippets(id) ON DELETE CASCADE,
+      tag_id TEXT NOT NULL REFERENCES query_asset_tags(id) ON DELETE CASCADE,
+      PRIMARY KEY (snippet_id, tag_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_query_snippet_tags_tag
+      ON query_snippet_tags(tag_id, snippet_id);
+
+    CREATE TABLE IF NOT EXISTS query_history_assets (
+      history_id TEXT PRIMARY KEY REFERENCES query_history(id) ON DELETE CASCADE,
+      starred INTEGER NOT NULL DEFAULT 0,
+      note TEXT NOT NULL DEFAULT '',
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS query_history_tags (
+      history_id TEXT NOT NULL REFERENCES query_history(id) ON DELETE CASCADE,
+      tag_id TEXT NOT NULL REFERENCES query_asset_tags(id) ON DELETE CASCADE,
+      PRIMARY KEY (history_id, tag_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_query_history_tags_tag
+      ON query_history_tags(tag_id, history_id);
+
   `);
 
   const connectionColumns = database
@@ -149,7 +214,7 @@ export function openApplicationDatabase(path: string): DatabaseSync {
       CASE WHEN status = 'running' THEN '' ELSE updated_at END
     FROM schema_jobs;
   `);
-  database.exec("PRAGMA user_version = 8;");
+  database.exec("PRAGMA user_version = 9;");
 
   return database;
 }

@@ -10,6 +10,7 @@ import { HistoryRepository } from "../../apps/desktop/src/main/storage/history-r
 import { SchemaJobRepository } from "../../apps/desktop/src/main/storage/schema-job-repository.ts";
 import { BackgroundTaskRepository } from "../../apps/desktop/src/main/storage/background-task-repository.ts";
 import { GraphTransferRepository } from "../../apps/desktop/src/main/storage/graph-transfer-repository.ts";
+import { QueryAssetRepository } from "../../apps/desktop/src/main/storage/query-asset-repository.ts";
 
 test("persists connection profiles, advanced transport settings and history", () => {
   const directory = mkdtempSync(join(tmpdir(), "janus-studio-test-"));
@@ -228,6 +229,57 @@ test("persists GraphSON task inputs and batch-loading recovery outside the rende
   }
 });
 
+test("persists query asset tags, folders, snippets and immutable history metadata", () => {
+  const directory = mkdtempSync(join(tmpdir(), "janusgraph-query-assets-test-"));
+  const path = join(directory, "app.sqlite");
+  let database = openApplicationDatabase(path);
+  const history = new HistoryRepository(database);
+  const historyEntry = history.add("connection-1", "Docker", "g.V().count()", "success", 12, 1);
+  const assets = new QueryAssetRepository(database);
+  const tag = assets.saveTag({ name: "capacity", color: "#b7ff3c" });
+  const parent = assets.saveFolder({ name: "Operations", parentId: "", sortOrder: 1 });
+  const child = assets.saveFolder({ name: "Production", parentId: parent.id, sortOrder: 2 });
+  const snippet = assets.saveSnippet({
+    name: "Count vertices",
+    description: "Capacity check",
+    query: "g.V().count()",
+    bindingsText: "{}",
+    connectionId: "",
+    graphName: "graph2",
+    folderId: child.id,
+    starred: true,
+    tagIds: [tag.id],
+  });
+  assets.saveHistoryMetadata({
+    historyId: historyEntry.id,
+    starred: true,
+    note: "Known baseline",
+    tagIds: [tag.id],
+  });
+  database.close();
+
+  database = openApplicationDatabase(path);
+  try {
+    const restored = new QueryAssetRepository(database);
+    assert.deepEqual(restored.listTags().map((item) => item.name), ["capacity"]);
+    assert.deepEqual(restored.listFolders().map((item) => item.name), ["Operations", "Production"]);
+    assert.throws(() => restored.saveFolder({ id: parent.id, name: "Operations", parentId: child.id, sortOrder: 1 }), /循环/);
+    assert.deepEqual(restored.listSnippets({ tagIds: [tag.id], starred: true }).map((item) => item.id), [snippet.id]);
+    const metadata = restored.historyMetadata([historyEntry.id])[0];
+    assert.equal(metadata?.starred, true);
+    assert.equal(metadata?.note, "Known baseline");
+    assert.deepEqual(metadata?.tags.map((item) => item.id), [tag.id]);
+    restored.removeTag(tag.id);
+    assert.deepEqual(restored.listSnippets()[0]?.tags, []);
+    assert.deepEqual(restored.historyMetadata([historyEntry.id])[0]?.tags, []);
+    new HistoryRepository(database).remove(historyEntry.id);
+    assert.deepEqual(restored.historyMetadata([historyEntry.id]), []);
+  } finally {
+    database.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test("keeps schema operation history after its connection is removed", () => {
   const directory = mkdtempSync(join(tmpdir(), "janusgraph-schema-connection-test-"));
   const database = openApplicationDatabase(join(directory, "app.sqlite"));
@@ -307,7 +359,7 @@ test("migrates existing connection profiles to development with write access", (
     const migrated = new ConnectionRepository(database).find("legacy")?.profile;
     assert.equal(migrated?.environment, "dev");
     assert.equal(migrated?.connectionReadOnly, false);
-    assert.equal(database.prepare("PRAGMA user_version").get()?.user_version, 8);
+    assert.equal(database.prepare("PRAGMA user_version").get()?.user_version, 9);
   } finally {
     database.close();
     rmSync(directory, { recursive: true, force: true });

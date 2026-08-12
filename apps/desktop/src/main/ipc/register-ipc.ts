@@ -8,6 +8,7 @@ import { SchemaJobService } from "../services/schema-job-service";
 import { BackgroundTaskService } from "../services/background-task-service";
 import { CompatibilityService } from "../services/compatibility-service";
 import { GraphTransferService } from "../services/graph-transfer-service";
+import { QueryAssetRepository } from "../storage/query-asset-repository";
 import {
   backgroundTaskIdSchema,
   backgroundTaskLimitSchema,
@@ -25,8 +26,15 @@ import {
   queryRequestSchema,
   queryExportSchema,
   publishBackgroundTaskSchema,
+  queryAssetIdSchema,
+  queryHistoryMetadataListSchema,
+  querySnippetListSchema,
   saveDataFileSchema,
   saveGraphFileSchema,
+  saveQueryAssetFolderSchema,
+  saveQueryAssetTagSchema,
+  saveQueryHistoryMetadataSchema,
+  saveQuerySnippetSchema,
   saveResultFileSchema,
   saveQueryFileSchema,
   saveSchemaFileSchema,
@@ -46,6 +54,7 @@ type RegisterIpcOptions = {
   backgroundTaskService: BackgroundTaskService;
   compatibilityService: CompatibilityService;
   graphTransferService: GraphTransferService;
+  queryAssetRepository: QueryAssetRepository;
 };
 
 function assertTrustedSender(event: IpcMainInvokeEvent, window: BrowserWindow): void {
@@ -65,6 +74,7 @@ export function registerIpcHandlers({
   backgroundTaskService,
   compatibilityService,
   graphTransferService,
+  queryAssetRepository,
 }: RegisterIpcOptions): void {
   ipcMain.handle("runtime:platform", (event) => {
     assertTrustedSender(event, window);
@@ -137,6 +147,51 @@ export function registerIpcHandlers({
   ipcMain.handle("history:clear", (event) => {
     assertTrustedSender(event, window);
     historyRepository.clear();
+  });
+
+  ipcMain.handle("query-assets:tags:list", (event) => {
+    assertTrustedSender(event, window);
+    return queryAssetRepository.listTags();
+  });
+  ipcMain.handle("query-assets:tags:save", (event, rawInput: unknown) => {
+    assertTrustedSender(event, window);
+    return queryAssetRepository.saveTag(saveQueryAssetTagSchema.parse(rawInput));
+  });
+  ipcMain.handle("query-assets:tags:remove", (event, rawId: unknown) => {
+    assertTrustedSender(event, window);
+    queryAssetRepository.removeTag(queryAssetIdSchema.parse(rawId));
+  });
+  ipcMain.handle("query-assets:folders:list", (event) => {
+    assertTrustedSender(event, window);
+    return queryAssetRepository.listFolders();
+  });
+  ipcMain.handle("query-assets:folders:save", (event, rawInput: unknown) => {
+    assertTrustedSender(event, window);
+    return queryAssetRepository.saveFolder(saveQueryAssetFolderSchema.parse(rawInput));
+  });
+  ipcMain.handle("query-assets:folders:remove", (event, rawId: unknown) => {
+    assertTrustedSender(event, window);
+    queryAssetRepository.removeFolder(queryAssetIdSchema.parse(rawId));
+  });
+  ipcMain.handle("query-assets:snippets:list", (event, rawInput: unknown) => {
+    assertTrustedSender(event, window);
+    return queryAssetRepository.listSnippets(querySnippetListSchema.parse(rawInput));
+  });
+  ipcMain.handle("query-assets:snippets:save", (event, rawInput: unknown) => {
+    assertTrustedSender(event, window);
+    return queryAssetRepository.saveSnippet(saveQuerySnippetSchema.parse(rawInput));
+  });
+  ipcMain.handle("query-assets:snippets:remove", (event, rawId: unknown) => {
+    assertTrustedSender(event, window);
+    queryAssetRepository.removeSnippet(queryAssetIdSchema.parse(rawId));
+  });
+  ipcMain.handle("query-assets:history:list", (event, rawIds: unknown) => {
+    assertTrustedSender(event, window);
+    return queryAssetRepository.historyMetadata(queryHistoryMetadataListSchema.parse(rawIds));
+  });
+  ipcMain.handle("query-assets:history:save", (event, rawInput: unknown) => {
+    assertTrustedSender(event, window);
+    return queryAssetRepository.saveHistoryMetadata(saveQueryHistoryMetadataSchema.parse(rawInput));
   });
 
   ipcMain.handle("files:pick-data", async (event) => {

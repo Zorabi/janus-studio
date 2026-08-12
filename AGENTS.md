@@ -203,6 +203,7 @@
 - Schema 导入审阅统一分为创建、跳过、冲突、人工审阅和高影响五类；冲突阻止执行，高影响项明确展示索引 REGISTER/REINDEX/ENABLED 生命周期。导入弹窗可在官方 JSON 与 Studio 归档之间切换转换预览；官方专属字段必须通过 `officialSchema` 原文保留，禁止静默丢失。
 - Schema 创建脚本不得使用 `key` 作为 Groovy 顶层变量名，避免与 TinkerPop `T.key` 冲突。同步创建 Composite/Mixed Index 或为已有属性创建索引时可选择 Vertex/Edge Label，通过官方 `indexOnly(schemaLabel)` 限定索引；读取、Studio/官方导出和导入规划必须保留并校验该约束。
 - 服务端 GraphSON 导入、导出和每批 100 顶点清空由主进程 `GraphTransferService` 编排，任务输入、目标图、进度和批量加载恢复载荷存入 SQLite；Renderer 不得使用 `sessionStorage` 或组件生命周期作为任务事实来源。取消、显式重试和安全配置恢复统一通过任务 IPC。
+- 查询资产基础模型使用 SQLite v9：标签、层级文件夹、Snippet、Snippet 标签关联，以及不修改原执行事实的历史星标/备注/标签元数据。Repository 与 IPC 支持分页、搜索、文件夹、标签和星标筛选；现有 Renderer 收藏数据迁移必须在后续 UI 中由用户可见地执行，禁止静默覆盖。
 - i18n 消息目录当前为每种语言 998 条，并会在生成时清理已从源码移除的废弃文案。
 
 ## 9. 开发与验证命令
@@ -218,7 +219,7 @@ pnpm build
 ```
 
 - `pnpm typecheck`：全部 workspace TypeScript 检查。
-- `pnpm test`：当前 138 项测试，其中 134 项本地通过，4 项真实 JanusGraph 集成测试在未配置环境时跳过。
+- `pnpm test`：当前 139 项测试，其中 135 项本地通过，4 项真实 JanusGraph 集成测试在未配置环境时跳过。
 - `pnpm build`：Electron Forge 生产打包。
 - macOS ARM64 打包输出：
   `apps/desktop/out/Janus Studio-darwin-arm64/Janus Studio.app`。

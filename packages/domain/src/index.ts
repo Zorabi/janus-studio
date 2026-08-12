@@ -146,6 +146,69 @@ export type QueryHistoryListInput = {
   createdTo?: string;
 };
 
+export type QueryAssetTag = {
+  id: string;
+  name: string;
+  color: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type QueryAssetFolder = {
+  id: string;
+  name: string;
+  parentId: string;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type QuerySnippet = {
+  id: string;
+  name: string;
+  description: string;
+  query: string;
+  bindingsText: string;
+  connectionId: string;
+  graphName: string;
+  folderId: string;
+  starred: boolean;
+  tags: QueryAssetTag[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SaveQueryAssetTagInput = Pick<QueryAssetTag, "name" | "color"> & { id?: string };
+export type SaveQueryAssetFolderInput = Pick<QueryAssetFolder, "name" | "sortOrder"> & {
+  id?: string;
+  parentId?: string;
+};
+export type SaveQuerySnippetInput = Pick<
+  QuerySnippet,
+  "name" | "description" | "query" | "bindingsText" | "connectionId" | "graphName" | "folderId" | "starred"
+> & { id?: string; tagIds?: string[] };
+export type QuerySnippetListInput = {
+  limit?: number;
+  offset?: number;
+  search?: string;
+  folderId?: string;
+  tagIds?: string[];
+  starred?: boolean;
+};
+export type QueryHistoryAssetMetadata = {
+  historyId: string;
+  starred: boolean;
+  note: string;
+  tags: QueryAssetTag[];
+  updatedAt: string;
+};
+export type SaveQueryHistoryAssetInput = {
+  historyId: string;
+  starred: boolean;
+  note: string;
+  tagIds: string[];
+};
+
 export type PickedDataFile = {
   name: string;
   extension: "json" | "csv";
@@ -327,6 +390,19 @@ export type DesktopApi = {
     list(input?: number | QueryHistoryListInput): Promise<QueryHistoryEntry[]>;
     remove(id: string): Promise<void>;
     clear(): Promise<void>;
+  };
+  queryAssets: {
+    listTags(): Promise<QueryAssetTag[]>;
+    saveTag(input: SaveQueryAssetTagInput): Promise<QueryAssetTag>;
+    removeTag(id: string): Promise<void>;
+    listFolders(): Promise<QueryAssetFolder[]>;
+    saveFolder(input: SaveQueryAssetFolderInput): Promise<QueryAssetFolder>;
+    removeFolder(id: string): Promise<void>;
+    listSnippets(input?: QuerySnippetListInput): Promise<QuerySnippet[]>;
+    saveSnippet(input: SaveQuerySnippetInput): Promise<QuerySnippet>;
+    removeSnippet(id: string): Promise<void>;
+    historyMetadata(historyIds: string[]): Promise<QueryHistoryAssetMetadata[]>;
+    saveHistoryMetadata(input: SaveQueryHistoryAssetInput): Promise<QueryHistoryAssetMetadata>;
   };
   files: {
     pickDataFile(): Promise<PickedDataFile | null>;

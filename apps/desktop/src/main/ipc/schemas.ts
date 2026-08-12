@@ -73,6 +73,52 @@ export const historyListSchema = z.union([
   }),
 ]);
 
+export const queryAssetIdSchema = z.string().uuid();
+export const saveQueryAssetTagSchema = z.object({
+  id: queryAssetIdSchema.optional(),
+  name: z.string().trim().min(1).max(48),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+});
+export const saveQueryAssetFolderSchema = z.object({
+  id: queryAssetIdSchema.optional(),
+  name: z.string().trim().min(1).max(80),
+  parentId: z.union([queryAssetIdSchema, z.literal("")]).optional().default(""),
+  sortOrder: z.number().int().min(-1_000_000).max(1_000_000).default(0),
+});
+const queryAssetTagIdsSchema = z.array(queryAssetIdSchema).max(64).transform((values) => [...new Set(values)]);
+export const querySnippetListSchema = z.object({
+  limit: z.number().int().min(1).max(1_000).optional(),
+  offset: z.number().int().min(0).max(10_000_000).optional(),
+  search: z.string().trim().max(200).optional(),
+  folderId: z.union([queryAssetIdSchema, z.literal("")]).optional(),
+  tagIds: queryAssetTagIdsSchema.optional(),
+  starred: z.boolean().optional(),
+}).optional();
+export const saveQuerySnippetSchema = z.object({
+  id: queryAssetIdSchema.optional(),
+  name: z.string().trim().min(1).max(120),
+  description: z.string().max(2_000),
+  query: z.string().trim().min(1).max(1_000_000),
+  bindingsText: z.string().max(64_000).refine((value) => {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      return Boolean(parsed) && typeof parsed === "object" && !Array.isArray(parsed);
+    } catch { return false; }
+  }, "Snippet 参数必须是 JSON 对象"),
+  connectionId: z.union([connectionIdSchema, z.literal("")]),
+  graphName: z.string().trim().max(120),
+  folderId: z.union([queryAssetIdSchema, z.literal("")]),
+  starred: z.boolean(),
+  tagIds: queryAssetTagIdsSchema.optional().default([]),
+});
+export const queryHistoryMetadataListSchema = z.array(historyIdSchema).max(2_000).transform((values) => [...new Set(values)]);
+export const saveQueryHistoryMetadataSchema = z.object({
+  historyId: historyIdSchema,
+  starred: z.boolean(),
+  note: z.string().max(4_000),
+  tagIds: queryAssetTagIdsSchema,
+});
+
 export const queryRequestSchema = z.object({
   connectionId: connectionIdSchema,
   consoleId: z.string().trim().min(1).max(160),

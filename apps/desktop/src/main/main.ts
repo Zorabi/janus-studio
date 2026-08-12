@@ -22,6 +22,7 @@ import { CompatibilityService } from "./services/compatibility-service";
 import { HistoryRepository } from "./storage/history-repository";
 import { GraphTransferRepository } from "./storage/graph-transfer-repository";
 import { GraphTransferService } from "./services/graph-transfer-service";
+import { QueryAssetRepository } from "./storage/query-asset-repository";
 import { UpdateSourceType, updateElectronApp } from "update-electron-app";
 
 declare const __UPDATE_REPOSITORY__: string;
@@ -178,6 +179,7 @@ app.whenReady().then(() => {
   const schemaJobRepository = new SchemaJobRepository(database);
   const backgroundTaskRepository = new BackgroundTaskRepository(database);
   const graphTransferRepository = new GraphTransferRepository(database);
+  const queryAssetRepository = new QueryAssetRepository(database);
   const forceLocalCredentialVault =
     process.env.JANUS_STUDIO_FORCE_LOCAL_CREDENTIAL_VAULT === "1" ||
     process.platform === "darwin";
@@ -233,6 +235,7 @@ app.whenReady().then(() => {
     backgroundTaskService,
     compatibilityService,
     graphTransferService,
+    queryAssetRepository,
   });
 
   app.on("activate", () => {
