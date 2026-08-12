@@ -1,4 +1,5 @@
 import type { ConnectionSummary, QueryExecutionResult } from "@janusgraph/domain";
+import { routeCompatibility } from "@janusgraph/application";
 import {
   AlertTriangle,
   Boxes,
@@ -29,7 +30,7 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
-import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SelectControl } from "../../components/SelectControl";
 import { ConfirmDialog, EmptyState, Modal, PageHeader } from "../../components/ui";
 import {
@@ -439,17 +440,29 @@ export function GraphFactoryPage({
   const [clearInstancesPhrase, setClearInstancesPhrase] = useState("");
   const [confirmation, setConfirmation] = useState<PendingConfirmation | null>(null);
   const [instances, setInstances] = useState<InstanceLoadState>({ status: "idle" });
+  const executeRef = useRef(execute);
+  const translateRef = useRef(t);
+  executeRef.current = execute;
+  translateRef.current = t;
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (refreshProfile = false) => {
     if (!activeConnection) {
       setState({ status: "idle" });
       return;
     }
     setState({ status: "loading" });
     try {
-      const response = await execute(GRAPH_FACTORY_PROBE_QUERY, {}, false);
+      const profile = await window.janusGraphDesktop?.compatibility.get(activeConnection.id, refreshProfile);
+      const route = routeCompatibility(profile, "configuredGraphFactory");
+      if (route.status === "unavailable") {
+        throw new Error(translateRef.current(
+          "能力探测确认当前服务端不支持 ConfiguredGraphFactory 或配置管理图。",
+          "Capability detection confirmed that the server does not support ConfiguredGraphFactory or the configuration management graph.",
+        ));
+      }
+      const response = await executeRef.current(GRAPH_FACTORY_PROBE_QUERY, {}, false);
       const value = parseGraphFactoryState(response.items);
-      if (!value) throw new Error(t(
+      if (!value) throw new Error(translateRef.current(
         "服务端返回了无法识别的 ConfiguredGraphFactory 响应。",
         "The server returned an unrecognized ConfiguredGraphFactory response.",
       ));
@@ -460,10 +473,10 @@ export function GraphFactoryPage({
     } catch (error) {
       setState({ status: "error", message: errorMessage(error) });
     }
-  }, [activeConnection?.id]);
+  }, [activeConnection?.id, activeConnection?.updatedAt]);
 
   useEffect(() => {
-    void refresh();
+    void refresh(false);
   }, [refresh]);
 
   const factory = state.status === "success" ? state.value : null;
@@ -908,7 +921,7 @@ export function GraphFactoryPage({
           "Manage dynamic graph lifecycle, templates and graph configurations; query tabs use the target graph through a Traversal Source override.",
         )}
         actions={
-          <button type="button" className="button secondary" onClick={() => void refresh()} disabled={state.status === "loading"}>
+          <button type="button" className="button secondary" onClick={() => void refresh(true)} disabled={state.status === "loading"}>
             {state.status === "loading" ? <LoaderCircle className="spin" size={17} /> : <RefreshCw size={17} />}
             {t("重新探测", "Probe again")}
           </button>

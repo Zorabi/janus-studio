@@ -16,6 +16,16 @@ export const COMPATIBILITY_PROBE_QUERY = `def __available = { __name ->
     return false
   }
 }
+def __methodAvailable = { __name, __method, __parameterCount ->
+  try {
+    def __type = Class.forName(__name, false, Thread.currentThread().getContextClassLoader())
+    return __type.getMethods().any { __candidate ->
+      __candidate.getName() == __method && __candidate.getParameterCount() == __parameterCount
+    }
+  } catch (Throwable __ignored) {
+    return false
+  }
+}
 def __cleanVersion = { __value ->
   if (__value == null) return null
   def __text = __value.toString().trim()
@@ -88,7 +98,11 @@ return [[
   configurationManagementGraph: __available("org.janusgraph.graphdb.management.ConfigurationManagementGraph"),
   janusGraphManager: __available("org.janusgraph.graphdb.management.JanusGraphManager"),
   jsonSchemaInitialization: __available("org.janusgraph.core.schema.json.definition.JsonSchemaDefinition"),
-  graphsonIo: __available("org.apache.tinkerpop.gremlin.structure.io.IoCore")
+  graphsonIo: __available("org.apache.tinkerpop.gremlin.structure.io.IoCore"),
+  indexFieldStatus: __methodAvailable("org.janusgraph.core.schema.JanusGraphIndex", "getIndexStatus", 1),
+  indexStatusAwait: __methodAvailable("org.janusgraph.graphdb.database.management.ManagementSystem", "awaitGraphIndexStatus", 2),
+  traversalExplain: __methodAvailable("org.apache.tinkerpop.gremlin.process.traversal.Traversal", "explain", 0),
+  traversalProfile: __methodAvailable("org.apache.tinkerpop.gremlin.process.traversal.Traversal", "profile", 0)
 ]]`;
 
 type ProbeRecord = Record<string, unknown>;
@@ -126,6 +140,10 @@ const probedCapabilities: CompatibilityCapability[] = [
   "janusGraphManager",
   "jsonSchemaInitialization",
   "graphsonIo",
+  "indexFieldStatus",
+  "indexStatusAwait",
+  "traversalExplain",
+  "traversalProfile",
 ];
 
 function connectionSignature(profile: ConnectionProfile): string {
@@ -147,18 +165,38 @@ function capabilityState(value: unknown): CompatibilityCapabilityState {
 
 export class CompatibilityService {
   private readonly cache = new Map<string, CompatibilityProfile>();
+  private readonly inFlight = new Map<string, {
+    signature: string;
+    promise: Promise<CompatibilityProfile>;
+  }>();
 
   constructor(
     private readonly connections: ConnectionService,
     private readonly queries: QueryService,
   ) {}
 
-  async get(connectionId: string, refresh = false): Promise<CompatibilityProfile> {
+  get(connectionId: string, refresh = false): Promise<CompatibilityProfile> {
     const profile = this.connections.profile(connectionId);
     const signature = connectionSignature(profile);
     const cached = this.cache.get(connectionId);
-    if (!refresh && cached?.connectionSignature === signature) return cached;
+    if (!refresh && cached?.connectionSignature === signature) return Promise.resolve(cached);
+    const pending = this.inFlight.get(connectionId);
+    if (pending?.signature === signature) return pending.promise;
 
+    const promise = this.detect(connectionId, signature, profile).finally(() => {
+      if (this.inFlight.get(connectionId)?.promise === promise) {
+        this.inFlight.delete(connectionId);
+      }
+    });
+    this.inFlight.set(connectionId, { signature, promise });
+    return promise;
+  }
+
+  private async detect(
+    connectionId: string,
+    signature: string,
+    profile: ConnectionProfile,
+  ): Promise<CompatibilityProfile> {
     const transportCapabilities = {
       sessionedClient: profile.protocol === "ws" || profile.protocol === "wss"
         ? "supported" as const

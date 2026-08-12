@@ -5,6 +5,7 @@ import type {
   PickedDataFile,
   QueryExecutionResult,
 } from "@janusgraph/domain";
+import { routeCompatibility } from "@janusgraph/application";
 import {
   AlertTriangle,
   Boxes,
@@ -295,6 +296,12 @@ export function TransferPage({
     setConfiguredGraphsLoading(true);
     setConfiguredGraphsError("");
     try {
+      const profile = await window.janusGraphDesktop?.compatibility.get(activeConnection.id);
+      if (routeCompatibility(profile, "configuredGraphFactory").status === "unavailable") {
+        setConfiguredGraphs([]);
+        setGraphTargetKey("connection");
+        return;
+      }
       const response = await execute(SERVER_GRAPHSON_QUERIES.listConfiguredGraphs, {}, false, false);
       const graphs = parseConfiguredGraphTargets(response.items);
       setConfiguredGraphs(graphs);
@@ -318,7 +325,11 @@ export function TransferPage({
     if (mode === "server" && activeConnection) void refreshConfiguredGraphs();
   }, [mode, activeConnection?.id]);
 
-  const resolveServerTarget = () => {
+  const resolveServerTarget = (): {
+    graphName: string;
+    graphBinding: string;
+    graphAccess: "binding" | "configured";
+  } => {
     const name = targetGraphName.trim();
     if (!/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,119}$/.test(name)) {
       throw new Error(t("图名称格式无效", "Invalid graph name"));
@@ -328,6 +339,21 @@ export function TransferPage({
       graphBinding: name,
       graphAccess: usesConfiguredTarget ? "configured" : "binding",
     };
+  };
+
+  const requireGraphsonCapability = async (graphAccess: "binding" | "configured") => {
+    if (!activeConnection) throw new Error(t("请先选择连接", "Select a connection first"));
+    const profile = await window.janusGraphDesktop?.compatibility.get(activeConnection.id);
+    const route = routeCompatibility(
+      profile,
+      graphAccess === "configured" ? "configuredGraphsonIo" : "graphsonIo",
+    );
+    if (route.status === "unavailable") {
+      throw new Error(t(
+        "能力探测确认当前服务端不支持所选图的 GraphSON 整图迁移。",
+        "Capability detection confirmed that the server does not support GraphSON migration for the selected graph.",
+      ));
+    }
   };
 
   const restoreBatchLoadingConfiguration = async (record: BatchRecoveryRecord) => {
@@ -477,6 +503,7 @@ export function TransferPage({
     let outcomeMessage = "";
     try {
       const target = resolveServerTarget();
+      await requireGraphsonCapability(target.graphAccess);
       targetGraph = target.graphName;
       path = serverAccessMode === "docker" ? stagedImport?.serverPath : serverImportPath.trim();
       if (!path) throw new Error(t("请先选择 GraphSON 文件", "Choose a GraphSON file first"));
@@ -672,6 +699,7 @@ export function TransferPage({
     let outcomeMessage = "";
     try {
       const target = resolveServerTarget();
+      await requireGraphsonCapability(target.graphAccess);
       targetGraph = target.graphName;
       taskId = beginServerTask(
         "export",

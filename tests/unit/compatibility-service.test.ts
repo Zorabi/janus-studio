@@ -26,6 +26,10 @@ test("uses official JanusGraph capability classes in the read-only probe", () =>
   assert.match(COMPATIBILITY_PROBE_QUERY, /org\.janusgraph\.core\.ConfiguredGraphFactory/);
   assert.match(COMPATIBILITY_PROBE_QUERY, /org\.janusgraph\.graphdb\.management\.JanusGraphManager/);
   assert.match(COMPATIBILITY_PROBE_QUERY, /org\.janusgraph\.core\.schema\.json\.definition\.JsonSchemaDefinition/);
+  assert.match(COMPATIBILITY_PROBE_QUERY, /JanusGraphIndex", "getIndexStatus", 1/);
+  assert.match(COMPATIBILITY_PROBE_QUERY, /ManagementSystem", "awaitGraphIndexStatus", 2/);
+  assert.match(COMPATIBILITY_PROBE_QUERY, /Traversal", "explain", 0/);
+  assert.match(COMPATIBILITY_PROBE_QUERY, /Traversal", "profile", 0/);
   assert.doesNotMatch(COMPATIBILITY_PROBE_QUERY, /\.open\(/);
 });
 
@@ -48,7 +52,7 @@ test("detects server versions from official manifest keys with safe metadata fal
   assert.doesNotMatch(COMPATIBILITY_PROBE_QUERY, /ConfiguredGraphFactory\.open/);
 });
 
-test("caches a compatibility profile until the connection signature changes or refresh is requested", async () => {
+test("caches and coalesces a compatibility profile until refresh is requested", async () => {
   const profile: ConnectionProfile = {
     id: "00000000-0000-4000-8000-000000000001",
     name: "Docker",
@@ -71,11 +75,14 @@ test("caches a compatibility profile until the connection signature changes or r
     updatedAt: "2026-08-12T00:00:00.000Z",
   };
   let executions = 0;
+  let pendingProbe: Promise<void> | null = null;
+  let releaseProbe: (() => void) | null = null;
   const service = new CompatibilityService(
     { profile: () => profile } as never,
     {
       execute: async () => {
         executions += 1;
+        if (pendingProbe) await pendingProbe;
         return {
           executionId: "probe",
           durationMs: 1,
@@ -88,6 +95,10 @@ test("caches a compatibility profile until the connection signature changes or r
             janusGraphManager: true,
             jsonSchemaInitialization: true,
             graphsonIo: true,
+            indexFieldStatus: true,
+            indexStatusAwait: true,
+            traversalExplain: true,
+            traversalProfile: true,
           }]],
           truncated: false,
           totalCount: 1,
@@ -105,4 +116,14 @@ test("caches a compatibility profile until the connection signature changes or r
   assert.equal(first.capabilities.serverCancellation, "supported");
   assert.equal(cached.detectedAt, first.detectedAt);
   assert.equal(refreshed.janusGraphVersion, "1.1.0");
+
+  pendingProbe = new Promise<void>((resolve) => { releaseProbe = resolve; });
+  const pendingFirst = service.get(profile.id, true);
+  const pendingSecond = service.get(profile.id, true);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(executions, 3);
+  releaseProbe?.();
+  const [coalescedFirst, coalescedSecond] = await Promise.all([pendingFirst, pendingSecond]);
+  assert.strictEqual(coalescedFirst, coalescedSecond);
+  assert.equal(executions, 3);
 });

@@ -192,8 +192,9 @@
 - 服务端 GraphSON 迁移支持 Docker/服务器路径、显式图名确认、会话级任务状态、服务端 Session 中断、批量加载配置恢复和导出临时文件真实字节进度。
 - 统一任务中心已提供 SQLite 持久化、异常退出中断恢复、未读状态，以及 Schema、GraphSON 迁移、清空和动态图 Drop 的统一展示。
 - 批量清除其他 JanusGraph 实例注册和 Drop 都必须输入完整图名确认；Drop 开始后自动进入任务中心且不会自动重试。
-- JanusGraph 兼容层第一阶段已提供按连接签名缓存的只读版本/能力探测，并在连接管理中支持用户主动查看和刷新；版本读取依次使用 JanusGraph/TinkerPop 官方 Manifest 键、Package、Maven 元数据和 JAR 文件名回退。
-- i18n 消息目录当前为每种语言 945 条，并会在生成时清理已从源码移除的废弃文案。
+- JanusGraph 兼容层已提供按连接签名缓存的只读版本/能力探测，并在连接管理中支持用户主动查看和刷新；版本读取依次使用 JanusGraph/TinkerPop 官方 Manifest 键、Package、Maven 元数据和 JAR 文件名回退。
+- Schema Management、索引生命周期、ConfiguredGraphFactory、GraphSON 迁移和 Explain/Profile 已通过集中式 `CompatibilityProfile` 路由；明确不支持的入口在脚本执行前阻止，未知能力保留为未验证而不伪装支持。
+- i18n 消息目录当前为每种语言 952 条，并会在生成时清理已从源码移除的废弃文案。
 
 ## 9. 开发与验证命令
 
@@ -208,7 +209,7 @@ pnpm build
 ```
 
 - `pnpm typecheck`：全部 workspace TypeScript 检查。
-- `pnpm test`：当前 111 项测试，其中 107 项本地通过，4 项真实 JanusGraph 集成测试在未配置环境时跳过。
+- `pnpm test`：当前 115 项测试，其中 111 项本地通过，4 项真实 JanusGraph 集成测试在未配置环境时跳过。
 - `pnpm build`：Electron Forge 生产打包。
 - macOS ARM64 打包输出：
   `apps/desktop/out/Janus Studio-darwin-arm64/Janus Studio.app`。
@@ -231,7 +232,7 @@ pnpm build
 
 - 当前代码基线提交：`4a6b59e feat: make GraphSON transfers observable and interruptible`。
 - 最近一次 `pnpm typecheck`：通过。
-- 最近一次 `pnpm test`：111 项，107 通过，4 个真实环境测试跳过，0 失败。
+- 最近一次 `pnpm test`：115 项，111 通过，4 个真实环境测试跳过，0 失败。
 - 最近一次 `pnpm build`：通过。
 - 最近一次打包时间：2026-08-12。
 - 多节点 Binding 传播、真实 Drop、残留实例处理和关闭后自动重开语义已由用户验收。
@@ -239,6 +240,6 @@ pnpm build
 
 ## 12. 后续路线
 
-- 统一长任务中心第一阶段和 JanusGraph 兼容层第一阶段已经完成；GraphSON 执行编排迁入主进程和按 Profile 路由脚本仍待后续切片。
+- 统一长任务中心第一阶段和 JanusGraph 兼容层的探测/首批脚本路由已经完成；GraphSON 执行编排迁入主进程、官方 Schema JSON 路由和兼容 fixture 矩阵仍待后续切片。
 - 剩余六类能力为：查询资产管理、JanusGraph 兼容层、Schema 迁移增强、连接基础设施、诊断能力、发布与兼容验收。
 - 详细分期、依赖和验收标准见 `docs/剩余功能迭代计划.md`。

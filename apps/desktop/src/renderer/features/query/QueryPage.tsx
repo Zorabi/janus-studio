@@ -3,6 +3,7 @@ import type {
   QueryExecutionResult,
   QueryHistoryEntry,
 } from "@janusgraph/domain";
+import { routeCompatibility } from "@janusgraph/application";
 import {
   Activity,
   AlertTriangle,
@@ -74,12 +75,14 @@ import {
 } from "../../lib/result-model";
 import type { AppSettings } from "../../lib/settings";
 import { parseTraversalDiagnostics } from "../../lib/traversal-diagnostics";
+import { useCompatibilityProfile } from "../../lib/use-compatibility-profile";
 import {
   configuredPropertyFields,
   gremlinFileName,
   hasDisplayProperty,
   parseBindings,
   tabTitleFromFileName,
+  traversalAnalysisKind,
   withTraversalAnalysis,
 } from "./query-utils";
 import {
@@ -194,6 +197,9 @@ export function QueryPage({
   notify: (toast: ToastState) => void;
 }) {
   const t = useTranslate();
+  const compatibility = useCompatibilityProfile(activeConnection?.id);
+  const explainRoute = routeCompatibility(compatibility.profile, "traversalExplain");
+  const profileRoute = routeCompatibility(compatibility.profile, "traversalProfile");
   const schemaCatalog = useMemo<GremlinSchemaCatalog>(() => {
     if (!activeConnection) return EMPTY_SCHEMA_CATALOG;
     try {
@@ -383,6 +389,21 @@ export function QueryPage({
       setBindingsError("");
       const selected = selectionValue ?? selectedQuery;
       const executable = selected.trim() ? selected : query;
+      const analysis = traversalAnalysisKind(executable);
+      const analysisRoute = analysis === "explain" ? explainRoute : analysis === "profile" ? profileRoute : null;
+      if (analysis && compatibility.loading) {
+        notify({ tone: "info", message: t("正在确认服务端诊断能力", "Checking server diagnostic capability") });
+        return;
+      }
+      if (analysisRoute?.status === "unavailable") {
+        notify({
+          tone: "error",
+          message: analysis === "explain"
+            ? t("当前服务端不支持 Explain 遍历诊断", "The server does not support Explain traversal diagnostics")
+            : t("当前服务端不支持 Profile 遍历诊断", "The server does not support Profile traversal diagnostics"),
+        });
+        return;
+      }
       if (activeConnection?.clientMode === "sessioned") {
         const closesTransaction = /\.tx\s*\(\)\s*\.\s*(?:commit|rollback)\s*\(/i.test(executable);
         pendingTransactionDispositionRef.current = !closesTransaction;
@@ -393,7 +414,7 @@ export function QueryPage({
       setParametersOpen(true);
       notify({ tone: "error", message: errorMessage(error) });
     }
-  }, [activeConnection?.clientMode, bindingsEnabled, bindingsText, notify, query, runQuery, selectedQuery]);
+  }, [activeConnection?.clientMode, bindingsEnabled, bindingsText, compatibility.loading, explainRoute.status, notify, profileRoute.status, query, runQuery, selectedQuery, t]);
 
   useEffect(() => {
     if (queryState.status === "success") {
@@ -1138,18 +1159,22 @@ export function QueryPage({
               </button>
               <button
                 type="button"
-                disabled={!query.trim() || queryState.status === "loading"}
+                disabled={!query.trim() || queryState.status === "loading" || compatibility.loading || explainRoute.status === "unavailable"}
                 onClick={() => runEditorQuery(withTraversalAnalysis(selectedQuery.trim() || query, "explain"))}
-                title={t("Explain：查看遍历策略优化计划", "Explain traversal strategy optimization")}
+                title={explainRoute.status === "unavailable"
+                  ? t("当前服务端不支持 Explain 遍历诊断", "The server does not support Explain traversal diagnostics")
+                  : t("Explain：查看遍历策略优化计划", "Explain traversal strategy optimization")}
               >
                 <GitBranch size={16} />
                 <span>Explain</span>
               </button>
               <button
                 type="button"
-                disabled={!query.trim() || queryState.status === "loading"}
+                disabled={!query.trim() || queryState.status === "loading" || compatibility.loading || profileRoute.status === "unavailable"}
                 onClick={() => runEditorQuery(withTraversalAnalysis(selectedQuery.trim() || query, "profile"))}
-                title={t("Profile：执行并分析每个 Step 的耗时", "Profile step execution time")}
+                title={profileRoute.status === "unavailable"
+                  ? t("当前服务端不支持 Profile 遍历诊断", "The server does not support Profile traversal diagnostics")
+                  : t("Profile：执行并分析每个 Step 的耗时", "Profile step execution time")}
               >
                 <Activity size={16} />
                 <span>Profile</span>

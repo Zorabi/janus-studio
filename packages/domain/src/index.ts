@@ -53,7 +53,11 @@ export type CompatibilityCapability =
   | "configurationManagementGraph"
   | "janusGraphManager"
   | "jsonSchemaInitialization"
-  | "graphsonIo";
+  | "graphsonIo"
+  | "indexFieldStatus"
+  | "indexStatusAwait"
+  | "traversalExplain"
+  | "traversalProfile";
 
 export type CompatibilityCapabilityState = "supported" | "unsupported" | "unknown";
 

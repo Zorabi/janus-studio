@@ -1,8 +1,56 @@
 import type {
+  CompatibilityCapability,
+  CompatibilityProfile,
   ConnectionProfile,
   ConnectionProtocol,
   SaveConnectionInput,
 } from "@janusgraph/domain";
+
+export type CompatibilityOperation =
+  | "schemaManagement"
+  | "schemaIndexLifecycle"
+  | "officialSchemaJson"
+  | "configuredGraphFactory"
+  | "configuredGraphsonIo"
+  | "graphsonIo"
+  | "traversalExplain"
+  | "traversalProfile";
+
+export type CompatibilityRoute = {
+  status: "available" | "unverified" | "unavailable";
+  required: CompatibilityCapability[];
+  unsupported: CompatibilityCapability[];
+  unknown: CompatibilityCapability[];
+};
+
+const compatibilityRequirements: Record<CompatibilityOperation, CompatibilityCapability[]> = {
+  schemaManagement: ["managementApi"],
+  schemaIndexLifecycle: ["managementApi", "indexFieldStatus", "indexStatusAwait"],
+  officialSchemaJson: ["jsonSchemaInitialization"],
+  configuredGraphFactory: ["configuredGraphFactory", "configurationManagementGraph"],
+  configuredGraphsonIo: ["configuredGraphFactory", "configurationManagementGraph", "graphsonIo"],
+  graphsonIo: ["graphsonIo"],
+  traversalExplain: ["traversalExplain"],
+  traversalProfile: ["traversalProfile"],
+};
+
+export function routeCompatibility(
+  profile: CompatibilityProfile | null | undefined,
+  operation: CompatibilityOperation,
+): CompatibilityRoute {
+  const required = compatibilityRequirements[operation];
+  if (!profile) {
+    return { status: "unverified", required, unsupported: [], unknown: [...required] };
+  }
+  const unsupported = required.filter((capability) => profile.capabilities[capability] === "unsupported");
+  const unknown = required.filter((capability) => profile.capabilities[capability] === "unknown");
+  return {
+    status: unsupported.length > 0 ? "unavailable" : unknown.length > 0 ? "unverified" : "available",
+    required,
+    unsupported,
+    unknown,
+  };
+}
 
 const secureProtocols = new Set<ConnectionProtocol>(["wss", "https"]);
 

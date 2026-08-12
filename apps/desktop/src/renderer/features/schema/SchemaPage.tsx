@@ -3,6 +3,7 @@ import type {
   QueryExecutionResult,
   SchemaJob,
 } from "@janusgraph/domain";
+import { routeCompatibility } from "@janusgraph/application";
 import {
   AlertTriangle,
   Boxes,
@@ -537,6 +538,12 @@ export function SchemaPage({
     }
     setFactoryGraphsLoading(true);
     try {
+      const profile = await window.janusGraphDesktop?.compatibility.get(activeConnection.id);
+      if (routeCompatibility(profile, "configuredGraphFactory").status === "unavailable") {
+        setFactoryGraphs([]);
+        setFactoryAvailable(false);
+        return;
+      }
       const result = await execute(GRAPH_FACTORY_PROBE_QUERY);
       const factoryState = parseGraphFactoryState(result.items);
       setFactoryGraphs(factoryState?.graphs ?? []);
@@ -554,6 +561,13 @@ export function SchemaPage({
     setState({ status: "loading" });
     setSchemaWarnings([]);
     try {
+      const profile = await window.janusGraphDesktop?.compatibility.get(activeConnection.id);
+      if (routeCompatibility(profile, "schemaManagement").status === "unavailable") {
+        throw new Error(t(
+          "能力探测确认当前服务端不支持 JanusGraph Schema Management API。",
+          "Capability detection confirmed that the server does not support the JanusGraph Schema Management API.",
+        ));
+      }
       const results: QueryExecutionResult[] = [];
       const warnings: string[] = [];
       for (const script of schemaOverviewScripts(activeConnection)) {
@@ -724,6 +738,13 @@ ${stringLiteral(`${indexType} index ${name} created`)}`;
     const graph = safeIdentifier(activeConnection.graphBinding);
     setIndexBusy(`${name}:${action}`);
     try {
+      const profile = await window.janusGraphDesktop?.compatibility.get(activeConnection.id);
+      if (routeCompatibility(profile, "schemaIndexLifecycle").status === "unavailable") {
+        throw new Error(t(
+          "当前服务端缺少所需的索引状态或等待 API，已阻止索引生命周期操作。",
+          "The server lacks the required index status or await API, so the index lifecycle operation was blocked.",
+        ));
+      }
       const lifecycleQuery = `mgmt = ${graph}.openManagement()
 index = mgmt.getGraphIndex(${stringLiteral(name)})
 if (index == null) { mgmt.rollback(); throw new IllegalArgumentException("GraphIndex not found") }

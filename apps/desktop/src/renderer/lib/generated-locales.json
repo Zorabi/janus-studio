@@ -617,6 +617,7 @@
     "拓扑画布不可用": "拓樸畫布不可用",
     "拓扑渲染": "拓樸渲染",
     "探测时间": "探測時間",
+    "探测中": "探測中",
     "探测状态": "探測狀態",
     "提交": "提交",
     "提交后会立即修改服务器 Schema，请确认当前连接和名称。": "提交後會立即修改伺服器 Schema，請確認目前連線和名稱。",
@@ -944,7 +945,13 @@
     "VERTICES + EDGES": "VERTICES + EDGES",
     "WebSocket 压缩": "WebSocket 壓縮",
     "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS 預設開啟；僅在受控測試環境中關閉",
-    "探测中": "探測中"
+    "当前服务端不支持 Explain 遍历诊断": "目前服務端不支援 Explain 遍歷診斷",
+    "当前服务端不支持 Profile 遍历诊断": "目前服務端不支援 Profile 遍歷診斷",
+    "当前服务端缺少所需的索引状态或等待 API，已阻止索引生命周期操作。": "當前服務端缺少所需的索引狀態或等待 API，已阻止索引生命週期操作。",
+    "能力探测确认当前服务端不支持 ConfiguredGraphFactory 或配置管理图。": "能力探測確認目前服務端不支援 ConfiguredGraphFactory 或設定管理圖。",
+    "能力探测确认当前服务端不支持 JanusGraph Schema Management API。": "能力偵測確認目前服務端不支援 JanusGraph Schema Management API。",
+    "能力探测确认当前服务端不支持所选图的 GraphSON 整图迁移。": "能力探測確認目前服務端不支援所選圖的 GraphSON 整圖遷移。",
+    "正在确认服务端诊断能力": "正在確認服務端診斷能力"
   },
   "ja-JP": {
     "安全": "安全な",
@@ -1564,6 +1571,7 @@
     "拓扑画布不可用": "トポロジ キャンバスは使用できません",
     "拓扑渲染": "トポロジのレンダリング",
     "探测时间": "検出時間",
+    "探测中": "検出中",
     "探测状态": "検出ステータス",
     "提交": "送信する",
     "提交后会立即修改服务器 Schema，请确认当前连接和名称。": "サーバーのスキーマは送信後すぐに変更されます。現在の接続と名前を確認してください。",
@@ -1891,7 +1899,13 @@
     "VERTICES + EDGES": "頂点 + エッジ",
     "WebSocket 压缩": "WebSocket圧縮",
     "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS はデフォルトでオンになっています。管理されたテスト環境でのみオフになります",
-    "探测中": "検出中"
+    "当前服务端不支持 Explain 遍历诊断": "現在のサーバーは Explain トラバーサル診断をサポートしていません",
+    "当前服务端不支持 Profile 遍历诊断": "現在のサーバーはプロファイル トラバーサル診断をサポートしていません",
+    "当前服务端缺少所需的索引状态或等待 API，已阻止索引生命周期操作。": "現在のサーバーには必要なインデックス状態または待機 API がないため、インデックスのライフサイクル操作がブロックされています。",
+    "能力探测确认当前服务端不支持 ConfiguredGraphFactory 或配置管理图。": "機能の検出により、現在のサーバーが ConfiguredGraphFactory または構成管理グラフをサポートしていないことが確認されます。",
+    "能力探测确认当前服务端不支持 JanusGraph Schema Management API。": "機能の検出により、現在のサーバーが JanusGraph スキーマ管理 API をサポートしていないことが確認されます。",
+    "能力探测确认当前服务端不支持所选图的 GraphSON 整图迁移。": "機能の検出により、現在のサーバーが選択したグラフの GraphSON グラフ全体の移行をサポートしていないことが確認されます。",
+    "正在确认服务端诊断能力": "サーバー側の診断機能の確認"
   },
   "ko-KR": {
     "安全": "안전하다",
@@ -2511,6 +2525,7 @@
     "拓扑画布不可用": "토폴로지 캔버스를 사용할 수 없습니다.",
     "拓扑渲染": "토폴로지 렌더링",
     "探测时间": "감지 시간",
+    "探测中": "감지",
     "探测状态": "감지 상태",
     "提交": "제출",
     "提交后会立即修改服务器 Schema，请确认当前连接和名称。": "서버 스키마는 제출 후 즉시 수정됩니다. 현재 연결과 이름을 확인해주세요.",
@@ -2838,7 +2853,13 @@
     "VERTICES + EDGES": "정점 + 가장자리",
     "WebSocket 压缩": "WebSocket 압축",
     "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS는 기본적으로 켜져 있습니다. 통제된 테스트 환경에서만 꺼짐",
-    "探测中": "감지"
+    "当前服务端不支持 Explain 遍历诊断": "현재 서버는 순회 진단 설명을 지원하지 않습니다.",
+    "当前服务端不支持 Profile 遍历诊断": "현재 서버는 프로필 순회 진단을 지원하지 않습니다.",
+    "当前服务端缺少所需的索引状态或等待 API，已阻止索引生命周期操作。": "현재 서버에는 필수 인덱스 상태 또는 대기 API가 누락되어 인덱스 수명 주기 작업이 차단됩니다.",
+    "能力探测确认当前服务端不支持 ConfiguredGraphFactory 或配置管理图。": "기능 감지를 통해 현재 서버가 ConfiguredGraphFactory 또는 구성 관리 그래프를 지원하지 않는지 확인합니다.",
+    "能力探测确认当前服务端不支持 JanusGraph Schema Management API。": "기능 감지는 현재 서버가 JanusGraph Schema Management API를 지원하지 않음을 확인합니다.",
+    "能力探测确认当前服务端不支持所选图的 GraphSON 整图迁移。": "기능 감지를 통해 현재 서버가 선택한 그래프의 GraphSON 전체 그래프 마이그레이션을 지원하지 않음을 확인합니다.",
+    "正在确认服务端诊断能力": "서버 측 진단 기능 확인"
   },
   "de-DE": {
     "安全": "sicher",
@@ -3458,6 +3479,7 @@
     "拓扑画布不可用": "Topologie-Canvas ist nicht verfügbar",
     "拓扑渲染": "Topologie-Rendering",
     "探测时间": "Erkennungszeit",
+    "探测中": "Erkennen",
     "探测状态": "Erkennungsstatus",
     "提交": "Senden",
     "提交后会立即修改服务器 Schema，请确认当前连接和名称。": "Das Serverschema wird unmittelbar nach der Übermittlung geändert. Bitte bestätigen Sie die aktuelle Verbindung und den Namen.",
@@ -3785,7 +3807,13 @@
     "VERTICES + EDGES": "Scheitelpunkte + Kanten",
     "WebSocket 压缩": "WebSocket-Komprimierung",
     "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS ist standardmäßig aktiviert; nur in kontrollierten Testumgebungen ausgeschaltet",
-    "探测中": "Erkennen"
+    "当前服务端不支持 Explain 遍历诊断": "Der aktuelle Server unterstützt die Explain-Traversal-Diagnose nicht",
+    "当前服务端不支持 Profile 遍历诊断": "Der aktuelle Server unterstützt keine Profildurchlaufdiagnose",
+    "当前服务端缺少所需的索引状态或等待 API，已阻止索引生命周期操作。": "Dem aktuellen Server fehlt der erforderliche Indexstatus oder die Warte-API, wodurch der Indexlebenszyklusvorgang blockiert wird.",
+    "能力探测确认当前服务端不支持 ConfiguredGraphFactory 或配置管理图。": "Die Fähigkeitserkennung bestätigt, dass der aktuelle Server „ConfiguredGraphFactory“ oder Konfigurationsverwaltungsdiagramme nicht unterstützt.",
+    "能力探测确认当前服务端不支持 JanusGraph Schema Management API。": "Die Funktionserkennung bestätigt, dass der aktuelle Server die JanusGraph Schema Management API nicht unterstützt.",
+    "能力探测确认当前服务端不支持所选图的 GraphSON 整图迁移。": "Die Fähigkeitserkennung bestätigt, dass der aktuelle Server die gesamte GraphSON-Migration des ausgewählten Diagramms nicht unterstützt.",
+    "正在确认服务端诊断能力": "Bestätigung serverseitiger Diagnosefunktionen"
   },
   "fr-FR": {
     "安全": "en sécurité",
@@ -4405,6 +4433,7 @@
     "拓扑画布不可用": "Le canevas de topologie n'est pas disponible",
     "拓扑渲染": "Rendu de topologie",
     "探测时间": "temps de détection",
+    "探测中": "Détection",
     "探测状态": "état de détection",
     "提交": "Soumettre",
     "提交后会立即修改服务器 Schema，请确认当前连接和名称。": "Le schéma du serveur sera modifié immédiatement après sa soumission. Veuillez confirmer la connexion et le nom actuels.",
@@ -4732,7 +4761,13 @@
     "VERTICES + EDGES": "SOMMETS + BORDS",
     "WebSocket 压缩": "Compression WebSocket",
     "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS est activé par défaut ; uniquement désactivé dans des environnements de test contrôlés",
-    "探测中": "Détection"
+    "当前服务端不支持 Explain 遍历诊断": "Le serveur actuel ne prend pas en charge les diagnostics de traversée Explain",
+    "当前服务端不支持 Profile 遍历诊断": "Le serveur actuel ne prend pas en charge les diagnostics de traversée de profil",
+    "当前服务端缺少所需的索引状态或等待 API，已阻止索引生命周期操作。": "Le serveur actuel ne dispose pas de l'état d'index requis ou de l'API d'attente, ce qui bloque l'opération du cycle de vie de l'index.",
+    "能力探测确认当前服务端不支持 ConfiguredGraphFactory 或配置管理图。": "La détection de capacité confirme que le serveur actuel ne prend pas en charge ConfiguredGraphFactory ou les graphiques de gestion de configuration.",
+    "能力探测确认当前服务端不支持 JanusGraph Schema Management API。": "La détection des capacités confirme que le serveur actuel ne prend pas en charge l'API JanusGraph Schema Management.",
+    "能力探测确认当前服务端不支持所选图的 GraphSON 整图迁移。": "La détection de capacité confirme que le serveur actuel ne prend pas en charge la migration complète du graphique sélectionné par GraphSON.",
+    "正在确认服务端诊断能力": "Confirmation des capacités de diagnostic côté serveur"
   },
   "es-ES": {
     "安全": "seguro",
@@ -5352,6 +5387,7 @@
     "拓扑画布不可用": "El lienzo de topología no está disponible",
     "拓扑渲染": "Representación de topología",
     "探测时间": "tiempo de detección",
+    "探测中": "Detector",
     "探测状态": "estado de detección",
     "提交": "Enviar",
     "提交后会立即修改服务器 Schema，请确认当前连接和名称。": "El esquema del servidor se modificará inmediatamente después del envío. Confirme la conexión actual y el nombre.",
@@ -5679,7 +5715,13 @@
     "VERTICES + EDGES": "VERTICES + ARISTAS",
     "WebSocket 压缩": "Compresión WebSocket",
     "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS está activado de forma predeterminada; sólo apagado en entornos de prueba controlados",
-    "探测中": "Detector"
+    "当前服务端不支持 Explain 遍历诊断": "El servidor actual no admite el diagnóstico transversal de Explicación",
+    "当前服务端不支持 Profile 遍历诊断": "El servidor actual no admite diagnósticos de recorrido de perfil",
+    "当前服务端缺少所需的索引状态或等待 API，已阻止索引生命周期操作。": "Al servidor actual le falta el estado de índice requerido o la API de espera, lo que bloquea la operación del ciclo de vida del índice.",
+    "能力探测确认当前服务端不支持 ConfiguredGraphFactory 或配置管理图。": "La detección de capacidad confirma que el servidor actual no admite ConfiguredGraphFactory o gráficos de gestión de configuración.",
+    "能力探测确认当前服务端不支持 JanusGraph Schema Management API。": "La detección de capacidad confirma que el servidor actual no es compatible con la API de administración de esquemas JanusGraph.",
+    "能力探测确认当前服务端不支持所选图的 GraphSON 整图迁移。": "La detección de capacidad confirma que el servidor actual no admite la migración completa del gráfico GraphSON del gráfico seleccionado.",
+    "正在确认服务端诊断能力": "Confirmación de las capacidades de diagnóstico del lado del servidor"
   },
   "pt-BR": {
     "安全": "seguro",
@@ -6299,6 +6341,7 @@
     "拓扑画布不可用": "A tela de topologia não está disponível",
     "拓扑渲染": "Renderização de topologia",
     "探测时间": "tempo de detecção",
+    "探测中": "Detecção",
     "探测状态": "status de detecção",
     "提交": "Enviar",
     "提交后会立即修改服务器 Schema，请确认当前连接和名称。": "O esquema do servidor será modificado imediatamente após o envio. Por favor, confirme a conexão e o nome atuais.",
@@ -6626,7 +6669,13 @@
     "VERTICES + EDGES": "VÉRTICES + BORDAS",
     "WebSocket 压缩": "Compressão WebSocket",
     "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS está ativado por padrão; somente desativado em ambientes de teste controlados",
-    "探测中": "Detecção"
+    "当前服务端不支持 Explain 遍历诊断": "O servidor atual não oferece suporte ao diagnóstico de passagem do Explicar",
+    "当前服务端不支持 Profile 遍历诊断": "O servidor atual não oferece suporte ao diagnóstico de passagem de perfil",
+    "当前服务端缺少所需的索引状态或等待 API，已阻止索引生命周期操作。": "O servidor atual não possui o estado de índice necessário ou a API de espera, bloqueando a operação do ciclo de vida do índice.",
+    "能力探测确认当前服务端不支持 ConfiguredGraphFactory 或配置管理图。": "A detecção de capacidade confirma que o servidor atual não suporta ConfiguredGraphFactory ou gráficos de gerenciamento de configuração.",
+    "能力探测确认当前服务端不支持 JanusGraph Schema Management API。": "A detecção de capacidade confirma que o servidor atual não suporta a API JanusGraph Schema Management.",
+    "能力探测确认当前服务端不支持所选图的 GraphSON 整图迁移。": "A detecção de capacidade confirma que o servidor atual não suporta a migração completa do gráfico GraphSON do gráfico selecionado.",
+    "正在确认服务端诊断能力": "Confirmando recursos de diagnóstico do lado do servidor"
   },
   "it-IT": {
     "安全": "sicuro",
@@ -7246,6 +7295,7 @@
     "拓扑画布不可用": "Il canvas della topologia non è disponibile",
     "拓扑渲染": "Rappresentazione della topologia",
     "探测时间": "tempo di rilevamento",
+    "探测中": "Rilevamento",
     "探测状态": "stato di rilevamento",
     "提交": "Invia",
     "提交后会立即修改服务器 Schema，请确认当前连接和名称。": "Lo schema del server verrà modificato immediatamente dopo l'invio. Conferma la connessione e il nome attuali.",
@@ -7573,7 +7623,13 @@
     "VERTICES + EDGES": "VERTICI + BORDI",
     "WebSocket 压缩": "Compressione WebSocket",
     "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS è attivo per impostazione predefinita; disattivato solo in ambienti di test controllati",
-    "探测中": "Rilevamento"
+    "当前服务端不支持 Explain 遍历诊断": "Il server corrente non supporta la diagnostica trasversale Explain",
+    "当前服务端不支持 Profile 遍历诊断": "Il server corrente non supporta la diagnostica trasversale del profilo",
+    "当前服务端缺少所需的索引状态或等待 API，已阻止索引生命周期操作。": "Al server corrente manca lo stato dell'indice richiesto o l'API di attesa, bloccando l'operazione del ciclo di vita dell'indice.",
+    "能力探测确认当前服务端不支持 ConfiguredGraphFactory 或配置管理图。": "Il rilevamento della capacità conferma che il server corrente non supporta ConfiguredGraphFactory o i grafici di gestione della configurazione.",
+    "能力探测确认当前服务端不支持 JanusGraph Schema Management API。": "Il rilevamento della capacità conferma che il server corrente non supporta l'API di gestione dello schema JanusGraph.",
+    "能力探测确认当前服务端不支持所选图的 GraphSON 整图迁移。": "Il rilevamento della capacità conferma che il server corrente non supporta la migrazione dell'intero grafico GraphSON del grafico selezionato.",
+    "正在确认服务端诊断能力": "Conferma delle capacità diagnostiche lato server"
   },
   "ru-RU": {
     "安全": "безопасный",
@@ -8193,6 +8249,7 @@
     "拓扑画布不可用": "Холст топологии недоступен.",
     "拓扑渲染": "Рендеринг топологии",
     "探测时间": "время обнаружения",
+    "探测中": "Обнаружение",
     "探测状态": "статус обнаружения",
     "提交": "Отправить",
     "提交后会立即修改服务器 Schema，请确认当前连接和名称。": "Схема сервера будет изменена сразу после отправки. Пожалуйста, подтвердите текущее соединение и имя.",
@@ -8520,7 +8577,13 @@
     "VERTICES + EDGES": "ВЕРШИНЫ + КРАЯ",
     "WebSocket 压缩": "Сжатие веб-сокетов",
     "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS включен по умолчанию; отключено только в контролируемых средах тестирования",
-    "探测中": "Обнаружение"
+    "当前服务端不支持 Explain 遍历诊断": "Текущий сервер не поддерживает диагностику обхода объяснения.",
+    "当前服务端不支持 Profile 遍历诊断": "Текущий сервер не поддерживает диагностику обхода профиля.",
+    "当前服务端缺少所需的索引状态或等待 API，已阻止索引生命周期操作。": "На текущем сервере отсутствует необходимое состояние индекса или API ожидания, что блокирует операцию жизненного цикла индекса.",
+    "能力探测确认当前服务端不支持 ConfiguredGraphFactory 或配置管理图。": "Обнаружение возможностей подтверждает, что текущий сервер не поддерживает графики ConfigurationedGraphFactory или управления конфигурацией.",
+    "能力探测确认当前服务端不支持 JanusGraph Schema Management API。": "Обнаружение возможностей подтверждает, что текущий сервер не поддерживает API управления схемой JanusGraph.",
+    "能力探测确认当前服务端不支持所选图的 GraphSON 整图迁移。": "Обнаружение возможностей подтверждает, что текущий сервер не поддерживает миграцию всего графа GraphSON выбранного графа.",
+    "正在确认服务端诊断能力": "Подтверждение возможностей диагностики на стороне сервера"
   },
   "pl-PL": {
     "安全": "bezpieczny",
@@ -9140,6 +9203,7 @@
     "拓扑画布不可用": "Kanwa topologii jest niedostępna",
     "拓扑渲染": "Renderowanie topologii",
     "探测时间": "czas wykrywania",
+    "探测中": "Wykrywanie",
     "探测状态": "stan wykrywania",
     "提交": "Prześlij",
     "提交后会立即修改服务器 Schema，请确认当前连接和名称。": "Schemat serwera zostanie zmodyfikowany niezwłocznie po przesłaniu. Proszę potwierdzić aktualne połączenie i nazwę.",
@@ -9467,7 +9531,13 @@
     "VERTICES + EDGES": "Wierzchołki + Krawędzie",
     "WebSocket 压缩": "Kompresja WebSocket",
     "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS jest domyślnie włączony; wyłączone tylko w kontrolowanych środowiskach testowych",
-    "探测中": "Wykrywanie"
+    "当前服务端不支持 Explain 遍历诊断": "Bieżący serwer nie obsługuje diagnostyki przejścia Wyjaśnienia",
+    "当前服务端不支持 Profile 遍历诊断": "Bieżący serwer nie obsługuje diagnostyki przejścia profilu",
+    "当前服务端缺少所需的索引状态或等待 API，已阻止索引生命周期操作。": "Na bieżącym serwerze brakuje wymaganego stanu indeksu lub interfejsu API oczekiwania, co blokuje operację cyklu życia indeksu.",
+    "能力探测确认当前服务端不支持 ConfiguredGraphFactory 或配置管理图。": "Wykrywanie możliwości potwierdza, że bieżący serwer nie obsługuje wykresów ConfiguredGraphFactory ani zarządzania konfiguracją.",
+    "能力探测确认当前服务端不支持 JanusGraph Schema Management API。": "Wykrywanie możliwości potwierdza, że bieżący serwer nie obsługuje interfejsu API zarządzania schematem JanusGraph.",
+    "能力探测确认当前服务端不支持所选图的 GraphSON 整图迁移。": "Wykrywanie możliwości potwierdza, że bieżący serwer nie obsługuje migracji całego wybranego wykresu GraphSON.",
+    "正在确认服务端诊断能力": "Potwierdzanie możliwości diagnostycznych po stronie serwera"
   },
   "tr-TR": {
     "安全": "güvenli",
@@ -10087,6 +10157,7 @@
     "拓扑画布不可用": "Topoloji tuvali kullanılamıyor",
     "拓扑渲染": "Topoloji oluşturma",
     "探测时间": "algılama süresi",
+    "探测中": "Tespit",
     "探测状态": "algılama durumu",
     "提交": "Gönder",
     "提交后会立即修改服务器 Schema，请确认当前连接和名称。": "Sunucu Şeması gönderimden hemen sonra değiştirilecektir. Lütfen mevcut bağlantıyı ve adı onaylayın.",
@@ -10414,7 +10485,13 @@
     "VERTICES + EDGES": "KÖŞELER + KENARLAR",
     "WebSocket 压缩": "WebSocket sıkıştırması",
     "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS varsayılan olarak açıktır; yalnızca kontrollü test ortamlarında kapalı",
-    "探测中": "Tespit"
+    "当前服务端不支持 Explain 遍历诊断": "Geçerli sunucu Açıklamalı geçiş teşhisini desteklemiyor",
+    "当前服务端不支持 Profile 遍历诊断": "Geçerli sunucu Profil geçiş teşhisini desteklemiyor",
+    "当前服务端缺少所需的索引状态或等待 API，已阻止索引生命周期操作。": "Geçerli sunucuda gerekli dizin durumu veya bekleme API'si eksik, bu da dizin yaşam döngüsü işlemini engelliyor.",
+    "能力探测确认当前服务端不支持 ConfiguredGraphFactory 或配置管理图。": "Yetenek tespiti, geçerli sunucunun, ConfigurationedGraphFactory veya yapılandırma yönetimi grafiklerini desteklemediğini doğrular.",
+    "能力探测确认当前服务端不支持 JanusGraph Schema Management API。": "Yetenek tespiti, mevcut sunucunun JanusGraph Şema Yönetimi API'sini desteklemediğini doğrular.",
+    "能力探测确认当前服务端不支持所选图的 GraphSON 整图迁移。": "Yetenek tespiti, mevcut sunucunun seçilen grafiğin GraphSON'un tüm grafik geçişini desteklemediğini doğrular.",
+    "正在确认服务端诊断能力": "Sunucu tarafı tanılama yeteneklerini doğrulama"
   },
   "vi-VN": {
     "安全": "an toàn",
@@ -11034,6 +11111,7 @@
     "拓扑画布不可用": "Canvas cấu trúc liên kết không có sẵn",
     "拓扑渲染": "Kết xuất cấu trúc liên kết",
     "探测时间": "thời gian phát hiện",
+    "探测中": "Phát hiện",
     "探测状态": "trạng thái phát hiện",
     "提交": "Gửi",
     "提交后会立即修改服务器 Schema，请确认当前连接和名称。": "Lược đồ máy chủ sẽ được sửa đổi ngay sau khi gửi. Vui lòng xác nhận kết nối hiện tại và tên.",
@@ -11361,6 +11439,12 @@
     "VERTICES + EDGES": "ĐỈNH + CẠNH",
     "WebSocket 压缩": "Nén WebSocket",
     "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS được bật theo mặc định; chỉ tắt trong môi trường thử nghiệm được kiểm soát",
-    "探测中": "Phát hiện"
+    "当前服务端不支持 Explain 遍历诊断": "Máy chủ hiện tại không hỗ trợ Giải thích chẩn đoán truyền tải",
+    "当前服务端不支持 Profile 遍历诊断": "Máy chủ hiện tại không hỗ trợ chẩn đoán truyền tải hồ sơ",
+    "当前服务端缺少所需的索引状态或等待 API，已阻止索引生命周期操作。": "Máy chủ hiện tại thiếu trạng thái chỉ mục bắt buộc hoặc API chờ, chặn hoạt động trong vòng đời của chỉ mục.",
+    "能力探测确认当前服务端不支持 ConfiguredGraphFactory 或配置管理图。": "Tính năng phát hiện khả năng xác nhận rằng máy chủ hiện tại không hỗ trợ các biểu đồ quản lý cấu hình hoặc configuredGraphFactory.",
+    "能力探测确认当前服务端不支持 JanusGraph Schema Management API。": "Phát hiện khả năng xác nhận rằng máy chủ hiện tại không hỗ trợ API quản lý lược đồ JanusGraph.",
+    "能力探测确认当前服务端不支持所选图的 GraphSON 整图迁移。": "Phát hiện khả năng xác nhận rằng máy chủ hiện tại không hỗ trợ di chuyển toàn bộ biểu đồ của biểu đồ đã chọn bằng GraphSON.",
+    "正在确认服务端诊断能力": "Xác nhận khả năng chẩn đoán phía máy chủ"
   }
 }

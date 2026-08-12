@@ -54,3 +54,20 @@ test("loads renderer styles through ordered responsibility-based modules", async
     );
   }
 });
+
+test("keeps dynamic graph capability probing stable across parent renders", async () => {
+  const page = await readFile(
+    `${rendererRoot}/features/graph-factory/GraphFactoryPage.tsx`,
+    "utf8",
+  );
+  assert.match(page, /const executeRef = useRef\(execute\)/);
+  assert.match(page, /const translateRef = useRef\(t\)/);
+  assert.match(
+    page,
+    /\}, \[activeConnection\?\.id, activeConnection\?\.updatedAt\]\);/,
+  );
+  assert.doesNotMatch(
+    page,
+    /\}, \[[^\]]*\bexecute\b[^\]]*\]\);/,
+  );
+});
