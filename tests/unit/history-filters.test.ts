@@ -15,6 +15,8 @@ function entry(
     connectionId,
     connectionName: connectionId === "a" ? "Development" : "Production",
     query,
+    graphName: "graph",
+    traversalSource: "g",
     status,
     durationMs: 10,
     resultCount: status === "success" || status === "truncated" ? 1 : 0,

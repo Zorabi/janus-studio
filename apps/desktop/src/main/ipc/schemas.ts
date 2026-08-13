@@ -107,6 +107,7 @@ export const saveQuerySnippetSchema = z.object({
   }, "Snippet 参数必须是 JSON 对象"),
   connectionId: z.union([connectionIdSchema, z.literal("")]),
   graphName: z.string().trim().max(120),
+  traversalSource: z.string().trim().max(120),
   folderId: z.union([queryAssetIdSchema, z.literal("")]),
   starred: z.boolean(),
   tagIds: queryAssetTagIdsSchema.optional().default([]),
@@ -118,12 +119,26 @@ export const saveQueryHistoryMetadataSchema = z.object({
   note: z.string().max(4_000),
   tagIds: queryAssetTagIdsSchema,
 });
+export const queryHistoryAssetListSchema = z.object({
+  limit: z.number().int().min(1).max(500).optional(),
+  offset: z.number().int().min(0).max(10_000_000).optional(),
+  search: z.string().trim().max(200).optional(),
+  connectionId: connectionIdSchema.optional(),
+  statuses: z.array(z.enum(["success", "error", "cancelled", "truncated"])).max(4).optional(),
+  createdFrom: historyDateSchema.optional(),
+  createdTo: historyDateSchema.optional(),
+  tagIds: queryAssetTagIdsSchema.optional(),
+  starred: z.boolean().optional(),
+}).optional();
+export const saveQueryHistoryMetadataBatchSchema = z.array(saveQueryHistoryMetadataSchema).min(1).max(500);
+export const historyIdsSchema = z.array(historyIdSchema).min(1).max(500).transform((values) => [...new Set(values)]);
 
 export const queryRequestSchema = z.object({
   connectionId: connectionIdSchema,
   consoleId: z.string().trim().min(1).max(160),
   executionId: z.string().uuid(),
   query: z.string().trim().min(1).max(1_000_000),
+  graphName: z.string().trim().max(160).optional(),
   traversalSource: z.string().trim().min(1).max(160).optional(),
   bindings: z.record(z.string(), z.unknown()).optional(),
   recordHistory: z.boolean().optional().default(true),

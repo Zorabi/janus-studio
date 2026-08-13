@@ -24,6 +24,7 @@ import {
   Search,
   Sparkles,
   Square,
+  Star,
   Undo2,
   X,
 } from "lucide-react";
@@ -364,6 +365,7 @@ export function GremlinEditor({
   onFormat,
   onExplain,
   onProfile,
+  onSaveSnippet,
   onFocus,
   onSuggestionVisibilityChange,
   canRun,
@@ -387,6 +389,7 @@ export function GremlinEditor({
   onFormat: () => void;
   onExplain: (selection?: string) => void;
   onProfile: (selection?: string) => void;
+  onSaveSnippet: (selection?: string) => void;
   onFocus?: () => void;
   onSuggestionVisibilityChange?: (visible: boolean) => void;
   canRun: boolean;
@@ -416,9 +419,9 @@ export function GremlinEditor({
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const [activeCommandIndex, setActiveCommandIndex] = useState(0);
-  const callbacksRef = useRef({ onRun, onStop, onFormat, onSuggestionVisibilityChange, runShortcut, stopShortcut, formatShortcut, findReplaceShortcut });
+  const callbacksRef = useRef({ onRun, onStop, onFormat, onSaveSnippet, onSuggestionVisibilityChange, runShortcut, stopShortcut, formatShortcut, findReplaceShortcut });
   const diagnosticRef = useRef(diagnosticMessage);
-  callbacksRef.current = { onRun, onStop, onFormat, onSuggestionVisibilityChange, runShortcut, stopShortcut, formatShortcut, findReplaceShortcut };
+  callbacksRef.current = { onRun, onStop, onFormat, onSaveSnippet, onSuggestionVisibilityChange, runShortcut, stopShortcut, formatShortcut, findReplaceShortcut };
   diagnosticRef.current = diagnosticMessage;
 
   const mount = useCallback<OnMount>((editor) => {
@@ -726,6 +729,16 @@ export function GremlinEditor({
       icon: <Activity size={17} />,
       disabled: !canRun || !value.trim(),
       action: () => onProfile(editorSelection()),
+    },
+    {
+      id: "save-snippet",
+      category: t("资产", "Assets"),
+      label: t("保存为 Snippet", "Save as Snippet"),
+      detail: t("将选中内容或全文保存为可复用查询资产", "Save the selection or full query as a reusable asset"),
+      shortcut: "",
+      icon: <Star size={17} />,
+      disabled: !value.trim(),
+      action: () => onSaveSnippet(editorSelection()),
     },
     {
       id: "find",

@@ -246,6 +246,7 @@ test("persists query asset tags, folders, snippets and immutable history metadat
     bindingsText: "{}",
     connectionId: "",
     graphName: "graph2",
+    traversalSource: "graph2_traversal",
     folderId: child.id,
     starred: true,
     tagIds: [tag.id],
@@ -265,10 +266,24 @@ test("persists query asset tags, folders, snippets and immutable history metadat
     assert.deepEqual(restored.listFolders().map((item) => item.name), ["Operations", "Production"]);
     assert.throws(() => restored.saveFolder({ id: parent.id, name: "Operations", parentId: child.id, sortOrder: 1 }), /循环/);
     assert.deepEqual(restored.listSnippets({ tagIds: [tag.id], starred: true }).map((item) => item.id), [snippet.id]);
+    assert.deepEqual(restored.listSnippets({ search: "capacity" }).map((item) => item.id), [snippet.id]);
+    assert.deepEqual(restored.listSnippets({ search: "graph2_traversal" }).map((item) => item.id), [snippet.id]);
+    assert.equal(restored.listSnippets()[0]?.traversalSource, "graph2_traversal");
     const metadata = restored.historyMetadata([historyEntry.id])[0];
     assert.equal(metadata?.starred, true);
     assert.equal(metadata?.note, "Known baseline");
     assert.deepEqual(metadata?.tags.map((item) => item.id), [tag.id]);
+    const historyPage = restored.listHistory({ search: "baseline", starred: true, tagIds: [tag.id] });
+    assert.equal(historyPage.total, 1);
+    assert.equal(historyPage.items[0]?.id, historyEntry.id);
+    restored.saveHistoryMetadataBatch([{
+      historyId: historyEntry.id,
+      starred: false,
+      note: "Reviewed",
+      tagIds: [tag.id],
+    }]);
+    assert.equal(restored.listHistory({ starred: true }).total, 0);
+    assert.equal(restored.listHistory({ search: "Reviewed" }).items[0]?.note, "Reviewed");
     restored.removeTag(tag.id);
     assert.deepEqual(restored.listSnippets()[0]?.tags, []);
     assert.deepEqual(restored.historyMetadata([historyEntry.id])[0]?.tags, []);
@@ -359,7 +374,7 @@ test("migrates existing connection profiles to development with write access", (
     const migrated = new ConnectionRepository(database).find("legacy")?.profile;
     assert.equal(migrated?.environment, "dev");
     assert.equal(migrated?.connectionReadOnly, false);
-    assert.equal(database.prepare("PRAGMA user_version").get()?.user_version, 9);
+    assert.equal(database.prepare("PRAGMA user_version").get()?.user_version, 11);
   } finally {
     database.close();
     rmSync(directory, { recursive: true, force: true });

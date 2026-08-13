@@ -2,6 +2,7 @@ import type {
   ConnectionSummary,
   QueryExecutionResult,
   QueryHistoryEntry,
+  QuerySnippet,
 } from "@janusgraph/domain";
 import { routeCompatibility } from "@janusgraph/application";
 import {
@@ -95,14 +96,9 @@ import type {
   QueryState,
   QueryTabState,
   ResultMode,
-  SavedQuery,
   Selection,
   SelectionDetailState,
   ToastState,
-} from "./query-workspace";
-import {
-  loadSavedQueries,
-  saveSavedQueries,
 } from "./query-workspace";
 
 const EMPTY_GRAPH_MODEL: GraphModel = { nodes: [], edges: [] };
@@ -148,6 +144,8 @@ export function QueryPage({
   settings,
   onSettingsChange,
   history,
+  onOpenSnippet,
+  onOpenQueryAssets,
   notify,
 }: {
   tabs: QueryTabState[];
@@ -194,6 +192,8 @@ export function QueryPage({
   settings: AppSettings;
   onSettingsChange: (settings: AppSettings) => void;
   history: QueryHistoryEntry[];
+  onOpenSnippet: (snippet: QuerySnippet) => void;
+  onOpenQueryAssets: () => void;
   notify: (toast: ToastState) => void;
 }) {
   const t = useTranslate();
@@ -223,10 +223,12 @@ export function QueryPage({
   const [tabMenu, setTabMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const [renamingTabId, setRenamingTabId] = useState<string | null>(null);
   const [renamingTabTitle, setRenamingTabTitle] = useState("");
-  const [savedQueries, setSavedQueries] = useState<SavedQuery[]>(loadSavedQueries);
+  const [savedQueries, setSavedQueries] = useState<QuerySnippet[]>([]);
+  const [savedQueriesLoading, setSavedQueriesLoading] = useState(false);
   const [savedQueryName, setSavedQueryName] = useState("");
   const [renamingSavedQueryId, setRenamingSavedQueryId] = useState<string | null>(null);
   const [renamingSavedQueryName, setRenamingSavedQueryName] = useState("");
+  const [snippetQueryDraft, setSnippetQueryDraft] = useState("");
   const [fullExporting, setFullExporting] = useState(false);
   const [transactionBusy, setTransactionBusy] = useState<"begin" | "commit" | "rollback" | null>(null);
   const [activeTransactions, setActiveTransactions] = useState<Record<string, true>>({});
@@ -783,48 +785,66 @@ export function QueryPage({
     }
   };
 
-  const addSavedQuery = () => {
-    if (!query.trim()) {
+  const loadSavedQueries = useCallback(async () => {
+    if (!window.janusGraphDesktop) return;
+    setSavedQueriesLoading(true);
+    try { setSavedQueries(await window.janusGraphDesktop.queryAssets.listSnippets({ limit: 200 })); }
+    catch (error) { notify({ tone: "error", message: errorMessage(error) }); }
+    finally { setSavedQueriesLoading(false); }
+  }, [notify]);
+
+  useEffect(() => { void loadSavedQueries(); }, [loadSavedQueries]);
+
+  const openSnippetPanel = (selection?: string) => {
+    const source = selection?.trim() || query;
+    if (!source.trim()) {
       notify({ tone: "info", message: t("当前查询为空", "The current query is empty") });
       return;
     }
-    const compact = query.replace(/\s+/g, " ").trim();
-    const tabTitle = tabs.find((tab) => tab.id === activeTabId)?.title;
-    const next: SavedQuery = {
-      id: crypto.randomUUID(),
-      name: savedQueryName.trim() || tabTitle || compact.slice(0, 56),
-      query,
-      bindingsText,
-      createdAt: new Date().toISOString(),
-    };
-    setSavedQueries((current) => {
-      const entries = [next, ...current.filter((entry) => entry.query !== query)];
-      saveSavedQueries(entries);
-      return entries;
-    });
-    setSavedQueryName("");
-    notify({ tone: "success", message: t("查询已加入收藏", "Query added to favorites") });
+    setSnippetQueryDraft(source);
+    setSavedQueryName(tabs.find((tab) => tab.id === activeTabId)?.title ?? "");
+    setFavoritesOpen(true);
+    setParametersOpen(false);
+    setSuggestionsOpen(false);
   };
 
-  const commitSavedQueryRename = (id: string) => {
-    const name = renamingSavedQueryName.trim();
-    if (name) {
-      setSavedQueries((current) => {
-        const entries = current.map((entry) => entry.id === id ? { ...entry, name } : entry);
-        saveSavedQueries(entries);
-        return entries;
+  const addSavedQuery = async () => {
+    const source = snippetQueryDraft.trim() || query.trim();
+    if (!source || !window.janusGraphDesktop) return;
+    const compact = source.replace(/\s+/g, " ").trim();
+    const tabTitle = tabs.find((tab) => tab.id === activeTabId)?.title;
+    try {
+      await window.janusGraphDesktop.queryAssets.saveSnippet({
+      name: savedQueryName.trim() || tabTitle || compact.slice(0, 56),
+      description: "",
+      query: source,
+      bindingsText,
+      connectionId: activeConnection?.id ?? "",
+      graphName: activeConnection?.graphBinding ?? "",
+      traversalSource: activeConnection?.traversalSource ?? "",
+      folderId: "", starred: true, tagIds: [],
       });
+      setSavedQueryName(""); setSnippetQueryDraft(""); await loadSavedQueries();
+      notify({ tone: "success", message: t("查询已保存为 Snippet", "Query saved as a Snippet") });
+    } catch (error) { notify({ tone: "error", message: errorMessage(error) }); }
+  };
+
+  const commitSavedQueryRename = async (id: string) => {
+    const name = renamingSavedQueryName.trim();
+    const snippet = savedQueries.find((entry) => entry.id === id);
+    if (name && snippet && window.janusGraphDesktop) {
+      await window.janusGraphDesktop.queryAssets.saveSnippet({
+        ...snippet, name, tagIds: snippet.tags.map((tag) => tag.id),
+      });
+      await loadSavedQueries();
     }
     setRenamingSavedQueryId(null);
     setRenamingSavedQueryName("");
   };
 
-  const removeSavedQuery = (id: string) => {
-    setSavedQueries((current) => {
-      const entries = current.filter((entry) => entry.id !== id);
-      saveSavedQueries(entries);
-      return entries;
-    });
+  const removeSavedQuery = async (id: string) => {
+    await window.janusGraphDesktop?.queryAssets.removeSnippet(id);
+    await loadSavedQueries();
   };
 
   const beginTransaction = useCallback(async () => {
@@ -1117,11 +1137,15 @@ export function QueryPage({
               <button
                 type="button"
                 className={favoritesOpen ? "is-active" : ""}
-                onClick={() => { setFavoritesOpen((value) => !value); setParametersOpen(false); setSuggestionsOpen(false); }}
-                title={t("收藏查询", "Saved queries")}
+                onClick={() => {
+                  if (!favoritesOpen && query.trim()) openSnippetPanel(selectedQuery);
+                  else setFavoritesOpen((value) => !value);
+                  setParametersOpen(false); setSuggestionsOpen(false);
+                }}
+                title={t("保存或打开 Snippet", "Save or open Snippets")}
               >
                 <Star size={16} />
-                <span>{t("收藏", "Favorites")}</span>
+                <span>Snippet</span>
               </button>
               <button
                 type="button"
@@ -1427,30 +1451,32 @@ export function QueryPage({
           <aside className="editor-tool-popover favorites-popover">
             <header>
               <div>
-                <span className="eyebrow">SAVED QUERIES</span>
-                <strong>{t("收藏查询", "Saved queries")}</strong>
+                <span className="eyebrow">QUERY SNIPPETS</span>
+                <strong>{t("保存为 Snippet", "Save as Snippet")}</strong>
               </div>
-              <button type="button" onClick={() => setFavoritesOpen(false)} aria-label={t("关闭收藏", "Close favorites")}><X size={16} /></button>
+              <button type="button" onClick={() => setFavoritesOpen(false)} aria-label={t("关闭 Snippet 面板", "Close Snippet panel")}><X size={16} /></button>
             </header>
-            <form className="saved-query-create" onSubmit={(event) => { event.preventDefault(); addSavedQuery(); }}>
+            <form className="saved-query-create" onSubmit={(event) => { event.preventDefault(); void addSavedQuery(); }}>
               <label>
-                <span>{t("收藏名称", "Favorite name")}</span>
+                <span>{t("Snippet 名称", "Snippet name")}</span>
                 <input
                   value={savedQueryName}
                   onChange={(event) => setSavedQueryName(event.target.value)}
                   maxLength={80}
                   placeholder={tabs.find((tab) => tab.id === activeTabId)?.title || t("为查询命名", "Name this query")}
-                  aria-label={t("收藏查询名称", "Favorite query name")}
+                  aria-label={t("Snippet 名称", "Snippet name")}
                 />
               </label>
-              <button type="submit" className="save-current-query" disabled={!query.trim()}>
+              <button type="submit" className="save-current-query" disabled={!(snippetQueryDraft.trim() || query.trim())}>
                 <Plus size={16} />
-                {t("加入收藏", "Add favorite")}
+                {t("保存 Snippet", "Save Snippet")}
               </button>
             </form>
             <div className="saved-query-list">
-              {savedQueries.length === 0 ? (
-                <p>{t("尚无收藏查询", "No saved queries yet")}</p>
+              {savedQueriesLoading ? (
+                <p>{t("正在加载 Snippet…", "Loading Snippets…")}</p>
+              ) : savedQueries.length === 0 ? (
+                <p>{t("尚无 Snippet", "No Snippets yet")}</p>
               ) : savedQueries.map((entry) => (
                 <div key={entry.id}>
                   {renamingSavedQueryId === entry.id ? (
@@ -1465,19 +1491,10 @@ export function QueryPage({
                         if (event.key === "Enter") event.currentTarget.blur();
                         if (event.key === "Escape") setRenamingSavedQueryId(null);
                       }}
-                      aria-label={t("重命名收藏", "Rename favorite")}
+                      aria-label={t("重命名 Snippet", "Rename Snippet")}
                     />
                   ) : (
-                    <button type="button" onClick={() => {
-                      setQuery(entry.query);
-                      setBindingsText(entry.bindingsText);
-                      try {
-                        setBindingsEnabled(Object.keys(parseBindings(entry.bindingsText)).length > 0);
-                      } catch {
-                        setBindingsEnabled(false);
-                      }
-                      setFavoritesOpen(false);
-                    }}>
+                    <button type="button" onClick={() => { onOpenSnippet(entry); setFavoritesOpen(false); }}>
                       <strong>{entry.name}</strong>
                       <code>{entry.query}</code>
                     </button>
@@ -1486,10 +1503,13 @@ export function QueryPage({
                     setRenamingSavedQueryId(entry.id);
                     setRenamingSavedQueryName(entry.name);
                   }} aria-label={t(`重命名 ${entry.name}`, `Rename ${entry.name}`)}><Edit3 size={15} /></button>
-                  <button type="button" onClick={() => removeSavedQuery(entry.id)} aria-label={t(`删除 ${entry.name}`, `Delete ${entry.name}`)}><Trash2 size={15} /></button>
+                  <button type="button" onClick={() => void removeSavedQuery(entry.id)} aria-label={t(`删除 ${entry.name}`, `Delete ${entry.name}`)}><Trash2 size={15} /></button>
                 </div>
               ))}
             </div>
+            <button type="button" className="saved-query-manage" onClick={onOpenQueryAssets}>
+              <Layers3 size={16} />{t("管理全部查询资产", "Manage all query assets")}
+            </button>
           </aside>
         )}
         <div className="query-editor-shell">
@@ -1511,6 +1531,7 @@ export function QueryPage({
             onFormat={formatEditorQuery}
             onExplain={(selectionValue) => runEditorQuery(withTraversalAnalysis(selectionValue?.trim() || query, "explain"))}
             onProfile={(selectionValue) => runEditorQuery(withTraversalAnalysis(selectionValue?.trim() || query, "profile"))}
+            onSaveSnippet={openSnippetPanel}
             canRun={Boolean(activeConnection) && queryState.status !== "loading"}
             runShortcut={settings.keyboardShortcuts.runQuery}
             stopShortcut={settings.keyboardShortcuts.stopQuery}

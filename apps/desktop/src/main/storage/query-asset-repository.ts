@@ -2,6 +2,8 @@ import type {
   QueryAssetFolder,
   QueryAssetTag,
   QueryHistoryAssetMetadata,
+  QueryHistoryAssetListInput,
+  QueryHistoryAssetPage,
   QuerySnippet,
   QuerySnippetListInput,
   SaveQueryAssetFolderInput,
@@ -16,7 +18,7 @@ type TagRow = { id: string; name: string; color: string; created_at: string; upd
 type FolderRow = { id: string; name: string; parent_id: string | null; sort_order: number; created_at: string; updated_at: string };
 type SnippetRow = {
   id: string; name: string; description: string; query_text: string; bindings_text: string;
-  connection_id: string; graph_name: string; folder_id: string | null; starred: number;
+  connection_id: string; graph_name: string; traversal_source: string; folder_id: string | null; starred: number;
   created_at: string; updated_at: string;
 };
 
@@ -84,8 +86,20 @@ export class QueryAssetRepository {
     const parameters: Array<string | number> = [];
     if (input.search?.trim()) {
       const pattern = `%${input.search.trim().replace(/[\\%_]/g, "\\$&")}%`;
-      conditions.push("(name LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\' OR query_text LIKE ? ESCAPE '\\' OR graph_name LIKE ? ESCAPE '\\')");
-      parameters.push(pattern, pattern, pattern, pattern);
+      conditions.push(`(
+        name LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\' OR query_text LIKE ? ESCAPE '\\'
+        OR graph_name LIKE ? ESCAPE '\\' OR traversal_source LIKE ? ESCAPE '\\'
+        OR EXISTS (
+          SELECT 1 FROM query_snippet_tags search_links
+          JOIN query_asset_tags search_tags ON search_tags.id = search_links.tag_id
+          WHERE search_links.snippet_id = query_snippets.id AND search_tags.name LIKE ? ESCAPE '\\'
+        )
+        OR EXISTS (
+          SELECT 1 FROM connection_profiles search_connections
+          WHERE search_connections.id = query_snippets.connection_id AND search_connections.name LIKE ? ESCAPE '\\'
+        )
+      )`);
+      parameters.push(pattern, pattern, pattern, pattern, pattern, pattern, pattern);
     }
     if (input.folderId !== undefined) {
       conditions.push(input.folderId ? "folder_id = ?" : "folder_id IS NULL");
@@ -118,16 +132,16 @@ export class QueryAssetRepository {
     this.transaction(() => {
       this.database.prepare(`
         INSERT INTO query_snippets (
-          id, name, description, query_text, bindings_text, connection_id, graph_name,
+          id, name, description, query_text, bindings_text, connection_id, graph_name, traversal_source,
           folder_id, starred, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET name = excluded.name, description = excluded.description,
           query_text = excluded.query_text, bindings_text = excluded.bindings_text,
-          connection_id = excluded.connection_id, graph_name = excluded.graph_name,
+          connection_id = excluded.connection_id, graph_name = excluded.graph_name, traversal_source = excluded.traversal_source,
           folder_id = excluded.folder_id, starred = excluded.starred, updated_at = excluded.updated_at
       `).run(
         id, input.name, input.description, input.query, input.bindingsText, input.connectionId,
-        input.graphName, input.folderId || null, input.starred ? 1 : 0, previous?.created_at ?? now, now,
+        input.graphName, input.traversalSource, input.folderId || null, input.starred ? 1 : 0, previous?.created_at ?? now, now,
       );
       this.replaceTags("query_snippet_tags", "snippet_id", id, input.tagIds ?? []);
     });
@@ -166,10 +180,89 @@ export class QueryAssetRepository {
     return this.historyMetadata([input.historyId])[0]!;
   }
 
+  saveHistoryMetadataBatch(inputs: SaveQueryHistoryAssetInput[]): QueryHistoryAssetMetadata[] {
+    this.transaction(() => {
+      const now = new Date().toISOString();
+      const save = this.database.prepare(`
+        INSERT INTO query_history_assets (history_id, starred, note, updated_at)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(history_id) DO UPDATE SET starred = excluded.starred, note = excluded.note, updated_at = excluded.updated_at
+      `);
+      for (const input of inputs) {
+        save.run(input.historyId, input.starred ? 1 : 0, input.note, now);
+        this.replaceTags("query_history_tags", "history_id", input.historyId, input.tagIds);
+      }
+    });
+    return this.historyMetadata(inputs.map((input) => input.historyId));
+  }
+
+  listHistory(input: QueryHistoryAssetListInput = {}): QueryHistoryAssetPage {
+    const conditions: string[] = [];
+    const parameters: Array<string | number> = [];
+    if (input.search?.trim()) {
+      const pattern = `%${input.search.trim().replace(/[\\%_]/g, "\\$&")}%`;
+      conditions.push("(history.query_text LIKE ? ESCAPE '\\' OR history.connection_name LIKE ? ESCAPE '\\' OR history.graph_name LIKE ? ESCAPE '\\' OR history.traversal_source LIKE ? ESCAPE '\\' OR history.error_message LIKE ? ESCAPE '\\' OR assets.note LIKE ? ESCAPE '\\' OR EXISTS (SELECT 1 FROM query_history_tags search_links JOIN query_asset_tags search_tags ON search_tags.id = search_links.tag_id WHERE search_links.history_id = history.id AND search_tags.name LIKE ? ESCAPE '\\'))");
+      parameters.push(pattern, pattern, pattern, pattern, pattern, pattern, pattern);
+    }
+    if (input.connectionId) {
+      conditions.push("history.connection_id = ?");
+      parameters.push(input.connectionId);
+    }
+    if (input.statuses?.length) {
+      conditions.push(`history.status IN (${input.statuses.map(() => "?").join(", ")})`);
+      parameters.push(...input.statuses);
+    }
+    if (input.createdFrom) { conditions.push("history.created_at >= ?"); parameters.push(input.createdFrom); }
+    if (input.createdTo) { conditions.push("history.created_at <= ?"); parameters.push(input.createdTo); }
+    if (input.starred !== undefined) {
+      conditions.push("COALESCE(assets.starred, 0) = ?");
+      parameters.push(input.starred ? 1 : 0);
+    }
+    for (const tagId of [...new Set(input.tagIds ?? [])]) {
+      conditions.push("EXISTS (SELECT 1 FROM query_history_tags qht WHERE qht.history_id = history.id AND qht.tag_id = ?)");
+      parameters.push(tagId);
+    }
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+    const total = Number((this.database.prepare(`
+      SELECT COUNT(*) count FROM query_history history
+      LEFT JOIN query_history_assets assets ON assets.history_id = history.id
+      ${where}
+    `).get(...parameters) as { count: number }).count);
+    const limit = Math.max(1, Math.min(input.limit ?? 100, 500));
+    const offset = Math.max(0, input.offset ?? 0);
+    const rows = this.database.prepare(`
+      SELECT history.*, COALESCE(assets.starred, 0) asset_starred,
+        COALESCE(assets.note, '') asset_note, COALESCE(assets.updated_at, '') asset_updated_at
+      FROM query_history history
+      LEFT JOIN query_history_assets assets ON assets.history_id = history.id
+      ${where}
+      ORDER BY history.created_at DESC
+      LIMIT ? OFFSET ?
+    `).all(...parameters, limit, offset) as Array<{
+      id: string; connection_id: string; connection_name: string; query_text: string; graph_name: string; traversal_source: string;
+      status: "success" | "error" | "cancelled" | "truncated"; duration_ms: number;
+      result_count: number; error_message: string; created_at: string; asset_starred: number;
+      asset_note: string; asset_updated_at: string;
+    }>;
+    const tags = this.tagsByOwner("history", rows.map((row) => row.id));
+    return {
+      total,
+      items: rows.map((row) => ({
+        id: row.id, connectionId: row.connection_id, connectionName: row.connection_name,
+        query: row.query_text, graphName: row.graph_name, traversalSource: row.traversal_source,
+        status: row.status, durationMs: row.duration_ms,
+        resultCount: row.result_count, errorMessage: row.error_message, createdAt: row.created_at,
+        starred: row.asset_starred === 1, note: row.asset_note, tags: tags.get(row.id) ?? [],
+        assetUpdatedAt: row.asset_updated_at,
+      })),
+    };
+  }
+
   private snippet(row: SnippetRow, tags: QueryAssetTag[]): QuerySnippet {
     return {
       id: row.id, name: row.name, description: row.description, query: row.query_text,
       bindingsText: row.bindings_text, connectionId: row.connection_id, graphName: row.graph_name,
+      traversalSource: row.traversal_source,
       folderId: row.folder_id ?? "", starred: row.starred === 1, tags,
       createdAt: row.created_at, updatedAt: row.updated_at,
     };

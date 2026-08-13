@@ -20,6 +20,7 @@ import {
   dockerTransferIdSchema,
   finishDockerExportSchema,
   historyIdSchema,
+  historyIdsSchema,
   historyListSchema,
   queryCancelSchema,
   queryConsoleSchema,
@@ -28,12 +29,14 @@ import {
   publishBackgroundTaskSchema,
   queryAssetIdSchema,
   queryHistoryMetadataListSchema,
+  queryHistoryAssetListSchema,
   querySnippetListSchema,
   saveDataFileSchema,
   saveGraphFileSchema,
   saveQueryAssetFolderSchema,
   saveQueryAssetTagSchema,
   saveQueryHistoryMetadataSchema,
+  saveQueryHistoryMetadataBatchSchema,
   saveQuerySnippetSchema,
   saveResultFileSchema,
   saveQueryFileSchema,
@@ -143,6 +146,10 @@ export function registerIpcHandlers({
     assertTrustedSender(event, window);
     historyRepository.remove(historyIdSchema.parse(rawId));
   });
+  ipcMain.handle("history:remove-many", (event, rawIds: unknown) => {
+    assertTrustedSender(event, window);
+    historyRepository.removeMany(historyIdsSchema.parse(rawIds));
+  });
 
   ipcMain.handle("history:clear", (event) => {
     assertTrustedSender(event, window);
@@ -192,6 +199,14 @@ export function registerIpcHandlers({
   ipcMain.handle("query-assets:history:save", (event, rawInput: unknown) => {
     assertTrustedSender(event, window);
     return queryAssetRepository.saveHistoryMetadata(saveQueryHistoryMetadataSchema.parse(rawInput));
+  });
+  ipcMain.handle("query-assets:history:page", (event, rawInput: unknown) => {
+    assertTrustedSender(event, window);
+    return queryAssetRepository.listHistory(queryHistoryAssetListSchema.parse(rawInput));
+  });
+  ipcMain.handle("query-assets:history:save-batch", (event, rawInput: unknown) => {
+    assertTrustedSender(event, window);
+    return queryAssetRepository.saveHistoryMetadataBatch(saveQueryHistoryMetadataBatchSchema.parse(rawInput));
   });
 
   ipcMain.handle("files:pick-data", async (event) => {

@@ -50,6 +50,9 @@ export class QueryService {
           result.truncated ? "truncated" : "success",
           result.durationMs,
           result.totalCount,
+          "",
+          request.graphName ?? profile.graphBinding,
+          profile.traversalSource,
         );
       }
       return result;
@@ -65,6 +68,8 @@ export class QueryService {
           durationMs,
           0,
           message,
+          request.graphName ?? profile.graphBinding,
+          profile.traversalSource,
         );
       }
       throw error;

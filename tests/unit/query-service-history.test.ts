@@ -69,6 +69,8 @@ test("records successful queries with truncated results as truncated", async () 
   await service.execute(request);
   assert.equal(historyCalls[0]?.[3], "truncated");
   assert.equal(historyCalls[0]?.[5], 10_001);
+  assert.equal(historyCalls[0]?.[7], "graph");
+  assert.equal(historyCalls[0]?.[8], "g");
 });
 
 test("records a reliably identified cancellation separately from errors", async () => {

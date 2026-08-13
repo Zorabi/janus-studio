@@ -41,6 +41,8 @@ export function openApplicationDatabase(path: string): DatabaseSync {
       connection_id TEXT NOT NULL,
       connection_name TEXT NOT NULL,
       query_text TEXT NOT NULL,
+      graph_name TEXT NOT NULL DEFAULT '',
+      traversal_source TEXT NOT NULL DEFAULT '',
       status TEXT NOT NULL,
       duration_ms INTEGER NOT NULL,
       result_count INTEGER NOT NULL,
@@ -136,6 +138,7 @@ export function openApplicationDatabase(path: string): DatabaseSync {
       bindings_text TEXT NOT NULL,
       connection_id TEXT NOT NULL,
       graph_name TEXT NOT NULL,
+      traversal_source TEXT NOT NULL DEFAULT '',
       folder_id TEXT REFERENCES query_asset_folders(id) ON DELETE SET NULL,
       starred INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
@@ -198,6 +201,17 @@ export function openApplicationDatabase(path: string): DatabaseSync {
   if (!connectionColumns.some((column) => column.name === "connection_read_only")) {
     database.exec("ALTER TABLE connection_profiles ADD COLUMN connection_read_only INTEGER NOT NULL DEFAULT 0");
   }
+  const snippetColumns = database.prepare("PRAGMA table_info(query_snippets)").all() as Array<{ name: string }>;
+  if (!snippetColumns.some((column) => column.name === "traversal_source")) {
+    database.exec("ALTER TABLE query_snippets ADD COLUMN traversal_source TEXT NOT NULL DEFAULT ''");
+  }
+  const historyColumns = database.prepare("PRAGMA table_info(query_history)").all() as Array<{ name: string }>;
+  if (!historyColumns.some((column) => column.name === "graph_name")) {
+    database.exec("ALTER TABLE query_history ADD COLUMN graph_name TEXT NOT NULL DEFAULT ''");
+  }
+  if (!historyColumns.some((column) => column.name === "traversal_source")) {
+    database.exec("ALTER TABLE query_history ADD COLUMN traversal_source TEXT NOT NULL DEFAULT ''");
+  }
   database.exec("UPDATE schema_jobs SET status = 'interrupted', message = 'Application closed before the operation completed', updated_at = datetime('now') WHERE status = 'running';");
   database.exec("UPDATE background_tasks SET status = 'interrupted', message = 'Application closed before the operation completed', cancellable = 0, retriable = 1, acknowledged = 0, completed_at = datetime('now'), updated_at = datetime('now') WHERE status IN ('running', 'cancel_requested');");
   database.exec(`
@@ -214,7 +228,7 @@ export function openApplicationDatabase(path: string): DatabaseSync {
       CASE WHEN status = 'running' THEN '' ELSE updated_at END
     FROM schema_jobs;
   `);
-  database.exec("PRAGMA user_version = 9;");
+  database.exec("PRAGMA user_version = 11;");
 
   return database;
 }

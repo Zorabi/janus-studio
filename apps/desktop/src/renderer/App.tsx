@@ -1,5 +1,5 @@
 import { connectionEndpoint } from "@janusgraph/application";
-import type { ConnectionSummary, ConnectionTestReport, QueryExecutionResult, QueryHistoryEntry, SaveConnectionInput } from "@janusgraph/domain";
+import type { ConnectionSummary, ConnectionTestReport, QueryExecutionResult, QueryHistoryAssetEntry, QueryHistoryEntry, QuerySnippet, SaveConnectionInput } from "@janusgraph/domain";
 import {
   Activity,
   AlertTriangle,
@@ -91,8 +91,8 @@ const NAV_ITEMS: Array<{
   },
   {
     id: "history",
-    label: "执行历史",
-    description: "本地查询记录",
+    label: "查询资产",
+    description: "历史、Snippet 与标签",
     icon: <History size={19} />,
   },
   {
@@ -134,8 +134,6 @@ export default function App() {
   const [deleteConnection, setDeleteConnection] =
     useState<ConnectionSummary | null>(null);
   const [history, setHistory] = useState<QueryHistoryEntry[]>([]);
-  const [deleteHistory, setDeleteHistory] = useState<QueryHistoryEntry | null>(null);
-  const [clearHistory, setClearHistory] = useState(false);
   const [pendingProductionQuery, setPendingProductionQuery] = useState<{
     tabId: string;
     queryOverride?: string;
@@ -155,6 +153,7 @@ export default function App() {
     initialQueryWorkspace.activeTabId,
   );
   const [toast, setToast] = useState<ToastState | null>(null);
+  const notify = useCallback((next: ToastState) => setToast(next), []);
   const tx = useCallback(
     (chinese: string, english?: string) =>
       translate(settings.locale, chinese, english),
@@ -231,6 +230,39 @@ export default function App() {
       ),
     });
   }, [activeConnectionId, queryTabs, settings.defaultResultMode, tx]);
+
+  const openQueryAsset = useCallback((asset: QueryHistoryAssetEntry | QuerySnippet, kind: "history" | "snippet") => {
+    queryTabSequence.current = nextAvailableQuerySequence(queryTabs, queryTabSequence.current);
+    const connectionExists = connections.some((connection) => connection.id === asset.connectionId);
+    const connectionId = connectionExists ? asset.connectionId : activeConnectionId;
+    const tab = createQueryTab(queryTabSequence.current, settings.defaultResultMode, connectionId, asset.query);
+    if (kind === "snippet") {
+      const snippet = asset as QuerySnippet;
+      tab.title = snippet.name;
+      tab.bindingsText = snippet.bindingsText;
+      try {
+        const parsed = JSON.parse(snippet.bindingsText) as Record<string, unknown>;
+        tab.bindingsEnabled = Object.keys(parsed).length > 0;
+      } catch { tab.bindingsEnabled = false; }
+      if (connectionExists && snippet.graphName) tab.graphBindingOverride = snippet.graphName;
+      if (connectionExists && snippet.traversalSource) tab.traversalSourceOverride = snippet.traversalSource;
+    } else {
+      tab.title = tx("历史查询", "History query");
+      const historyEntry = asset as QueryHistoryAssetEntry;
+      if (connectionExists && historyEntry.graphName) tab.graphBindingOverride = historyEntry.graphName;
+      if (connectionExists && historyEntry.traversalSource) tab.traversalSourceOverride = historyEntry.traversalSource;
+    }
+    setQueryTabs((current) => [...current, tab]);
+    setActiveQueryTabId(tab.id);
+    if (connectionId) {
+      setActiveConnectionId(connectionId);
+      localStorage.setItem("janusgraph.activeConnection", connectionId);
+    }
+    setView("query");
+    notify({ tone: "info", message: connectionExists || !asset.connectionId
+      ? tx("查询资产已在新标签页打开", "Query asset opened in a new tab")
+      : tx("原连接已不存在，已使用当前连接；请核对图上下文", "The original connection no longer exists. The current connection is used; verify the graph context") });
+  }, [activeConnectionId, connections, notify, queryTabs, settings.defaultResultMode, tx]);
 
   const rememberClosedQueryTabs = useCallback((tabs: QueryTabState[]) => {
     if (tabs.length === 0) return;
@@ -354,7 +386,6 @@ export default function App() {
     }
   }, [activeQueryTabId, queryTabs, rememberClosedQueryTabs]);
 
-  const notify = useCallback((next: ToastState) => setToast(next), []);
   const backgroundTaskCenter = useBackgroundTasks({
     translate: tx,
     notify,
@@ -456,6 +487,7 @@ export default function App() {
       productionConfirmed = false,
       traversalSource?: string, timeoutMs?: number,
       serverCancellation = false,
+      graphName?: string,
     ): Promise<QueryExecutionResult> => {
       if (!window.janusGraphDesktop) throw new Error("桌面 API 未加载");
       if (!connectionId) throw new Error("请先选择连接");
@@ -481,6 +513,7 @@ export default function App() {
         consoleId,
         executionId,
         query: nextQuery,
+        graphName,
         traversalSource,
         bindings,
         recordHistory,
@@ -553,6 +586,8 @@ export default function App() {
         executionId, productionConfirmed,
         tab.traversalSourceOverride || undefined,
         tab.timeoutMsOverride || undefined,
+        false,
+        tab.graphBindingOverride || connection.graphBinding,
       );
       const graph = buildGraphModel(response.items);
       const preferred = settings.defaultResultMode;
@@ -931,6 +966,8 @@ export default function App() {
             settings={settings}
             onSettingsChange={setSettings}
             history={history}
+            onOpenSnippet={(snippet) => openQueryAsset(snippet, "snippet")}
+            onOpenQueryAssets={() => setView("history")}
             notify={notify}
           />
         )}
@@ -951,39 +988,11 @@ export default function App() {
         )}
         {view === "history" && (
           <HistoryPage
-            history={history}
-            onUse={(entry) => {
-              const restoredConnectionId = connections.some(
-                (connection) => connection.id === entry.connectionId,
-              )
-                ? entry.connectionId
-                : activeQueryTab.connectionId;
-              if (
-                activeQueryTab.connectionId &&
-                restoredConnectionId !== activeQueryTab.connectionId
-              ) {
-                void window.janusGraphDesktop?.queries.closeConsole({
-                  connectionId: activeQueryTab.connectionId,
-                  consoleId: activeQueryTab.id,
-                });
-              }
-              updateQueryTab(activeQueryTab.id, {
-                connectionId: restoredConnectionId,
-                traversalSourceOverride: "",
-                graphBindingOverride: "",
-                query: entry.query,
-                queryState: { status: "idle" },
-                selection: null,
-              });
-              if (connections.some((connection) => connection.id === entry.connectionId)) {
-                setActiveConnectionId(entry.connectionId);
-                localStorage.setItem("janusgraph.activeConnection", entry.connectionId);
-              }
-              setView("query");
-              notify({ tone: "info", message: "历史语句已载入编辑器" });
-            }}
-            onRemove={setDeleteHistory}
-            onClear={() => setClearHistory(true)}
+            connections={connections}
+            activeConnectionId={activeConnectionId}
+            onOpenHistory={(entry) => openQueryAsset(entry, "history")}
+            onOpenSnippet={(snippet) => openQueryAsset(snippet, "snippet")}
+            notify={notify}
           />
         )}
         {view === "graphFactory" && (
@@ -1132,38 +1141,6 @@ export default function App() {
             setDeleteConnection(null);
             await loadConnections();
             notify({ tone: "success", message: "连接配置已删除" });
-          }}
-        />
-      )}
-      {deleteHistory && (
-        <ConfirmDialog
-          title={tx("删除历史记录", "Delete History Record")}
-          description={tx(
-            "这条本地执行记录将被删除，查询语句和服务器数据不会受到影响。",
-            "This removes only the local record. The server data is not affected.",
-          )}
-          confirmLabel={tx("删除记录", "Delete Record")}
-          onCancel={() => setDeleteHistory(null)}
-          onConfirm={async () => {
-            await window.janusGraphDesktop?.history.remove(deleteHistory.id);
-            setDeleteHistory(null);
-            await loadHistory();
-          }}
-        />
-      )}
-      {clearHistory && (
-        <ConfirmDialog
-          title={tx("清空执行历史", "Clear Execution History")}
-          description={tx(
-            `将删除本机保存的 ${history.length} 条执行记录。此操作不会删除连接或服务器数据。`,
-            `This removes ${history.length} local records. Connections and server data are not affected.`,
-          )}
-          confirmLabel={tx("清空历史")}
-          onCancel={() => setClearHistory(false)}
-          onConfirm={async () => {
-            await window.janusGraphDesktop?.history.clear();
-            setClearHistory(false);
-            await loadHistory();
           }}
         />
       )}

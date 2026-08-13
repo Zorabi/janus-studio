@@ -77,6 +77,7 @@ export type QueryRequest = {
   consoleId: string;
   executionId: string;
   query: string;
+  graphName?: string;
   traversalSource?: string;
   bindings?: Record<string, unknown>;
   recordHistory?: boolean;
@@ -130,6 +131,8 @@ export type QueryHistoryEntry = {
   connectionId: string;
   connectionName: string;
   query: string;
+  graphName: string;
+  traversalSource: string;
   status: QueryHistoryStatus;
   durationMs: number;
   resultCount: number;
@@ -171,6 +174,7 @@ export type QuerySnippet = {
   bindingsText: string;
   connectionId: string;
   graphName: string;
+  traversalSource: string;
   folderId: string;
   starred: boolean;
   tags: QueryAssetTag[];
@@ -185,7 +189,7 @@ export type SaveQueryAssetFolderInput = Pick<QueryAssetFolder, "name" | "sortOrd
 };
 export type SaveQuerySnippetInput = Pick<
   QuerySnippet,
-  "name" | "description" | "query" | "bindingsText" | "connectionId" | "graphName" | "folderId" | "starred"
+  "name" | "description" | "query" | "bindingsText" | "connectionId" | "graphName" | "traversalSource" | "folderId" | "starred"
 > & { id?: string; tagIds?: string[] };
 export type QuerySnippetListInput = {
   limit?: number;
@@ -207,6 +211,21 @@ export type SaveQueryHistoryAssetInput = {
   starred: boolean;
   note: string;
   tagIds: string[];
+};
+export type QueryHistoryAssetEntry = QueryHistoryEntry & {
+  starred: boolean;
+  note: string;
+  tags: QueryAssetTag[];
+  assetUpdatedAt: string;
+};
+export type QueryHistoryAssetListInput = QueryHistoryListInput & {
+  search?: string;
+  tagIds?: string[];
+  starred?: boolean;
+};
+export type QueryHistoryAssetPage = {
+  items: QueryHistoryAssetEntry[];
+  total: number;
 };
 
 export type PickedDataFile = {
@@ -389,6 +408,7 @@ export type DesktopApi = {
   history: {
     list(input?: number | QueryHistoryListInput): Promise<QueryHistoryEntry[]>;
     remove(id: string): Promise<void>;
+    removeMany(ids: string[]): Promise<void>;
     clear(): Promise<void>;
   };
   queryAssets: {
@@ -403,6 +423,8 @@ export type DesktopApi = {
     removeSnippet(id: string): Promise<void>;
     historyMetadata(historyIds: string[]): Promise<QueryHistoryAssetMetadata[]>;
     saveHistoryMetadata(input: SaveQueryHistoryAssetInput): Promise<QueryHistoryAssetMetadata>;
+    listHistory(input?: QueryHistoryAssetListInput): Promise<QueryHistoryAssetPage>;
+    saveHistoryMetadataBatch(inputs: SaveQueryHistoryAssetInput[]): Promise<QueryHistoryAssetMetadata[]>;
   };
   files: {
     pickDataFile(): Promise<PickedDataFile | null>;

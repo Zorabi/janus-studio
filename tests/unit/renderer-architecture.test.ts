@@ -34,6 +34,7 @@ test("loads renderer styles through ordered responsibility-based modules", async
     "graph.css",
     "data-grid-results.css",
     "feature-pages.css",
+    "query-assets.css",
     "settings-overlays.css",
     "refinements.css",
     "schema-import.css",

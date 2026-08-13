@@ -10,6 +10,8 @@ type HistoryRow = {
   connection_id: string;
   connection_name: string;
   query_text: string;
+  graph_name: string;
+  traversal_source: string;
   status: QueryHistoryEntry["status"];
   duration_ms: number;
   result_count: number;
@@ -23,6 +25,8 @@ function toEntry(row: HistoryRow): QueryHistoryEntry {
     connectionId: row.connection_id,
     connectionName: row.connection_name,
     query: row.query_text,
+    graphName: row.graph_name,
+    traversalSource: row.traversal_source,
     status: row.status,
     durationMs: row.duration_ms,
     resultCount: row.result_count,
@@ -59,7 +63,7 @@ export class HistoryRepository {
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
     const rows = this.database
       .prepare(`
-        SELECT id, connection_id, connection_name, query_text, status,
+        SELECT id, connection_id, connection_name, query_text, graph_name, traversal_source, status,
           duration_ms, result_count, error_message, created_at
         FROM query_history
         ${where}
@@ -78,12 +82,16 @@ export class HistoryRepository {
     durationMs: number,
     resultCount: number,
     errorMessage = "",
+    graphName = "",
+    traversalSource = "",
   ): QueryHistoryEntry {
     const entry: QueryHistoryEntry = {
       id: randomUUID(),
       connectionId,
       connectionName,
       query,
+      graphName,
+      traversalSource,
       status,
       durationMs,
       resultCount,
@@ -93,15 +101,17 @@ export class HistoryRepository {
     this.database
       .prepare(`
         INSERT INTO query_history (
-          id, connection_id, connection_name, query_text, status,
+          id, connection_id, connection_name, query_text, graph_name, traversal_source, status,
           duration_ms, result_count, error_message, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .run(
         entry.id,
         entry.connectionId,
         entry.connectionName,
         entry.query,
+        entry.graphName,
+        entry.traversalSource,
         entry.status,
         entry.durationMs,
         entry.resultCount,
@@ -113,6 +123,12 @@ export class HistoryRepository {
 
   remove(id: string): void {
     this.database.prepare("DELETE FROM query_history WHERE id = ?").run(id);
+  }
+
+  removeMany(ids: string[]): void {
+    const uniqueIds = [...new Set(ids)];
+    if (!uniqueIds.length) return;
+    this.database.prepare(`DELETE FROM query_history WHERE id IN (${uniqueIds.map(() => "?").join(", ")})`).run(...uniqueIds);
   }
 
   clear(): void {

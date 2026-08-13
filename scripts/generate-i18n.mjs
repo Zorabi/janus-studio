@@ -34,7 +34,7 @@ async function sourceFiles(directory) {
   return result;
 }
 
-const phrases = new Set();
+const phrases = new Map();
 for (const file of await sourceFiles(rendererRoot)) {
   const source = await readFile(file, "utf8");
   const sourceFile = ts.createSourceFile(file.pathname, source, ts.ScriptTarget.Latest, true);
@@ -46,7 +46,10 @@ for (const file of await sourceFiles(rendererRoot)) {
       node.arguments[0] &&
       ts.isStringLiteralLike(node.arguments[0])
     ) {
-      phrases.add(node.arguments[0].text);
+      const english = node.arguments[1] && ts.isStringLiteralLike(node.arguments[1])
+        ? node.arguments[1].text
+        : undefined;
+      phrases.set(node.arguments[0].text, english ?? phrases.get(node.arguments[0].text));
     }
     if (
       ts.isVariableDeclaration(node) &&
@@ -57,7 +60,10 @@ for (const file of await sourceFiles(rendererRoot)) {
     ) {
       for (const property of node.initializer.properties) {
         if (ts.isPropertyAssignment(property) && ts.isStringLiteralLike(property.name)) {
-          phrases.add(property.name.text);
+          phrases.set(
+            property.name.text,
+            ts.isStringLiteralLike(property.initializer) ? property.initializer.text : phrases.get(property.name.text),
+          );
         }
       }
     }
@@ -72,13 +78,14 @@ async function translateBatch(values, language) {
   url.searchParams.set("sl", "zh-CN");
   url.searchParams.set("tl", language);
   url.searchParams.set("dt", "t");
-  url.searchParams.set("q", values.join(separator));
   const { stdout } = await execFileAsync("curl", [
     "--silent",
     "--show-error",
     "--fail",
     "--max-time",
     "30",
+    "--data-urlencode",
+    `q=${values.join(separator)}`,
     url.toString(),
   ], { maxBuffer: 2_000_000 });
   const body = JSON.parse(stdout);
@@ -90,10 +97,14 @@ async function translateBatch(values, language) {
   return parts;
 }
 
-const keys = [...phrases].sort((left, right) => left.localeCompare(right, "zh-CN"));
+const keys = [...phrases.keys()].sort((left, right) => left.localeCompare(right, "zh-CN"));
 let dictionaries = {};
+let sourceFallbacks = {};
+let translationServiceAvailable = true;
 try {
   dictionaries = JSON.parse(await readFile(output, "utf8"));
+  sourceFallbacks = dictionaries.__sourceFallbacks ?? {};
+  delete dictionaries.__sourceFallbacks;
 } catch {
   dictionaries = {};
 }
@@ -101,7 +112,7 @@ for (const [locale, language] of Object.entries(targets)) {
   const existingDictionary = dictionaries[locale] ?? {};
   const dictionary = Object.fromEntries(
     keys.flatMap((key) =>
-      Object.hasOwn(existingDictionary, key)
+      Object.hasOwn(existingDictionary, key) && !sourceFallbacks[key]
         ? [[key, existingDictionary[key]]]
         : [],
     ),
@@ -118,19 +129,28 @@ for (const [locale, language] of Object.entries(targets)) {
     let translated;
     for (let attempt = 1; ; attempt += 1) {
       try {
+        if (!translationServiceAvailable) throw new Error("Translation service unavailable");
         translated = await translateBatch(batch, language);
         break;
       } catch (error) {
-        if (attempt >= 8) throw error;
+        if (attempt >= 3 || !translationServiceAvailable) {
+          translationServiceAvailable = false;
+          translated = batch.map((key) => phrases.get(key) ?? key);
+          for (const key of batch) sourceFallbacks[key] = true;
+          process.stderr.write(`Translation service unavailable; using source English fallbacks for ${locale}.\n`);
+          break;
+        }
         await new Promise((resolve) => setTimeout(resolve, attempt * 1_000));
       }
     }
-    batch.forEach((key, index) => { dictionary[key] = translated[index]; });
+    batch.forEach((key, index) => {
+      dictionary[key] = translated[index];
+      if (translationServiceAvailable) delete sourceFallbacks[key];
+    });
     }
   }
   await Promise.all(Array.from({ length: 2 }, () => worker()));
   dictionaries[locale] = dictionary;
-  await writeFile(output, `${JSON.stringify(dictionaries, null, 2)}\n`, "utf8");
   process.stdout.write(`${locale}: ${Object.keys(dictionary).length} messages\n`);
 }
 

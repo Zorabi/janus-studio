@@ -30,6 +30,7 @@ const desktopApi: DesktopApi = {
   history: {
     list: (input) => ipcRenderer.invoke("history:list", input),
     remove: (id) => ipcRenderer.invoke("history:remove", id),
+    removeMany: (ids) => ipcRenderer.invoke("history:remove-many", ids),
     clear: () => ipcRenderer.invoke("history:clear"),
   },
   queryAssets: {
@@ -44,6 +45,8 @@ const desktopApi: DesktopApi = {
     removeSnippet: (id) => ipcRenderer.invoke("query-assets:snippets:remove", id),
     historyMetadata: (historyIds) => ipcRenderer.invoke("query-assets:history:list", historyIds),
     saveHistoryMetadata: (input) => ipcRenderer.invoke("query-assets:history:save", input),
+    listHistory: (input) => ipcRenderer.invoke("query-assets:history:page", input),
+    saveHistoryMetadataBatch: (inputs) => ipcRenderer.invoke("query-assets:history:save-batch", inputs),
   },
   files: {
     pickDataFile: () => ipcRenderer.invoke("files:pick-data"),
