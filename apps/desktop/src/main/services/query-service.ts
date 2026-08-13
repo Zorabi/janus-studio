@@ -4,6 +4,22 @@ import { ConnectionService } from "./connection-service";
 import { GremlinService } from "./gremlin-service";
 import { HistoryRepository } from "../storage/history-repository";
 import { FileService } from "./file-service";
+import { StructuredLogger } from "../diagnostics/structured-logger";
+
+function collectStringValues(value: unknown, output: string[] = [], seen = new WeakSet<object>()): string[] {
+  if (typeof value === "string") {
+    output.push(value);
+    return output;
+  }
+  if (!value || typeof value !== "object" || seen.has(value)) return output;
+  seen.add(value);
+  if (Array.isArray(value)) {
+    for (const item of value) collectStringValues(item, output, seen);
+  } else {
+    for (const item of Object.values(value)) collectStringValues(item, output, seen);
+  }
+  return output;
+}
 
 export class QueryService {
   constructor(
@@ -11,6 +27,7 @@ export class QueryService {
     private readonly gremlin: GremlinService,
     private readonly history: HistoryRepository,
     private readonly files: FileService,
+    private readonly logger?: StructuredLogger,
   ) {}
 
   async execute(request: QueryRequest): Promise<QueryExecutionResult> {
@@ -55,6 +72,13 @@ export class QueryService {
           profile.traversalSource,
         );
       }
+      this.logger?.info("query", "query.completed", "Gremlin query completed", {
+        connectionId: profile.id,
+        executionId: request.executionId,
+        durationMs: result.durationMs,
+        totalCount: result.totalCount,
+        truncated: result.truncated,
+      });
       return result;
     } catch (error) {
       const durationMs = Math.round(performance.now() - startedAt);
@@ -72,6 +96,24 @@ export class QueryService {
           profile.traversalSource,
         );
       }
+      this.logger?.write({
+        level: "error",
+        source: "query",
+        event: "query.failed",
+        message: "Gremlin query failed",
+        error,
+        context: {
+          connectionId: profile.id,
+          executionId: request.executionId,
+          durationMs,
+          cancelled: message === "查询已停止",
+        },
+        sensitiveTexts: [
+          request.query,
+          normalizeTraversalConsoleText(request.query),
+          ...collectStringValues(request.bindings),
+        ],
+      });
       throw error;
     }
   }

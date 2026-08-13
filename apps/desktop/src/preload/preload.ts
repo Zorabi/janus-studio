@@ -12,6 +12,10 @@ const desktopApi: DesktopApi = {
       return () => ipcRenderer.removeListener("app:navigate", handler);
     },
   },
+  diagnostics: {
+    runtime: () => ipcRenderer.invoke("diagnostics:runtime"),
+    listLogs: (input) => ipcRenderer.invoke("diagnostics:logs:list", input),
+  },
   connections: {
     list: () => ipcRenderer.invoke("connections:list"),
     save: (input) => ipcRenderer.invoke("connections:save", input),

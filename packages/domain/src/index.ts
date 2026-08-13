@@ -384,11 +384,54 @@ export type StartGraphTransferInput = {
   productionConfirmed?: boolean;
 };
 
+export type DiagnosticLogLevel = "debug" | "info" | "warn" | "error";
+export type DiagnosticLogSource =
+  | "application"
+  | "renderer"
+  | "ipc"
+  | "connection"
+  | "query"
+  | "schema"
+  | "transfer"
+  | "compatibility"
+  | "storage"
+  | "security";
+
+export type DiagnosticLogEntry = {
+  id: string;
+  timestamp: string;
+  level: DiagnosticLogLevel;
+  source: DiagnosticLogSource;
+  event: string;
+  message: string;
+  context?: Record<string, unknown>;
+  error?: unknown;
+};
+
+export type DiagnosticLogListInput = {
+  limit?: number;
+  levels?: DiagnosticLogLevel[];
+  sources?: DiagnosticLogSource[];
+};
+
+export type DiagnosticRuntimeSummary = {
+  appVersion: string;
+  electronVersion: string;
+  nodeVersion: string;
+  platform: string;
+  osRelease: string;
+  architecture: string;
+};
+
 export type DesktopApi = {
   runtime: {
     platform(): Promise<string>;
     writeClipboard(text: string): Promise<void>;
     onNavigate(listener: (destination: "settings") => void): () => void;
+  };
+  diagnostics: {
+    runtime(): Promise<DiagnosticRuntimeSummary>;
+    listLogs(input?: DiagnosticLogListInput): Promise<DiagnosticLogEntry[]>;
   };
   connections: {
     list(): Promise<ConnectionSummary[]>;

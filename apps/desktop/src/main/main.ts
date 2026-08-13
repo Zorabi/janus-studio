@@ -24,12 +24,14 @@ import { GraphTransferRepository } from "./storage/graph-transfer-repository";
 import { GraphTransferService } from "./services/graph-transfer-service";
 import { QueryAssetRepository } from "./storage/query-asset-repository";
 import { UpdateSourceType, updateElectronApp } from "update-electron-app";
+import { StructuredLogger } from "./diagnostics/structured-logger";
 
 declare const __UPDATE_REPOSITORY__: string;
 declare const __UPDATE_BASE_URL__: string;
 
 let mainWindow: BrowserWindow | null = null;
 let activeGremlinService: GremlinService | null = null;
+const diagnosticLogger = new StructuredLogger(500);
 
 function installApplicationMenu(window: BrowserWindow): void {
   const openPreferences: MenuItemConstructorOptions = {
@@ -137,6 +139,24 @@ function createWindow(): BrowserWindow {
         url.startsWith(MAIN_WINDOW_VITE_DEV_SERVER_URL));
     if (!allowed) event.preventDefault();
   });
+  window.webContents.on("render-process-gone", (_event, details) => {
+    diagnosticLogger.error(
+      "renderer",
+      "renderer.process-gone",
+      "Renderer process terminated",
+      undefined,
+      { reason: details.reason, exitCode: details.exitCode },
+    );
+  });
+  window.webContents.on("did-fail-load", (_event, errorCode, errorDescription) => {
+    diagnosticLogger.error(
+      "renderer",
+      "renderer.load-failed",
+      "Renderer failed to load",
+      new Error(errorDescription),
+      { errorCode },
+    );
+  });
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     void window.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
@@ -150,6 +170,11 @@ function createWindow(): BrowserWindow {
 }
 
 app.whenReady().then(() => {
+  diagnosticLogger.info("application", "application.ready", "Janus Studio is ready", {
+    appVersion: app.getVersion(),
+    platform: process.platform,
+    architecture: process.arch,
+  });
   session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => {
     callback(false);
   });
@@ -203,6 +228,7 @@ app.whenReady().then(() => {
     gremlinService,
     historyRepository,
     fileService,
+    diagnosticLogger,
   );
   const schemaJobService = new SchemaJobService(
     schemaJobRepository,
@@ -236,6 +262,7 @@ app.whenReady().then(() => {
     compatibilityService,
     graphTransferService,
     queryAssetRepository,
+    diagnosticLogger,
   });
 
   app.on("activate", () => {
@@ -250,5 +277,16 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", () => {
+  diagnosticLogger.info("application", "application.quitting", "Janus Studio is quitting");
   void activeGremlinService?.closeAll();
+});
+
+process.on("uncaughtExceptionMonitor", (error, origin) => {
+  diagnosticLogger.error(
+    "application",
+    "application.uncaught-exception",
+    "An uncaught main-process exception was observed",
+    error,
+    { origin },
+  );
 });

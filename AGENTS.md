@@ -214,6 +214,7 @@
 - Schema 创建脚本不得使用 `key` 作为 Groovy 顶层变量名，避免与 TinkerPop `T.key` 冲突。同步创建 Composite/Mixed Index 或为已有属性创建索引时可选择 Vertex/Edge Label，通过官方 `indexOnly(schemaLabel)` 限定索引；读取、Studio/官方导出和导入规划必须保留并校验该约束。
 - 服务端 GraphSON 导入、导出和每批 100 顶点清空由主进程 `GraphTransferService` 编排，任务输入、目标图、进度和批量加载恢复载荷存入 SQLite；Renderer 不得使用 `sessionStorage` 或组件生命周期作为任务事实来源。取消、显式重试和安全配置恢复统一通过任务 IPC。
 - 查询资产工作台已完成两阶段合并：SQLite v11 保存标签、层级文件夹、Snippet、历史整理元数据及 Graph Binding/Traversal Source；支持统一搜索、服务端分页、星标/备注/标签、批量操作、内置模板、编辑器选区保存和显式旧收藏迁移。
+- 诊断能力第一阶段已完成：主进程使用 500 条固定容量结构化环形日志；密码、Token、认证 Header、私钥、URL 凭据、查询正文与字符串绑定在写入时统一脱敏；Renderer 仅能通过只读 IPC 获取运行时摘要和筛选后的日志副本。
 - i18n 消息目录当前为每种语言 1068 条，并会在生成时清理已从源码移除的废弃文案。翻译服务不可用时生成脚本保留英文 fallback 并正常完成，不能因远端限流阻断本地构建。
 
 ## 9. 开发与验证命令
@@ -229,7 +230,7 @@ pnpm build
 ```
 
 - `pnpm typecheck`：全部 workspace TypeScript 检查。
-- `pnpm test`：当前 139 项测试，其中 135 项本地通过，4 项真实 JanusGraph 集成测试在未配置环境时跳过。
+- `pnpm test`：当前 151 项测试，其中 147 项本地通过，4 项真实 JanusGraph 集成测试在未配置环境时跳过。
 - `pnpm build`：Electron Forge 生产打包。
 - macOS ARM64 打包输出：
   `apps/desktop/out/Janus Studio-darwin-arm64/Janus Studio.app`。
@@ -250,9 +251,9 @@ pnpm build
 
 ## 11. 当前验证状态
 
-- 当前代码基线提交：提交前为 `e28c68e feat: refine schema import review workflow`；查询资产完整切片将在本次提交后更新。
+- 当前代码基线提交：`dc87389 feat: complete query asset workspace`；诊断基础设施第一阶段将在本次提交后更新。
 - 最近一次 `pnpm typecheck`：通过。
-- 最近一次 `pnpm test`：140 项，136 通过，4 个真实环境测试跳过，0 失败。
+- 最近一次 `pnpm test`：151 项，147 通过，4 个真实环境测试跳过，0 失败。
 - 最近一次 `pnpm build`：通过。
 - 最近一次打包时间：2026-08-13。
 - 多节点 Binding 传播、真实 Drop、残留实例处理和关闭后自动重开语义已由用户验收。
@@ -261,5 +262,5 @@ pnpm build
 ## 12. 后续路线
 
 - 统一长任务中心第一阶段、JanusGraph 兼容层探测/脚本路由、官方 Schema JSON 路由和 1.0/1.1 fixture 矩阵已经完成；GraphSON 执行编排迁入主进程仍待后续切片。
-- 查询资产管理已完成完整切片；后续主线为诊断能力第一阶段，再进入发布与兼容验收。连接基础设施仍按 0.4.0 规划。
+- 查询资产管理和诊断基础设施第一阶段已完成；后续主线为诊断预览与诊断包导出，再进入发布与兼容验收。连接基础设施仍按 0.4.0 规划。
 - 详细分期、依赖和验收标准见 `docs/剩余功能迭代计划.md`。

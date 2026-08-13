@@ -1,4 +1,5 @@
-import { clipboard, ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from "electron";
+import { app, clipboard, ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from "electron";
+import { release } from "node:os";
 import { ConnectionService } from "../services/connection-service";
 import { FileService } from "../services/file-service";
 import { QueryService } from "../services/query-service";
@@ -9,6 +10,7 @@ import { BackgroundTaskService } from "../services/background-task-service";
 import { CompatibilityService } from "../services/compatibility-service";
 import { GraphTransferService } from "../services/graph-transfer-service";
 import { QueryAssetRepository } from "../storage/query-asset-repository";
+import { StructuredLogger } from "../diagnostics/structured-logger";
 import {
   backgroundTaskIdSchema,
   backgroundTaskLimitSchema,
@@ -44,6 +46,7 @@ import {
   runSchemaJobSchema,
   schemaJobIdSchema,
   startGraphTransferSchema,
+  diagnosticLogListSchema,
 } from "./schemas";
 
 type RegisterIpcOptions = {
@@ -58,11 +61,29 @@ type RegisterIpcOptions = {
   compatibilityService: CompatibilityService;
   graphTransferService: GraphTransferService;
   queryAssetRepository: QueryAssetRepository;
+  diagnosticLogger: StructuredLogger;
 };
 
 function assertTrustedSender(event: IpcMainInvokeEvent, window: BrowserWindow): void {
   if (event.sender !== window.webContents) {
     throw new Error("拒绝来自未知窗口的 IPC 请求");
+  }
+}
+
+async function invokeWithDiagnostics<T>(
+  logger: StructuredLogger,
+  channel: string,
+  source: "connection" | "query" | "schema" | "transfer" | "compatibility",
+  operation: () => T | Promise<T>,
+): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    const errorSummary = error instanceof Error
+      ? { name: error.name }
+      : { type: typeof error };
+    logger.error(source, "ipc.invoke-failed", `IPC operation failed: ${channel}`, errorSummary, { channel });
+    throw error;
   }
 }
 
@@ -78,6 +99,7 @@ export function registerIpcHandlers({
   compatibilityService,
   graphTransferService,
   queryAssetRepository,
+  diagnosticLogger,
 }: RegisterIpcOptions): void {
   ipcMain.handle("runtime:platform", (event) => {
     assertTrustedSender(event, window);
@@ -89,6 +111,23 @@ export function registerIpcHandlers({
     clipboard.writeText(clipboardTextSchema.parse(rawText));
   });
 
+  ipcMain.handle("diagnostics:runtime", (event) => {
+    assertTrustedSender(event, window);
+    return {
+      appVersion: app.getVersion(),
+      electronVersion: process.versions.electron ?? "unknown",
+      nodeVersion: process.versions.node,
+      platform: process.platform,
+      osRelease: release(),
+      architecture: process.arch,
+    };
+  });
+
+  ipcMain.handle("diagnostics:logs:list", (event, rawInput: unknown) => {
+    assertTrustedSender(event, window);
+    return diagnosticLogger.list(diagnosticLogListSchema.parse(rawInput));
+  });
+
   ipcMain.handle("connections:list", (event) => {
     assertTrustedSender(event, window);
     return connectionService.list();
@@ -96,7 +135,8 @@ export function registerIpcHandlers({
 
   ipcMain.handle("connections:save", async (event, rawInput: unknown) => {
     assertTrustedSender(event, window);
-    return connectionService.save(connectionInputSchema.parse(rawInput));
+    return invokeWithDiagnostics(diagnosticLogger, "connections:save", "connection", () =>
+      connectionService.save(connectionInputSchema.parse(rawInput)));
   });
 
   ipcMain.handle("connections:remove", async (event, rawId: unknown) => {
@@ -106,13 +146,15 @@ export function registerIpcHandlers({
 
   ipcMain.handle("connections:test", async (event, rawInput: unknown) => {
     assertTrustedSender(event, window);
-    return connectionService.test(connectionInputSchema.parse(rawInput));
+    return invokeWithDiagnostics(diagnosticLogger, "connections:test", "connection", () =>
+      connectionService.test(connectionInputSchema.parse(rawInput)));
   });
 
   ipcMain.handle("compatibility:get", async (event, rawInput: unknown) => {
     assertTrustedSender(event, window);
     const input = compatibilityRequestSchema.parse(rawInput);
-    return compatibilityService.get(input.connectionId, input.refresh);
+    return invokeWithDiagnostics(diagnosticLogger, "compatibility:get", "compatibility", () =>
+      compatibilityService.get(input.connectionId, input.refresh));
   });
 
   ipcMain.handle("queries:execute", async (event, rawRequest: unknown) => {
@@ -277,7 +319,8 @@ export function registerIpcHandlers({
 
   ipcMain.handle("data-transfers:start", (event, rawInput: unknown) => {
     assertTrustedSender(event, window);
-    return graphTransferService.start(startGraphTransferSchema.parse(rawInput));
+    return invokeWithDiagnostics(diagnosticLogger, "data-transfers:start", "transfer", () =>
+      graphTransferService.start(startGraphTransferSchema.parse(rawInput)));
   });
 
   ipcMain.handle("data-transfers:cancel", async (event, rawTaskId: unknown) => {
@@ -287,7 +330,8 @@ export function registerIpcHandlers({
 
   ipcMain.handle("data-transfers:retry", (event, rawTaskId: unknown) => {
     assertTrustedSender(event, window);
-    return graphTransferService.retry(backgroundTaskIdSchema.parse(rawTaskId));
+    return invokeWithDiagnostics(diagnosticLogger, "data-transfers:retry", "transfer", () =>
+      graphTransferService.retry(backgroundTaskIdSchema.parse(rawTaskId)));
   });
 
   ipcMain.handle("security:status", async (event) => {
@@ -303,7 +347,8 @@ export function registerIpcHandlers({
 
   ipcMain.handle("schema-jobs:run", async (event, rawInput: unknown) => {
     assertTrustedSender(event, window);
-    return schemaJobService.run(runSchemaJobSchema.parse(rawInput));
+    return invokeWithDiagnostics(diagnosticLogger, "schema-jobs:run", "schema", () =>
+      schemaJobService.run(runSchemaJobSchema.parse(rawInput)));
   });
 
   ipcMain.handle("schema-jobs:cancel", async (event, rawConnectionId: unknown) => {
@@ -313,7 +358,8 @@ export function registerIpcHandlers({
 
   ipcMain.handle("schema-jobs:retry", async (event, rawId: unknown) => {
     assertTrustedSender(event, window);
-    return schemaJobService.retry(schemaJobIdSchema.parse(rawId));
+    return invokeWithDiagnostics(diagnosticLogger, "schema-jobs:retry", "schema", () =>
+      schemaJobService.retry(schemaJobIdSchema.parse(rawId)));
   });
 
   ipcMain.handle("schema-jobs:dismiss", (event, rawId: unknown) => {

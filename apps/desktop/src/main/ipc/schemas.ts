@@ -52,6 +52,24 @@ export const compatibilityRequestSchema = z.object({
   refresh: z.boolean().optional().default(false),
 });
 export const clipboardTextSchema = z.string().max(5_242_880);
+const diagnosticLogLevelSchema = z.enum(["debug", "info", "warn", "error"]);
+const diagnosticLogSourceSchema = z.enum([
+  "application",
+  "renderer",
+  "ipc",
+  "connection",
+  "query",
+  "schema",
+  "transfer",
+  "compatibility",
+  "storage",
+  "security",
+]);
+export const diagnosticLogListSchema = z.object({
+  limit: z.number().int().min(1).max(500).optional(),
+  levels: z.array(diagnosticLogLevelSchema).max(4).optional(),
+  sources: z.array(diagnosticLogSourceSchema).max(10).optional(),
+}).optional();
 export const historyIdSchema = z.string().uuid();
 export const historyLimitSchema = z.number().int().min(1).max(2_000).optional();
 const historyDateSchema = z.string().max(64).refine(

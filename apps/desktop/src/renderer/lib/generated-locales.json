@@ -756,6 +756,8 @@
     "文本解析": "文字解析",
     "文件按官方 JsonSchemaInitStrategy 分批执行；官方专属字段保持原值，不会转换或丢弃。": "文件按官方 JsonSchemaInitStrategy 分批執行；官方專屬欄位保持原值，不會轉換或丟棄。",
     "文件访问方式": "文件存取方式",
+    "文件夹随 Snippet 一起保存": "The folder is saved with the Snippet",
+    "文件夹已更改，保存 Snippet 后生效": "Folder changed; save the Snippet to apply",
     "无法创建图片画布": "無法建立圖片畫布",
     "无法读取当前图 Schema": "無法讀取目前圖 Schema",
     "无法解析拓扑图画布": "無法解析拓樸圖畫布",
@@ -1065,9 +1067,7 @@
     "TLS 验证、WebSocket 压缩与自定义请求头": "TLS 驗證、WebSocket 壓縮與自訂請求頭",
     "VERTICES + EDGES": "VERTICES + EDGES",
     "WebSocket 压缩": "WebSocket 壓縮",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS 預設開啟；僅在受控測試環境中關閉",
-    "文件夹随 Snippet 一起保存": "The folder is saved with the Snippet",
-    "文件夹已更改，保存 Snippet 后生效": "Folder changed; save the Snippet to apply"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS 預設開啟；僅在受控測試環境中關閉"
   },
   "ja-JP": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "「現在欠落している」とは、定義がベースラインには存在するが、この読み取り結果には表示されないことのみを意味します。 Janus Studio がそのようなスキーマ定義の削除をサポートするという意味ではありません。",
@@ -1826,6 +1826,8 @@
     "文本解析": "テキストの解析",
     "文件按官方 JsonSchemaInitStrategy 分批执行；官方专属字段保持原值，不会转换或丢弃。": "ファイルは、公式の JsonSchemaInitStrategy に従ってバッチで実行されます。公式排他フィールドは元の値を保持し、変換または破棄されません。",
     "文件访问方式": "ファイルアクセス方法",
+    "文件夹随 Snippet 一起保存": "The folder is saved with the Snippet",
+    "文件夹已更改，保存 Snippet 后生效": "Folder changed; save the Snippet to apply",
     "无法创建图片画布": "画像キャンバスを作成できません",
     "无法读取当前图 Schema": "現在のダイアグラムのスキーマを読み取ることができません",
     "无法解析拓扑图画布": "トポロジ マップ キャンバスを解析できません",
@@ -2135,9 +2137,7 @@
     "TLS 验证、WebSocket 压缩与自定义请求头": "TLS認証、WebSocket圧縮、カスタムリクエストヘッダー",
     "VERTICES + EDGES": "頂点 + エッジ",
     "WebSocket 压缩": "WebSocket圧縮",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS はデフォルトでオンになっています。管理されたテスト環境でのみオフになります",
-    "文件夹随 Snippet 一起保存": "The folder is saved with the Snippet",
-    "文件夹已更改，保存 Snippet 后生效": "Folder changed; save the Snippet to apply"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS はデフォルトでオンになっています。管理されたテスト環境でのみオフになります"
   },
   "ko-KR": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "\"현재 누락됨\"은 정의가 기준선에 존재하지만 이 읽기 결과에는 나타나지 않음을 의미합니다. 이는 Janus Studio가 그러한 스키마 정의 삭제를 지원한다는 의미는 아닙니다.",
@@ -2896,6 +2896,8 @@
     "文本解析": "텍스트 구문 분석",
     "文件按官方 JsonSchemaInitStrategy 分批执行；官方专属字段保持原值，不会转换或丢弃。": "파일은 공식 JsonSchemaInitStrategy에 따라 일괄적으로 실행됩니다. 공식 독점 필드는 원래 값을 유지하며 변환되거나 삭제되지 않습니다.",
     "文件访问方式": "파일 접근 방법",
+    "文件夹随 Snippet 一起保存": "The folder is saved with the Snippet",
+    "文件夹已更改，保存 Snippet 后生效": "Folder changed; save the Snippet to apply",
     "无法创建图片画布": "그림 캔버스를 만들 수 없습니다",
     "无法读取当前图 Schema": "현재 다이어그램 스키마를 읽을 수 없습니다.",
     "无法解析拓扑图画布": "토폴로지 맵 캔버스를 구문 분석할 수 없습니다.",
@@ -3205,9 +3207,7 @@
     "TLS 验证、WebSocket 压缩与自定义请求头": "TLS 인증, WebSocket 압축 및 사용자 정의 요청 헤더",
     "VERTICES + EDGES": "정점 + 가장자리",
     "WebSocket 压缩": "WebSocket 압축",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS는 기본적으로 켜져 있습니다. 통제된 테스트 환경에서만 꺼짐",
-    "文件夹随 Snippet 一起保存": "The folder is saved with the Snippet",
-    "文件夹已更改，保存 Snippet 后生效": "Folder changed; save the Snippet to apply"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS는 기본적으로 켜져 있습니다. 통제된 테스트 환경에서만 꺼짐"
   },
   "de-DE": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "„Derzeit fehlt“ bedeutet nur, dass die Definition in der Baseline vorhanden ist, aber in diesem Leseergebnis nicht erscheint; Dies bedeutet nicht, dass Janus Studio das Löschen solcher Schemadefinitionen unterstützt.",
@@ -3966,6 +3966,8 @@
     "文本解析": "Textanalyse",
     "文件按官方 JsonSchemaInitStrategy 分批执行；官方专属字段保持原值，不会转换或丢弃。": "Die Dateien werden gemäß der offiziellen JsonSchemaInitStrategy stapelweise ausgeführt. Offizielle exklusive Felder behalten ihre ursprünglichen Werte und werden nicht konvertiert oder verworfen.",
     "文件访问方式": "Dateizugriffsmethode",
+    "文件夹随 Snippet 一起保存": "The folder is saved with the Snippet",
+    "文件夹已更改，保存 Snippet 后生效": "Folder changed; save the Snippet to apply",
     "无法创建图片画布": "Bildleinwand kann nicht erstellt werden",
     "无法读取当前图 Schema": "Das aktuelle Diagrammschema kann nicht gelesen werden",
     "无法解析拓扑图画布": "Topologiekarten-Canvas kann nicht analysiert werden",
@@ -4275,9 +4277,7 @@
     "TLS 验证、WebSocket 压缩与自定义请求头": "TLS-Authentifizierung, WebSocket-Komprimierung und benutzerdefinierte Anforderungsheader",
     "VERTICES + EDGES": "Scheitelpunkte + Kanten",
     "WebSocket 压缩": "WebSocket-Komprimierung",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS ist standardmäßig aktiviert; nur in kontrollierten Testumgebungen ausgeschaltet",
-    "文件夹随 Snippet 一起保存": "The folder is saved with the Snippet",
-    "文件夹已更改，保存 Snippet 后生效": "Folder changed; save the Snippet to apply"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS ist standardmäßig aktiviert; nur in kontrollierten Testumgebungen ausgeschaltet"
   },
   "fr-FR": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "« Actuellement manquant » signifie uniquement que la définition existe dans la ligne de base mais n'apparaît pas dans ce résultat de lecture ; cela ne signifie pas que Janus Studio prend en charge la suppression de telles définitions de schéma.",
@@ -5036,6 +5036,8 @@
     "文本解析": "Analyse de texte",
     "文件按官方 JsonSchemaInitStrategy 分批执行；官方专属字段保持原值，不会转换或丢弃。": "Les fichiers sont exécutés par lots selon la stratégie officielle JsonSchemaInitStrategy ; les champs exclusifs officiels conservent leurs valeurs d'origine et ne seront ni convertis ni supprimés.",
     "文件访问方式": "Méthode d'accès aux fichiers",
+    "文件夹随 Snippet 一起保存": "The folder is saved with the Snippet",
+    "文件夹已更改，保存 Snippet 后生效": "Folder changed; save the Snippet to apply",
     "无法创建图片画布": "Impossible de créer une toile d'image",
     "无法读取当前图 Schema": "Impossible de lire le schéma actuel",
     "无法解析拓扑图画布": "Impossible d'analyser le canevas de la carte topologique",
@@ -5345,9 +5347,7 @@
     "TLS 验证、WebSocket 压缩与自定义请求头": "Authentification TLS, compression WebSocket et en-têtes de requête personnalisés",
     "VERTICES + EDGES": "SOMMETS + BORDS",
     "WebSocket 压缩": "Compression WebSocket",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS est activé par défaut ; uniquement désactivé dans des environnements de test contrôlés",
-    "文件夹随 Snippet 一起保存": "The folder is saved with the Snippet",
-    "文件夹已更改，保存 Snippet 后生效": "Folder changed; save the Snippet to apply"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS est activé par défaut ; uniquement désactivé dans des environnements de test contrôlés"
   },
   "es-ES": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "\"Actualmente faltante\" solo significa que la definición existe en la línea base pero no aparece en este resultado de lectura; Esto no significa que Janus Studio admita la eliminación de dichas definiciones de esquema.",
@@ -6106,6 +6106,8 @@
     "文本解析": "análisis de texto",
     "文件按官方 JsonSchemaInitStrategy 分批执行；官方专属字段保持原值，不会转换或丢弃。": "Los archivos se ejecutan en lotes según la JsonSchemaInitStrategy oficial; Los campos exclusivos oficiales conservan sus valores originales y no se convertirán ni descartarán.",
     "文件访问方式": "Método de acceso a archivos",
+    "文件夹随 Snippet 一起保存": "The folder is saved with the Snippet",
+    "文件夹已更改，保存 Snippet 后生效": "Folder changed; save the Snippet to apply",
     "无法创建图片画布": "No se puede crear un lienzo de imagen",
     "无法读取当前图 Schema": "No se puede leer el esquema del diagrama actual",
     "无法解析拓扑图画布": "No se puede analizar el lienzo del mapa de topología",
@@ -6415,9 +6417,7 @@
     "TLS 验证、WebSocket 压缩与自定义请求头": "Autenticación TLS, compresión WebSocket y encabezados de solicitud personalizados",
     "VERTICES + EDGES": "VERTICES + ARISTAS",
     "WebSocket 压缩": "Compresión WebSocket",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS está activado de forma predeterminada; sólo apagado en entornos de prueba controlados",
-    "文件夹随 Snippet 一起保存": "The folder is saved with the Snippet",
-    "文件夹已更改，保存 Snippet 后生效": "Folder changed; save the Snippet to apply"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS está activado de forma predeterminada; sólo apagado en entornos de prueba controlados"
   },
   "pt-BR": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "\"Atualmente ausente\" significa apenas que a definição existe na linha de base, mas não aparece neste resultado de leitura; isso não significa que o Janus Studio suporta a exclusão de tais definições de esquema.",
@@ -7176,6 +7176,8 @@
     "文本解析": "Análise de texto",
     "文件按官方 JsonSchemaInitStrategy 分批执行；官方专属字段保持原值，不会转换或丢弃。": "Os arquivos são executados em lotes de acordo com o JsonSchemaInitStrategy oficial; os campos exclusivos oficiais mantêm seus valores originais e não serão convertidos ou descartados.",
     "文件访问方式": "Método de acesso a arquivos",
+    "文件夹随 Snippet 一起保存": "The folder is saved with the Snippet",
+    "文件夹已更改，保存 Snippet 后生效": "Folder changed; save the Snippet to apply",
     "无法创建图片画布": "Não foi possível criar a tela da imagem",
     "无法读取当前图 Schema": "Não é possível ler o diagrama atual Esquema",
     "无法解析拓扑图画布": "Não é possível analisar a tela do mapa de topologia",
@@ -7485,9 +7487,7 @@
     "TLS 验证、WebSocket 压缩与自定义请求头": "Autenticação TLS, compactação WebSocket e cabeçalhos de solicitação personalizados",
     "VERTICES + EDGES": "VÉRTICES + BORDAS",
     "WebSocket 压缩": "Compressão WebSocket",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS está ativado por padrão; somente desativado em ambientes de teste controlados",
-    "文件夹随 Snippet 一起保存": "The folder is saved with the Snippet",
-    "文件夹已更改，保存 Snippet 后生效": "Folder changed; save the Snippet to apply"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS está ativado por padrão; somente desativado em ambientes de teste controlados"
   },
   "it-IT": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "\"Attualmente mancante\" significa solo che la definizione esiste nella linea di base ma non appare in questo risultato di lettura; ciò non significa che Janus Studio supporti l'eliminazione di tali definizioni di schema.",
@@ -8246,6 +8246,8 @@
     "文本解析": "Analisi del testo",
     "文件按官方 JsonSchemaInitStrategy 分批执行；官方专属字段保持原值，不会转换或丢弃。": "I file vengono eseguiti in batch secondo la JsonSchemaInitStrategy ufficiale; i campi esclusivi ufficiali mantengono i loro valori originali e non verranno convertiti o eliminati.",
     "文件访问方式": "Metodo di accesso ai file",
+    "文件夹随 Snippet 一起保存": "The folder is saved with the Snippet",
+    "文件夹已更改，保存 Snippet 后生效": "Folder changed; save the Snippet to apply",
     "无法创建图片画布": "Impossibile creare una tela con foto",
     "无法读取当前图 Schema": "Impossibile leggere lo schema del diagramma corrente",
     "无法解析拓扑图画布": "Impossibile analizzare l'area di disegno della mappa topologica",
@@ -8555,9 +8557,7 @@
     "TLS 验证、WebSocket 压缩与自定义请求头": "Autenticazione TLS, compressione WebSocket e intestazioni di richiesta personalizzate",
     "VERTICES + EDGES": "VERTICI + BORDI",
     "WebSocket 压缩": "Compressione WebSocket",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS è attivo per impostazione predefinita; disattivato solo in ambienti di test controllati",
-    "文件夹随 Snippet 一起保存": "The folder is saved with the Snippet",
-    "文件夹已更改，保存 Snippet 后生效": "Folder changed; save the Snippet to apply"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS è attivo per impostazione predefinita; disattivato solo in ambienti di test controllati"
   },
   "ru-RU": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "«В настоящее время отсутствует» означает только то, что определение существует в базовой версии, но не отображается в этом результате чтения; это не означает, что Janus Studio поддерживает удаление таких определений схемы.",
@@ -9316,6 +9316,8 @@
     "文本解析": "Анализ текста",
     "文件按官方 JsonSchemaInitStrategy 分批执行；官方专属字段保持原值，不会转换或丢弃。": "Файлы выполняются пакетно в соответствии с официальной JsonSchemaInitStrategy; официальные эксклюзивные поля сохраняют свои исходные значения и не будут преобразованы или удалены.",
     "文件访问方式": "Метод доступа к файлу",
+    "文件夹随 Snippet 一起保存": "The folder is saved with the Snippet",
+    "文件夹已更改，保存 Snippet 后生效": "Folder changed; save the Snippet to apply",
     "无法创建图片画布": "Невозможно создать холст для изображения",
     "无法读取当前图 Schema": "Невозможно прочитать текущую схему диаграммы",
     "无法解析拓扑图画布": "Невозможно проанализировать холст карты топологии.",
@@ -9625,9 +9627,7 @@
     "TLS 验证、WebSocket 压缩与自定义请求头": "Аутентификация TLS, сжатие WebSocket и настраиваемые заголовки запросов.",
     "VERTICES + EDGES": "ВЕРШИНЫ + КРАЯ",
     "WebSocket 压缩": "Сжатие веб-сокетов",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS включен по умолчанию; отключено только в контролируемых средах тестирования",
-    "文件夹随 Snippet 一起保存": "The folder is saved with the Snippet",
-    "文件夹已更改，保存 Snippet 后生效": "Folder changed; save the Snippet to apply"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS включен по умолчанию; отключено только в контролируемых средах тестирования"
   },
   "pl-PL": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "„Obecnie brak” oznacza jedynie, że definicja istnieje w wersji podstawowej, ale nie pojawia się w tym wyniku odczytu; nie oznacza to, że Janus Studio obsługuje usuwanie takich definicji schematów.",
@@ -10386,6 +10386,8 @@
     "文本解析": "Analiza tekstu",
     "文件按官方 JsonSchemaInitStrategy 分批执行；官方专属字段保持原值，不会转换或丢弃。": "Pliki są wykonywane partiami zgodnie z oficjalną strategią JsonSchemaInitStrategy; oficjalne, ekskluzywne pola zachowują swoje oryginalne wartości i nie zostaną przekonwertowane ani odrzucone.",
     "文件访问方式": "Metoda dostępu do pliku",
+    "文件夹随 Snippet 一起保存": "The folder is saved with the Snippet",
+    "文件夹已更改，保存 Snippet 后生效": "Folder changed; save the Snippet to apply",
     "无法创建图片画布": "Nie można utworzyć obszaru roboczego obrazu",
     "无法读取当前图 Schema": "Nie można odczytać bieżącego diagramu Schemat",
     "无法解析拓扑图画布": "Nie można przeanalizować obszaru mapy topologii",
@@ -10695,9 +10697,7 @@
     "TLS 验证、WebSocket 压缩与自定义请求头": "Uwierzytelnianie TLS, kompresja WebSocket i niestandardowe nagłówki żądań",
     "VERTICES + EDGES": "Wierzchołki + Krawędzie",
     "WebSocket 压缩": "Kompresja WebSocket",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS jest domyślnie włączony; wyłączone tylko w kontrolowanych środowiskach testowych",
-    "文件夹随 Snippet 一起保存": "The folder is saved with the Snippet",
-    "文件夹已更改，保存 Snippet 后生效": "Folder changed; save the Snippet to apply"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS jest domyślnie włączony; wyłączone tylko w kontrolowanych środowiskach testowych"
   },
   "tr-TR": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "\"Şu anda eksik\" yalnızca tanımın taban çizgisinde mevcut olduğu ancak bu okuma sonucunda görünmediği anlamına gelir; bu, Janus Studio'nun bu tür Şema tanımlarının silinmesini desteklediği anlamına gelmez.",
@@ -11456,6 +11456,8 @@
     "文本解析": "Metin ayrıştırma",
     "文件按官方 JsonSchemaInitStrategy 分批执行；官方专属字段保持原值，不会转换或丢弃。": "Dosyalar resmi JsonSchemaInitStrategy'ye göre gruplar halinde yürütülür; resmi özel alanlar orijinal değerlerini korur ve dönüştürülmeyecek veya atılmayacaktır.",
     "文件访问方式": "Dosya erişim yöntemi",
+    "文件夹随 Snippet 一起保存": "The folder is saved with the Snippet",
+    "文件夹已更改，保存 Snippet 后生效": "Folder changed; save the Snippet to apply",
     "无法创建图片画布": "Resim tuvali oluşturulamıyor",
     "无法读取当前图 Schema": "Mevcut diyagram şeması okunamıyor",
     "无法解析拓扑图画布": "Topoloji haritası tuvali ayrıştırılamıyor",
@@ -11765,9 +11767,7 @@
     "TLS 验证、WebSocket 压缩与自定义请求头": "TLS kimlik doğrulaması, WebSocket sıkıştırması ve özel istek başlıkları",
     "VERTICES + EDGES": "KÖŞELER + KENARLAR",
     "WebSocket 压缩": "WebSocket sıkıştırması",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS varsayılan olarak açıktır; yalnızca kontrollü test ortamlarında kapalı",
-    "文件夹随 Snippet 一起保存": "The folder is saved with the Snippet",
-    "文件夹已更改，保存 Snippet 后生效": "Folder changed; save the Snippet to apply"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS varsayılan olarak açıktır; yalnızca kontrollü test ortamlarında kapalı"
   },
   "vi-VN": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "\"Hiện bị thiếu\" chỉ có nghĩa là định nghĩa tồn tại trong đường cơ sở nhưng không xuất hiện trong kết quả đọc này; điều đó không có nghĩa là Janus Studio hỗ trợ xóa các định nghĩa Schema như vậy.",
@@ -12526,6 +12526,8 @@
     "文本解析": "Phân tích văn bản",
     "文件按官方 JsonSchemaInitStrategy 分批执行；官方专属字段保持原值，不会转换或丢弃。": "Các tệp được thực thi theo đợt theo JsonSchemaInitStrategy chính thức; các trường độc quyền chính thức vẫn giữ nguyên giá trị ban đầu và sẽ không bị chuyển đổi hoặc loại bỏ.",
     "文件访问方式": "Phương pháp truy cập tập tin",
+    "文件夹随 Snippet 一起保存": "The folder is saved with the Snippet",
+    "文件夹已更改，保存 Snippet 后生效": "Folder changed; save the Snippet to apply",
     "无法创建图片画布": "Không thể tạo canvas ảnh",
     "无法读取当前图 Schema": "Không thể đọc sơ đồ hiện tại Schema",
     "无法解析拓扑图画布": "Không thể phân tích cú pháp canvas bản đồ cấu trúc liên kết",
@@ -12835,8 +12837,6 @@
     "TLS 验证、WebSocket 压缩与自定义请求头": "Xác thực TLS, nén WebSocket và tiêu đề yêu cầu tùy chỉnh",
     "VERTICES + EDGES": "ĐỈNH + CẠNH",
     "WebSocket 压缩": "Nén WebSocket",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS được bật theo mặc định; chỉ tắt trong môi trường thử nghiệm được kiểm soát",
-    "文件夹随 Snippet 一起保存": "The folder is saved with the Snippet",
-    "文件夹已更改，保存 Snippet 后生效": "Folder changed; save the Snippet to apply"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS được bật theo mặc định; chỉ tắt trong môi trường thử nghiệm được kiểm soát"
   }
 }

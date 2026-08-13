@@ -6,6 +6,7 @@ import type { ConnectionService } from "../../apps/desktop/src/main/services/con
 import type { FileService } from "../../apps/desktop/src/main/services/file-service.ts";
 import type { GremlinService } from "../../apps/desktop/src/main/services/gremlin-service.ts";
 import type { HistoryRepository } from "../../apps/desktop/src/main/storage/history-repository.ts";
+import { StructuredLogger } from "../../apps/desktop/src/main/diagnostics/structured-logger.ts";
 
 const profile: ConnectionProfile = {
   id: "connection-a",
@@ -32,6 +33,7 @@ const profile: ConnectionProfile = {
 function serviceFor(
   execute: (...args: unknown[]) => Promise<QueryExecutionResult>,
   connectionProfile: ConnectionProfile = profile,
+  logger?: StructuredLogger,
 ) {
   const historyCalls: unknown[][] = [];
   const service = new QueryService(
@@ -46,6 +48,7 @@ function serviceFor(
       },
     } as unknown as HistoryRepository,
     {} as FileService,
+    logger,
   );
   return { service, historyCalls };
 }
@@ -79,6 +82,24 @@ test("records a reliably identified cancellation separately from errors", async 
   });
   await assert.rejects(service.execute(request), /查询已停止/);
   assert.equal(historyCalls[0]?.[3], "cancelled");
+});
+
+test("does not retain nested string bindings when a server error echoes them", async () => {
+  const logger = new StructuredLogger();
+  const query = "g.V(vertexId).has('tenant', tenant.name)";
+  const { service } = serviceFor(async () => {
+    throw new Error(`Server rejected [${query}] for top-secret-tenant`);
+  }, profile, logger);
+
+  await assert.rejects(service.execute({
+    ...request,
+    query,
+    bindings: { tenant: { name: "top-secret-tenant" }, vertexId: 1 },
+  }));
+
+  const serialized = JSON.stringify(logger.list());
+  assert.equal(serialized.includes(query), false);
+  assert.equal(serialized.includes("top-secret-tenant"), false);
 });
 
 test("forwards server cancellation mode for interruptible transfer sessions", async () => {
