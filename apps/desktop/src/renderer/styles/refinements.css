@@ -791,6 +791,14 @@
   font-size: 14px;
 }
 
+.schema-import-change-browser > header small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .schema-import-change-browser > header label {
   display: grid;
   grid-template-columns: 24px minmax(0, 1fr);
@@ -1078,13 +1086,13 @@
   }
 
   .schema-import-view-tabs button {
-    min-width: 0;
-    flex: 1;
-    padding: 0 7px;
+    min-width: 132px;
+    flex: 0 0 auto;
+    padding: 0 10px;
   }
 
   .schema-import-view-tabs button span {
-    display: none;
+    display: inline;
   }
 
   .schema-import-change-browser > header {

@@ -79,3 +79,21 @@ test("keeps GraphSON task execution out of renderer session storage", async () =
   assert.match(transferPage, /dataTransfers\.start/);
   assert.match(transferPage, /tasks\.list/);
 });
+
+test("keeps Schema writes behind target confirmation and import review discoverable", async () => {
+  const schemaPage = await readFile(`${rendererRoot}/features/schema/SchemaPage.tsx`, "utf8");
+  const importDialog = await readFile(`${rendererRoot}/features/schema/SchemaImportDialog.tsx`, "utf8");
+
+  assert.match(schemaPage, /setPendingSchemaCreate\(\{/);
+  assert.match(schemaPage, /confirmationText=\{pendingSchemaCreate\.targetName\}/);
+  assert.match(schemaPage, /schemaImportConfirmationOpen/);
+  assert.match(schemaPage, /confirmationText=\{schemaTargetName\}/);
+  assert.match(importDialog, /五类影响审阅/);
+  assert.match(importDialog, /归档转换预览/);
+  assert.doesNotMatch(importDialog, /schema-import-discovery/);
+  assert.doesNotMatch(importDialog, /typedTarget|targetConfirmed/);
+  assert.match(importDialog, /useDeferredValue\(conversionFormat\)/);
+  assert.match(importDialog, /className="schema-conversion-preview"/);
+  assert.match(importDialog, /conversionPreviewWindowSize/);
+  assert.doesNotMatch(importDialog, /<pre>\{conversionText\}<\/pre>|<textarea/);
+});

@@ -510,6 +510,7 @@ export function SchemaPage({
   );
   const schemaImportStartedAt = useRef("");
   const [schemaImportFailure, setSchemaImportFailure] = useState<string | null>(null);
+  const [schemaImportConfirmationOpen, setSchemaImportConfirmationOpen] = useState(false);
   const [schemaTransferBusy, setSchemaTransferBusy] = useState<"import" | "export-studio" | "export-official" | null>(null);
   const [schemaCancelRequested, setSchemaCancelRequested] = useState(false);
   const [schemaBatchIndex, setSchemaBatchIndex] = useState(0);
@@ -519,6 +520,7 @@ export function SchemaPage({
   const [pendingSchemaCreate, setPendingSchemaCreate] = useState<{
     script: string;
     form: HTMLFormElement;
+    definitionName: string;
     createsIndex: boolean;
     indexNames: string[];
     targetName: string;
@@ -774,18 +776,15 @@ ${stringLiteral(`EdgeLabel ${name} created`)}`;
       });
     }
     const production = activeConnection.environment === "prod";
-    if (createsIndex || production) {
-      setPendingSchemaCreate({
-        script,
-        form,
-        createsIndex,
-        indexNames,
-        targetName: schemaTargetName,
-        production,
-      });
-      return;
-    }
-    void executeSchemaCreate(script, form);
+    setPendingSchemaCreate({
+      script,
+      form,
+      definitionName: name,
+      createsIndex,
+      indexNames,
+      targetName: schemaTargetName,
+      production,
+    });
   };
 
   const updateIndex = async (name: string, action: string, confirmed = false) => {
@@ -1626,7 +1625,7 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
           onSave={saveSchemaSnapshot}
         />
       )}
-      {schemaImport && (
+      {schemaImport && !schemaImportConfirmationOpen && (
         <SchemaImportDialog
           activeConnection={activeConnection}
           graphContext={graphContext}
@@ -1635,7 +1634,10 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
           cancelRequested={schemaCancelRequested}
           failureMessage={schemaImportFailure}
           progress={schemaImportProgress}
-          onClose={() => setSchemaImport(null)}
+          onClose={() => {
+            setSchemaImportConfirmationOpen(false);
+            setSchemaImport(null);
+          }}
           onBackground={() => {
             setBackgroundSchemaImport(schemaImport);
             setSchemaImport(null);
@@ -1650,7 +1652,25 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
           }}
           onCancel={() => void cancelSchemaImport()}
           onRegenerate={() => void selectSchemaImport()}
-          onApply={() => void applySchemaImport()}
+          onApply={() => setSchemaImportConfirmationOpen(true)}
+        />
+      )}
+      {schemaImport && schemaImportConfirmationOpen && (
+        <ConfirmDialog
+          title={t("确认导入 Schema", "Confirm Schema Import")}
+          description={`${t("即将把已审阅的 Schema 计划写入目标图", "The reviewed Schema plan will be written to target graph")} “${schemaTargetName}”。${t(
+            `计划包含 ${schemaImport.plan.operations.length} 个创建项、${schemaImport.plan.indexActivations.length} 个高影响索引操作；已识别的相同定义会跳过。`,
+            `The plan contains ${schemaImport.plan.operations.length} creates and ${schemaImport.plan.indexActivations.length} high-impact index operations; matching definitions will be skipped.`,
+          )}`}
+          confirmLabel={t("确认并导入", "Confirm and Import")}
+          confirmIcon={<Upload size={17} />}
+          confirmationText={schemaTargetName}
+          tone="primary"
+          onCancel={() => setSchemaImportConfirmationOpen(false)}
+          onConfirm={async () => {
+            setSchemaImportConfirmationOpen(false);
+            await applySchemaImport();
+          }}
         />
       )}
       {false && ((schemaImport, activeConnection, graphContext) => (
@@ -1828,7 +1848,7 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
         <ConfirmDialog
           title={pendingSchemaCreate.createsIndex
             ? t("确认创建 Graph Index", "Confirm Graph Index Creation")
-            : t("确认生产环境 Schema 变更", "Confirm Production Schema Change")}
+            : t("确认创建 Schema 定义", "Confirm Schema Definition Creation")}
           description={pendingSchemaCreate.createsIndex
             ? `${pendingSchemaCreate.production ? `${t("生产连接", "Production connection")} “${activeConnection.name}” · ` : ""}${t(
                 "即将在目标图中创建 Graph Index。",
@@ -1839,16 +1859,19 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
                 "索引创建会修改 Schema，请核对目标图后继续。",
                 "Index creation changes the schema. Verify the target graph before continuing.",
               )}`
-            : `${t("生产连接", "Production connection")} “${activeConnection.name}”. ${t(
-                "即将创建新的 Schema 定义；请再次确认目标连接和表单内容均正确。",
-                "A new schema definition will be created. Verify the target connection and form values before continuing.",
+            : `${pendingSchemaCreate.production ? `${t("生产连接", "Production connection")} “${activeConnection.name}” · ` : ""}${t(
+                "即将在目标图中创建新的 Schema 定义。",
+                "A new Schema definition will be created in the target graph.",
+              )} ${t("目标图", "Target graph")}：“${pendingSchemaCreate.targetName}” · ${t("名称", "Name")}：“${pendingSchemaCreate.definitionName}”。${t(
+                "Schema 写入会立即提交，请核对目标图和定义名称后继续。",
+                "The Schema write commits immediately. Verify the target graph and definition name before continuing.",
               )}`}
           confirmLabel={pendingSchemaCreate.createsIndex
             ? t("确认创建索引", "Create Index")
             : t("确认创建", "Confirm Creation")}
           confirmIcon={<AlertTriangle size={17} />}
-          confirmationText={pendingSchemaCreate.createsIndex ? pendingSchemaCreate.targetName : undefined}
-          tone={pendingSchemaCreate.createsIndex ? "primary" : "danger"}
+          confirmationText={pendingSchemaCreate.targetName}
+          tone="primary"
           onCancel={() => setPendingSchemaCreate(null)}
           onConfirm={async () => {
             const pending = pendingSchemaCreate;

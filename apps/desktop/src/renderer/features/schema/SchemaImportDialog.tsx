@@ -17,7 +17,7 @@ import {
   Wrench,
   XCircle,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState, type UIEvent } from "react";
 import { Modal } from "../../components/ui";
 import type { DynamicGraphContext } from "../../lib/dynamic-graph-context";
 import { useTranslate } from "../../lib/i18n";
@@ -33,6 +33,90 @@ type ImportView = "summary" | "changes" | "conversion" | "batches";
 type ReviewFilter = "all" | SchemaImportReviewKind;
 
 const reviewKinds: SchemaImportReviewKind[] = ["create", "skip", "conflict", "manual", "dangerous"];
+const conversionPreviewLineHeight = 19;
+const conversionPreviewOverscan = 36;
+const conversionPreviewWindowSize = 120;
+
+function createConversionDocument(value: unknown) {
+  const text = JSON.stringify(value, null, 2);
+  const lines = text.split("\n");
+  const longestLine = lines.reduce((longest, line) => Math.max(longest, line.length), 0);
+  return {
+    text,
+    lines,
+    width: Math.min(Math.max(longestLine + 4, 80), 4_000),
+  };
+}
+
+function SchemaConversionPreview({
+  lines,
+  width,
+  busy,
+  label,
+}: {
+  lines: string[];
+  width: number;
+  busy: boolean;
+  label: string;
+}) {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<number | null>(null);
+  const [startLine, setStartLine] = useState(0);
+
+  useEffect(() => {
+    setStartLine(0);
+    if (viewportRef.current) viewportRef.current.scrollTop = 0;
+  }, [lines]);
+
+  useEffect(() => () => {
+    if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+  }, []);
+
+  const handleScroll = (event: UIEvent<HTMLDivElement>) => {
+    const scrollTop = event.currentTarget.scrollTop;
+    if (frameRef.current !== null) return;
+    frameRef.current = requestAnimationFrame(() => {
+      frameRef.current = null;
+      const nextStart = Math.max(
+        0,
+        Math.floor(scrollTop / conversionPreviewLineHeight) - conversionPreviewOverscan,
+      );
+      setStartLine((current) => current === nextStart ? current : nextStart);
+    });
+  };
+  const endLine = Math.min(lines.length, startLine + conversionPreviewWindowSize);
+
+  return (
+    <div
+      ref={viewportRef}
+      className="schema-conversion-preview"
+      role="textbox"
+      tabIndex={0}
+      aria-readonly="true"
+      aria-busy={busy}
+      aria-label={label}
+      onScroll={handleScroll}
+    >
+      <div
+        className="schema-conversion-preview-canvas"
+        style={{
+          height: `${lines.length * conversionPreviewLineHeight}px`,
+          minWidth: `${width}ch`,
+        }}
+      >
+        {lines.slice(startLine, endLine).map((line, offset) => (
+          <div
+            className="schema-conversion-preview-line"
+            key={startLine + offset}
+            style={{ top: `${(startLine + offset) * conversionPreviewLineHeight}px` }}
+          >
+            {line || "\u00a0"}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function SchemaImportDialog({
   activeConnection,
@@ -65,10 +149,14 @@ export function SchemaImportDialog({
   const [view, setView] = useState<ImportView>("summary");
   const [search, setSearch] = useState("");
   const [batchIndex, setBatchIndex] = useState(0);
-  const [typedTarget, setTypedTarget] = useState("");
   const [reviewFilter, setReviewFilter] = useState<ReviewFilter>("all");
   const [conversionFormat, setConversionFormat] = useState<"official" | "studio">("official");
   const conversion = useMemo(() => createSchemaConversionPreview(value.archive), [value.archive]);
+  const conversionDocuments = useMemo(() => ({
+    official: createConversionDocument(conversion.official),
+    studio: createConversionDocument(conversion.studio),
+  }), [conversion]);
+  const deferredConversionFormat = useDeferredValue(conversionFormat);
   const reviewCounts = useMemo(() => Object.fromEntries(reviewKinds.map((kind) => [
     kind,
     value.plan.review.filter((item) => item.kind === kind).length,
@@ -78,11 +166,8 @@ export function SchemaImportDialog({
     (reviewFilter === "all" || item.kind === reviewFilter) &&
     (!normalizedSearch || `${item.label} ${item.detail} ${item.key}`.toLocaleLowerCase().includes(normalizedSearch)),
   );
-  const conversionText = JSON.stringify(
-    conversionFormat === "official" ? conversion.official : conversion.studio,
-    null,
-    2,
-  );
+  const conversionText = conversionDocuments[conversionFormat].text;
+  const visibleConversionDocument = conversionDocuments[deferredConversionFormat];
   const reviewLabel = (kind: ReviewFilter) => ({
     all: t("全部", "All"),
     create: t("创建", "Create"),
@@ -106,7 +191,6 @@ export function SchemaImportDialog({
       : activeConnection.name
     : t("未选择连接", "No connection selected");
   const targetGraphName = graphContext?.name ?? activeConnection?.graphBinding ?? "";
-  const targetConfirmed = Boolean(targetGraphName) && typedTarget === targetGraphName;
 
   return (
     <Modal
@@ -123,12 +207,12 @@ export function SchemaImportDialog({
           </button>
           <button type="button" className={view === "changes" ? "is-active" : ""} onClick={() => setView("changes")}>
             <CheckCircle2 size={16} />
-            <span>{t("审阅清单", "Review set")}</span>
+            <span>{t("五类影响审阅", "Impact review")}</span>
             <strong>{value.plan.review.length}</strong>
           </button>
           <button type="button" className={view === "conversion" ? "is-active" : ""} onClick={() => setView("conversion")}>
             <RefreshCw size={16} />
-            <span>{t("格式转换", "Format conversion")}</span>
+            <span>{t("归档转换预览", "Conversion preview")}</span>
           </button>
           <button
             type="button"
@@ -230,7 +314,14 @@ export function SchemaImportDialog({
           {view === "changes" && (
             <section className="schema-import-change-browser">
               <header>
-                <div><span className="eyebrow">REVIEW MATRIX</span><strong>{t("导入影响审阅", "Import impact review")}</strong></div>
+                <div>
+                  <span className="eyebrow">REVIEW MATRIX</span>
+                  <strong>{t("导入影响审阅", "Import impact review")}</strong>
+                  <small>{t(
+                    "按创建、跳过、冲突、人工审阅与高影响分类检查导入计划。",
+                    "Review the import plan by create, skip, conflict, manual review, and high impact.",
+                  )}</small>
+                </div>
                 <label><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("搜索名称或类型", "Search name or type")} /></label>
                 <output>{visibleChanges.length} / {value.plan.review.length}</output>
               </header>
@@ -284,7 +375,12 @@ export function SchemaImportDialog({
                   <ClipboardCopy size={15} />{t("复制预览", "Copy preview")}
                 </button>
               </header>
-              <pre>{conversionText}</pre>
+              <SchemaConversionPreview
+                lines={visibleConversionDocument.lines}
+                width={visibleConversionDocument.width}
+                busy={deferredConversionFormat !== conversionFormat}
+                label={t("Schema 格式转换预览", "Schema format conversion preview")}
+              />
             </section>
           )}
 
@@ -338,24 +434,6 @@ export function SchemaImportDialog({
           </section>
         )}
 
-        {!busy && !failureMessage && (
-          <section className={`schema-import-target-confirmation ${targetConfirmed ? "is-confirmed" : ""}`}>
-            <ShieldCheck size={19} />
-            <label>
-              <span>{t("输入完整图名以确认导入目标", "Type the full graph name to confirm the import target")}</span>
-              <strong>{targetGraphName}</strong>
-              <input
-                value={typedTarget}
-                onChange={(event) => setTypedTarget(event.target.value)}
-                placeholder={targetGraphName}
-                autoComplete="off"
-                spellCheck={false}
-                aria-label={t(`输入“${targetGraphName}”以确认`, `Type “${targetGraphName}” to confirm`)}
-              />
-            </label>
-          </section>
-        )}
-
         <footer className="schema-import-actions">
           <button type="button" className="button secondary" disabled={cancelRequested} onClick={busy ? onCancel : onClose}>
             {cancelRequested && <LoaderCircle className="spin" size={17} />}
@@ -370,7 +448,7 @@ export function SchemaImportDialog({
           <button
             type="button"
             className="button primary"
-            disabled={busy || (!failureMessage && (value.plan.conflicts.length > 0 || !value.plan.script || !targetConfirmed))}
+            disabled={busy || (!failureMessage && (value.plan.conflicts.length > 0 || !value.plan.script || !targetGraphName))}
             onClick={failureMessage ? onRegenerate : onApply}
           >
             {busy ? <LoaderCircle className="spin" size={17} /> : failureMessage ? <RefreshCw size={17} /> : <Upload size={17} />}
@@ -378,7 +456,7 @@ export function SchemaImportDialog({
               ? t("正在导入", "Importing")
               : failureMessage
                 ? t("重新选择并生成计划", "Select again and regenerate plan")
-                : t("确认并导入", "Confirm and Import")}
+                : t("导入", "Import")}
           </button>
         </footer>
       </div>

@@ -78,7 +78,7 @@
 - 表格列和结构化详情按固定元数据优先级及自然字母数字顺序排列，例如 `cp0、cp1、cp2、cp12`。
 - 支持查询结果 JSON、JSONL、CSV 导出以及完整结果流式导出。
 - Profile、Explain、`printSchema()` 等文本报告使用 Gremlin Console 风格的等宽原始输出展示。
-- 创建 Composite/Mixed Graph Index（包括创建 Property Key 时同步建索引）前必须输入完整目标图名进行二次确认，避免在错误的静态图或动态图上下文中修改 Schema。
+- 创建 Property Key、Vertex Label、Edge Label 和 Composite/Mixed Graph Index（包括创建 Property Key 时同步建索引）前必须输入完整目标图名进行二次确认，避免在错误的静态图或动态图上下文中修改 Schema。
 - Schema 表单中的 Vertex Label 与 Edge Label 选项使用自然数字排序，例如 `v1、v2、v10、v111`。
 
 ### 4.4 拓扑图
@@ -198,13 +198,15 @@
 - Schema Management、索引生命周期、ConfiguredGraphFactory、GraphSON 迁移和 Explain/Profile 已通过集中式 `CompatibilityProfile` 路由；明确不支持的入口在脚本执行前阻止，未知能力保留为未验证而不伪装支持。
 - JanusGraph 1.1 官方 JSON Schema 可由 `JsonSchemaInitStrategy` 按类型分批原样导入；TTL、单向边、参数化索引和 Vertex-Centric Index 会在审阅页列为官方专属项。1.0 仅对可无损转换的文件回退到 Management API，不允许静默丢字段。
 - Schema 页面区分两种导出：Janus Studio 迁移归档携带来源、时间、`officialSchema` 和首选导入器；JanusGraph 官方 JSON 仅包含纯 `JsonSchemaDefinition`，可直接交给 `JsonSchemaInitStrategy.initializeSchemaFromFile/String`。Studio 归档的 `exportedAt` 使用本地 `YYYY-MM-DD HH:mm:ss`，实际导入策略会显示在审阅、进度、完成提示与操作历史中。
-- Schema 导入执行前必须输入完整目标图名；动态图使用 ConfiguredGraphFactory 图名，连接默认图使用 Graph Binding。Schema 工具栏只展示导入、导出、快照基线和刷新；导出通过格式选择弹窗并列展示官方 JSON 与 Studio 归档，不可用格式保留可见并说明禁用原因。
+- Schema 导入先完成计划审阅，再使用与 Drop、清空图一致的标准确认弹窗输入完整目标图名；取消确认应返回原审阅计划，不得丢失上下文。动态图使用 ConfiguredGraphFactory 图名，连接默认图使用 Graph Binding。Schema 工具栏只展示导入、导出、快照基线和刷新；导出通过格式选择弹窗并列展示官方 JSON 与 Studio 归档，不可用格式保留可见并说明禁用原因。
+- 发起危险操作的按钮名称表达最终动作（例如“导入”“Drop”“清空全部图数据”），二次确认由随后弹出的确认框承担；禁止使用“下一步”“继续确认”等流程性按钮名称造成同类操作不一致。
 - Schema 快照以当前图为独立基线，首次建立后每次刷新自动比较；工作区显示基线时间、定义数量和新增/变更/当前缺失逐项明细，并由用户显式更新基线。“当前缺失”只表达基线中存在但本次未读取到，不得暗示 Janus Studio 支持删除通用 Schema 定义。旧版数组快照需兼容迁移。
-- Schema 导入审阅统一分为创建、跳过、冲突、人工审阅和高影响五类；冲突阻止执行，高影响项明确展示索引 REGISTER/REINDEX/ENABLED 生命周期。导入弹窗可在官方 JSON 与 Studio 归档之间切换转换预览；官方专属字段必须通过 `officialSchema` 原文保留，禁止静默丢失。
+- Schema 导入审阅统一分为创建、跳过、冲突、人工审阅和高影响五类；概览展示五类数量，顶部使用完整可读的“五类影响审阅”和“归档转换预览”标签，必要说明放在对应标签页内，禁止重复使用占据内容区的大型入口卡。冲突阻止执行，高影响项明确展示索引 REGISTER/REINDEX/ENABLED 生命周期。导入弹窗可在官方 JSON 与 Studio 归档之间切换转换预览；官方专属字段必须通过 `officialSchema` 原文保留，禁止静默丢失。
+- 大型 Schema 归档的官方 JSON 与 Studio 文本必须一次生成并缓存；格式切换使用低优先级文本更新和虚拟化只读文本视图，DOM 只渲染当前滚动区域附近的行。禁止在每次切换时同步序列化，或把完整文本放入大型 `<pre>`/`textarea` 触发整份内容排版。
 - Schema 创建脚本不得使用 `key` 作为 Groovy 顶层变量名，避免与 TinkerPop `T.key` 冲突。同步创建 Composite/Mixed Index 或为已有属性创建索引时可选择 Vertex/Edge Label，通过官方 `indexOnly(schemaLabel)` 限定索引；读取、Studio/官方导出和导入规划必须保留并校验该约束。
 - 服务端 GraphSON 导入、导出和每批 100 顶点清空由主进程 `GraphTransferService` 编排，任务输入、目标图、进度和批量加载恢复载荷存入 SQLite；Renderer 不得使用 `sessionStorage` 或组件生命周期作为任务事实来源。取消、显式重试和安全配置恢复统一通过任务 IPC。
 - 查询资产基础模型使用 SQLite v9：标签、层级文件夹、Snippet、Snippet 标签关联，以及不修改原执行事实的历史星标/备注/标签元数据。Repository 与 IPC 支持分页、搜索、文件夹、标签和星标筛选；现有 Renderer 收藏数据迁移必须在后续 UI 中由用户可见地执行，禁止静默覆盖。
-- i18n 消息目录当前为每种语言 998 条，并会在生成时清理已从源码移除的废弃文案。
+- i18n 消息目录当前为每种语言 1002 条，并会在生成时清理已从源码移除的废弃文案。
 
 ## 9. 开发与验证命令
 
