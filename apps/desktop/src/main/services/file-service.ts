@@ -9,6 +9,7 @@ import type {
   SaveResultFileInput,
   SaveQueryFileInput,
   SaveSchemaFileInput,
+  DiagnosticBundleResult,
 } from "@janusgraph/domain";
 import { dialog, type BrowserWindow } from "electron";
 import { access, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
@@ -24,6 +25,7 @@ import {
   parseDockerContainers,
   validateDockerTarget,
 } from "./docker-transfer";
+import { createZipArchive, type ZipArchiveEntry } from "../diagnostics/zip-archive";
 
 const MAX_IMPORT_BYTES = 200 * 1024 * 1024;
 
@@ -402,5 +404,16 @@ export class FileService {
     if (result.canceled || !result.filePath) return null;
     await writeFile(result.filePath, input.content, "utf8");
     return result.filePath;
+  }
+
+  async saveDiagnosticBundle(entries: ZipArchiveEntry[], suggestedName: string): Promise<DiagnosticBundleResult> {
+    const result = await dialog.showSaveDialog(this.window, {
+      title: "生成问题诊断包",
+      defaultPath: suggestedName.endsWith(".zip") ? suggestedName : `${suggestedName}.zip`,
+      filters: [{ name: "Janus Studio 诊断包", extensions: ["zip"] }],
+    });
+    if (result.canceled || !result.filePath) return { path: null, fileCount: entries.length };
+    await writeFile(result.filePath, createZipArchive(entries));
+    return { path: result.filePath, fileCount: entries.length };
   }
 }

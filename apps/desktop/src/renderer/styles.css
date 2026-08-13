@@ -11,5 +11,6 @@
 @import "./styles/transfer-server.css";
 @import "./styles/task-center.css";
 @import "./styles/compatibility.css";
+@import "./styles/diagnostics.css";
 @import "./styles/themes.css";
 @import "./styles/ide-overrides.css";

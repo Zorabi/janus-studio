@@ -1,4 +1,8 @@
-import { isMutationQuery, normalizeTraversalConsoleText } from "@janusgraph/application";
+import {
+  isMutationQuery,
+  normalizeManagementConsoleText,
+  normalizeTraversalConsoleText,
+} from "@janusgraph/application";
 import type { QueryExecutionResult, QueryExportRequest, QueryExportResult, QueryRequest } from "@janusgraph/domain";
 import { ConnectionService } from "./connection-service";
 import { GremlinService } from "./gremlin-service";
@@ -47,6 +51,10 @@ export class QueryService {
     }
     const password = await this.connections.passwordFor(request.connectionId);
     const startedAt = performance.now();
+    const normalizedQuery = normalizeManagementConsoleText(
+      normalizeTraversalConsoleText(request.query),
+      profile.clientMode,
+    );
 
     try {
       const result = await this.gremlin.execute(
@@ -54,7 +62,7 @@ export class QueryService {
         password,
         request.consoleId,
         request.executionId,
-        normalizeTraversalConsoleText(request.query),
+        normalizedQuery,
         request.bindings ?? {},
         request.timeoutMs,
         request.serverCancellation,
@@ -110,7 +118,7 @@ export class QueryService {
         },
         sensitiveTexts: [
           request.query,
-          normalizeTraversalConsoleText(request.query),
+          normalizedQuery,
           ...collectStringValues(request.bindings),
         ],
       });

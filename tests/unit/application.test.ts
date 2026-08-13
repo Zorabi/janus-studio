@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   connectionEndpoint,
   isMutationQuery,
+  normalizeManagementConsoleText,
   normalizeTraversalConsoleText,
   withTraversalConsoleText,
   isSecureConnection,
@@ -83,4 +84,23 @@ test("normalizes terminal Profile and Explain queries to Gremlin Console text", 
   assert.equal(normalizeTraversalConsoleText("g.V().explain()"), "g.V().explain().toString()");
   assert.equal(normalizeTraversalConsoleText("g.V().profile();"), "g.V().profile().next().toString()");
   assert.equal(normalizeTraversalConsoleText("def metrics = g.V().profile(); metrics"), "def metrics = g.V().profile(); metrics");
+});
+
+test("keeps openManagement bindings while returning a serializable console summary", () => {
+  assert.equal(
+    normalizeManagementConsoleText("m = graph3.openManagement()", "sessioned"),
+    'm = graph3.openManagement(); [binding: "m", objectType: m.getClass().getName(), state: "open", scope: "session"]',
+  );
+  assert.match(
+    normalizeManagementConsoleText("def management = graph.openManagement();", "sessionless"),
+    /binding: "management".*scope: "request"/,
+  );
+  assert.equal(
+    normalizeManagementConsoleText("m = graph.openManagement(); m.printSchema()", "sessioned"),
+    "m = graph.openManagement(); m.printSchema()",
+  );
+  assert.equal(
+    normalizeManagementConsoleText("graph3.openManagement()", "sessioned"),
+    'def __janusStudioManagement = graph3.openManagement(); try { [objectType: __janusStudioManagement.getClass().getName(), state: "opened-and-rolled-back", reusable: false] } finally { __janusStudioManagement.rollback() }',
+  );
 });

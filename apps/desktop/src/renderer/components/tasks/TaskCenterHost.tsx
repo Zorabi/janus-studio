@@ -30,6 +30,7 @@ export function TaskCenterHost({ center }: { center: TaskCenterState }) {
           onCancel={center.cancel}
           onRetry={center.retry}
           onOpenSource={center.openSource}
+          onOpenDiagnostics={center.openDiagnostics}
         />
       )}
     </>

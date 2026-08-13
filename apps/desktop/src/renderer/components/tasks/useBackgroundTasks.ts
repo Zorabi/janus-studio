@@ -7,9 +7,10 @@ type UseBackgroundTasksInput = {
   translate: (chinese: string, english?: string) => string;
   notify: (toast: ToastState) => void;
   navigate: (kind: BackgroundTask["kind"]) => void;
+  navigateToDiagnostics: () => void;
 };
 
-export function useBackgroundTasks({ translate, notify, navigate }: UseBackgroundTasksInput) {
+export function useBackgroundTasks({ translate, notify, navigate, navigateToDiagnostics }: UseBackgroundTasksInput) {
   const [tasks, setTasks] = useState<BackgroundTask[]>([]);
   const [open, setOpen] = useState(false);
   const refresh = useCallback(async () => {
@@ -81,6 +82,11 @@ export function useBackgroundTasks({ translate, notify, navigate }: UseBackgroun
     setOpen(false);
   };
 
+  const openDiagnostics = () => {
+    navigateToDiagnostics();
+    setOpen(false);
+  };
+
   const activeCount = tasks.filter(
     (task) => task.status === "running" || task.status === "cancel_requested",
   ).length;
@@ -98,6 +104,7 @@ export function useBackgroundTasks({ translate, notify, navigate }: UseBackgroun
     dismiss,
     acknowledgeAll,
     openSource,
+    openDiagnostics,
     activeCount,
     unreadCount,
   };

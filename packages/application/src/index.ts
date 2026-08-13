@@ -6,6 +6,8 @@ import type {
   SaveConnectionInput,
 } from "@janusgraph/domain";
 
+export * from "./diagnostic-preview";
+
 export type CompatibilityOperation =
   | "schemaManagement"
   | "schemaIndexLifecycle"
@@ -110,4 +112,32 @@ export function normalizeTraversalConsoleText(query: string): string {
   if (/\.profile\s*\(\s*\)(?:\.next\s*\(\s*\))?(?:\.toString\s*\(\s*\))?\s*;?\s*$/i.test(query)) return withTraversalConsoleText(query, "profile");
   if (/\.explain\s*\(\s*\)(?:\.next\s*\(\s*\))?(?:\.toString\s*\(\s*\))?\s*;?\s*$/i.test(query)) return withTraversalConsoleText(query, "explain");
   return query;
+}
+
+/**
+ * JanusGraph ManagementSystem reaches backend driver objects that GraphSON
+ * cannot serialize. Preserve the server-side binding but return a small map.
+ */
+export function normalizeManagementConsoleText(
+  query: string,
+  clientMode: "sessionless" | "sessioned",
+): string {
+  const assignmentMatch = query.match(
+    /^\s*((?:def\s+)?([A-Za-z_$][\w$]*))\s*=\s*([A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)*)\s*\.\s*openManagement\s*\(\s*\)\s*;?\s*$/,
+  );
+  if (assignmentMatch) {
+    const assignmentTarget = assignmentMatch[1]!;
+    const variableName = assignmentMatch[2]!;
+    const graphExpression = assignmentMatch[3]!.replace(/\s+/g, "");
+    const scope = clientMode === "sessioned" ? "session" : "request";
+    return `${assignmentTarget} = ${graphExpression}.openManagement(); [binding: "${variableName}", objectType: ${variableName}.getClass().getName(), state: "open", scope: "${scope}"]`;
+  }
+
+  const directMatch = query.match(
+    /^\s*([A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)*)\s*\.\s*openManagement\s*\(\s*\)\s*;?\s*$/,
+  );
+  if (!directMatch) return query;
+
+  const graphExpression = directMatch[1]!.replace(/\s+/g, "");
+  return `def __janusStudioManagement = ${graphExpression}.openManagement(); try { [objectType: __janusStudioManagement.getClass().getName(), state: "opened-and-rolled-back", reusable: false] } finally { __janusStudioManagement.rollback() }`;
 }

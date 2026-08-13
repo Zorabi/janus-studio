@@ -13,6 +13,7 @@ test("keeps feature pages outside the application shell", async () => {
     "ConnectionDialog",
     "ConnectionsPage",
     "HistoryPage",
+    "DiagnosticsPage",
     "QueryPage",
     "SchemaPage",
     "SettingsPage",
@@ -42,6 +43,7 @@ test("loads renderer styles through ordered responsibility-based modules", async
     "transfer-server.css",
     "task-center.css",
     "compatibility.css",
+    "diagnostics.css",
     "themes.css",
     "ide-overrides.css",
   ]);
@@ -79,6 +81,17 @@ test("keeps GraphSON task execution out of renderer session storage", async () =
   assert.doesNotMatch(transferPage, /sessionStorage|serverTransferTaskStorageKey|writeServerTransferTask/);
   assert.match(transferPage, /dataTransfers\.start/);
   assert.match(transferPage, /tasks\.list/);
+});
+
+test("keeps diagnostic bundle creation in the main process with an advanced preview", async () => {
+  const page = await readFile(`${rendererRoot}/features/diagnostics/DiagnosticsPage.tsx`, "utf8");
+  const ipc = await readFile("apps/desktop/src/main/ipc/register-ipc.ts", "utf8");
+  assert.match(page, /生成诊断包/);
+  assert.match(page, /advancedOpen/);
+  assert.match(page, /diagnostics\.exportBundle/);
+  assert.doesNotMatch(page, /createZipArchive|writeFile/);
+  assert.match(ipc, /diagnostics:bundle:export/);
+  assert.match(ipc, /diagnosticPreviewContainsExcludedContent/);
 });
 
 test("keeps Schema writes behind target confirmation and import review discoverable", async () => {

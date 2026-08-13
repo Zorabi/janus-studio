@@ -70,6 +70,16 @@ export const diagnosticLogListSchema = z.object({
   levels: z.array(diagnosticLogLevelSchema).max(4).optional(),
   sources: z.array(diagnosticLogSourceSchema).max(10).optional(),
 }).optional();
+export const diagnosticBundleSchema = z.object({
+  limit: z.number().int().min(1).max(500).optional(),
+  levels: z.array(diagnosticLogLevelSchema).min(1).max(4).optional(),
+  sources: z.array(diagnosticLogSourceSchema).min(1).max(10).optional(),
+  selection: z.object({
+    summary: z.boolean(),
+    tasks: z.boolean(),
+    logs: z.boolean(),
+  }).refine((value) => Object.values(value).some(Boolean), "至少选择一个诊断文件"),
+});
 export const historyIdSchema = z.string().uuid();
 export const historyLimitSchema = z.number().int().min(1).max(2_000).optional();
 const historyDateSchema = z.string().max(64).refine(

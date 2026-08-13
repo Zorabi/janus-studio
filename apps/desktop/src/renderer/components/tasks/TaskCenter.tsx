@@ -8,6 +8,7 @@ import {
   LoaderCircle,
   RefreshCw,
   RotateCcw,
+  Stethoscope,
   Trash2,
   X,
   XCircle,
@@ -23,6 +24,7 @@ type TaskCenterProps = {
   onCancel: (task: BackgroundTask) => Promise<void>;
   onRetry: (task: BackgroundTask) => Promise<void>;
   onOpenSource: (task: BackgroundTask) => void;
+  onOpenDiagnostics: () => void;
 };
 
 const terminalStatuses = new Set<BackgroundTask["status"]>([
@@ -76,6 +78,7 @@ export function TaskCenter({
   onCancel,
   onRetry,
   onOpenSource,
+  onOpenDiagnostics,
 }: TaskCenterProps) {
   const t = useTranslate();
   const active = tasks.filter((task) => !terminalStatuses.has(task.status));
@@ -138,6 +141,11 @@ export function TaskCenter({
             {task.retriable && (
               <button type="button" onClick={() => void onRetry(task)}>
                 <RotateCcw size={15} />{task.kind === "maintenance" ? t("前往重试", "Go to retry") : t("重试", "Retry")}
+              </button>
+            )}
+            {(task.status === "failed" || task.status === "interrupted") && (
+              <button type="button" onClick={onOpenDiagnostics}>
+                <Stethoscope size={15} />{t("生成诊断包", "Create diagnostic bundle")}
               </button>
             )}
             {terminalStatuses.has(task.status) && (

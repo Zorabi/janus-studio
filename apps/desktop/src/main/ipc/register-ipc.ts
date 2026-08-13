@@ -11,6 +11,11 @@ import { CompatibilityService } from "../services/compatibility-service";
 import { GraphTransferService } from "../services/graph-transfer-service";
 import { QueryAssetRepository } from "../storage/query-asset-repository";
 import { StructuredLogger } from "../diagnostics/structured-logger";
+import { redactDiagnosticValue } from "../diagnostics/redactor";
+import {
+  buildDiagnosticPreviewFiles,
+  diagnosticPreviewContainsExcludedContent,
+} from "@janusgraph/application";
 import {
   backgroundTaskIdSchema,
   backgroundTaskLimitSchema,
@@ -47,6 +52,7 @@ import {
   schemaJobIdSchema,
   startGraphTransferSchema,
   diagnosticLogListSchema,
+  diagnosticBundleSchema,
 } from "./schemas";
 
 type RegisterIpcOptions = {
@@ -68,6 +74,26 @@ function assertTrustedSender(event: IpcMainInvokeEvent, window: BrowserWindow): 
   if (event.sender !== window.webContents) {
     throw new Error("拒绝来自未知窗口的 IPC 请求");
   }
+}
+
+function diagnosticSnapshot(
+  logger: StructuredLogger,
+  tasks: BackgroundTaskService,
+  input?: Parameters<StructuredLogger["list"]>[0],
+) {
+  return {
+    generatedAt: new Date().toISOString(),
+    runtime: {
+      appVersion: app.getVersion(),
+      electronVersion: process.versions.electron ?? "unknown",
+      nodeVersion: process.versions.node,
+      platform: process.platform,
+      osRelease: release(),
+      architecture: process.arch,
+    },
+    tasks: redactDiagnosticValue(tasks.list(50)) as ReturnType<BackgroundTaskService["list"]>,
+    logs: logger.list(input),
+  };
 }
 
 async function invokeWithDiagnostics<T>(
@@ -126,6 +152,38 @@ export function registerIpcHandlers({
   ipcMain.handle("diagnostics:logs:list", (event, rawInput: unknown) => {
     assertTrustedSender(event, window);
     return diagnosticLogger.list(diagnosticLogListSchema.parse(rawInput));
+  });
+
+  ipcMain.handle("diagnostics:preview", (event, rawInput: unknown) => {
+    assertTrustedSender(event, window);
+    const input = diagnosticLogListSchema.parse(rawInput);
+    return diagnosticSnapshot(diagnosticLogger, backgroundTaskService, input);
+  });
+
+  ipcMain.handle("diagnostics:bundle:export", async (event, rawInput: unknown) => {
+    assertTrustedSender(event, window);
+    const input = diagnosticBundleSchema.parse(rawInput);
+    const snapshot = diagnosticSnapshot(diagnosticLogger, backgroundTaskService, input);
+    const files = buildDiagnosticPreviewFiles(snapshot, input.selection);
+    if (diagnosticPreviewContainsExcludedContent(files)) {
+      throw new Error("诊断包安全检查未通过，已阻止写入");
+    }
+    const readme = [
+      "Janus Studio 问题诊断包",
+      "",
+      `生成时间：${snapshot.generatedAt}`,
+      "",
+      "此诊断包用于排查连接、Schema、动态图和长任务异常。",
+      "密码、Token、认证 Header、私钥、查询正文和字符串绑定已固定排除。",
+      "发送前仍建议在 Janus Studio 的问题诊断页面逐项预览内容。",
+      "",
+      `包含文件：${files.map((file) => file.name).join("、")}`,
+    ].join("\n");
+    const date = snapshot.generatedAt.slice(0, 10).replaceAll("-", "");
+    return fileService.saveDiagnosticBundle(
+      [...files.map((file) => ({ name: file.name, content: file.content })), { name: "README.txt", content: readme }],
+      `janus-studio-diagnostics-${date}.zip`,
+    );
   });
 
   ipcMain.handle("connections:list", (event) => {

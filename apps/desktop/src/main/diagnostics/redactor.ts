@@ -29,7 +29,8 @@ export function redactDiagnosticText(value: string): string {
       /((?:password|passwd|passphrase|secret|access[-_ ]?token|refresh[-_ ]?token)\s*[:=]\s*)(["']?)[^\s,"';}\]]+/gi,
       `$1$2${REDACTED}`,
     )
-    .replace(/([?&](?:token|access_token|refresh_token|api_key)=)[^&#\s]+/gi, `$1${REDACTED}`);
+    .replace(/([?&](?:token|access_token|refresh_token|api_key)=)[^&#\s]+/gi, `$1${REDACTED}`)
+    .replace(/(\b(?:for )?request\s*\[)[\s\S]*(\](?:\s*\(\d+\))?\s*$)/gi, `$1${REDACTED}$2`);
 }
 
 function redactError(error: Error, seen: WeakSet<object>, depth: number): Record<string, unknown> {

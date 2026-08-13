@@ -423,6 +423,28 @@ export type DiagnosticRuntimeSummary = {
   architecture: string;
 };
 
+export type DiagnosticPreviewSnapshot = {
+  generatedAt: string;
+  runtime: DiagnosticRuntimeSummary;
+  tasks: BackgroundTask[];
+  logs: DiagnosticLogEntry[];
+};
+
+export type DiagnosticPreviewSelection = {
+  summary: boolean;
+  tasks: boolean;
+  logs: boolean;
+};
+
+export type DiagnosticBundleInput = DiagnosticLogListInput & {
+  selection: DiagnosticPreviewSelection;
+};
+
+export type DiagnosticBundleResult = {
+  path: string | null;
+  fileCount: number;
+};
+
 export type DesktopApi = {
   runtime: {
     platform(): Promise<string>;
@@ -432,6 +454,8 @@ export type DesktopApi = {
   diagnostics: {
     runtime(): Promise<DiagnosticRuntimeSummary>;
     listLogs(input?: DiagnosticLogListInput): Promise<DiagnosticLogEntry[]>;
+    preview(input?: DiagnosticLogListInput): Promise<DiagnosticPreviewSnapshot>;
+    exportBundle(input: DiagnosticBundleInput): Promise<DiagnosticBundleResult>;
   };
   connections: {
     list(): Promise<ConnectionSummary[]>;

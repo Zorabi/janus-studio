@@ -14,6 +14,7 @@ import {
   PanelLeftOpen,
   Plus,
   Settings2,
+  Stethoscope,
   TerminalSquare,
   Waypoints,
   X,
@@ -25,6 +26,7 @@ import { useBackgroundTasks } from "./components/tasks/useBackgroundTasks";
 import { ConfirmDialog, IconButton } from "./components/ui";
 import { ConnectionDialog } from "./features/connections/ConnectionDialog";
 import { ConnectionsPage } from "./features/connections/ConnectionsPage";
+import { DiagnosticsPage } from "./features/diagnostics/DiagnosticsPage";
 import { GraphFactoryPage } from "./features/graph-factory/GraphFactoryPage";
 import { HistoryPage } from "./features/history/HistoryPage";
 import { QueryPage } from "./features/query/QueryPage";
@@ -70,12 +72,14 @@ type ViewId =
   | "graphFactory"
   | "schema"
   | "transfer"
+  | "diagnostics"
   | "settings";
 const NAV_ITEMS: Array<{
   id: ViewId;
   label: string;
   description: string;
   icon: ReactNode;
+  primary?: boolean;
 }> = [
   {
     id: "query",
@@ -112,6 +116,13 @@ const NAV_ITEMS: Array<{
     label: "导入导出",
     description: "整图归档与结果导出",
     icon: <FileUp size={19} />,
+  },
+  {
+    id: "diagnostics",
+    label: "问题诊断",
+    description: "生成脱敏诊断包",
+    icon: <Stethoscope size={19} />,
+    primary: false,
   },
   {
     id: "settings",
@@ -392,6 +403,7 @@ export default function App() {
     navigate: (kind) => setView(
       kind === "schema" ? "schema" : kind === "maintenance" ? "graphFactory" : "transfer",
     ),
+    navigateToDiagnostics: () => setView("diagnostics"),
   });
 
   const loadConnections = useCallback(async () => {
@@ -877,7 +889,7 @@ export default function App() {
           </button>
         </div>
         <nav aria-label={tx("主导航", "Main navigation")}>
-          {NAV_ITEMS.map((item) => (
+          {NAV_ITEMS.filter((item) => item.primary !== false).map((item) => (
             <button
               type="button"
               key={item.id}
@@ -1055,6 +1067,7 @@ export default function App() {
             notify={notify}
           />
         )}
+        {view === "diagnostics" && <DiagnosticsPage />}
         {view === "settings" && (
           <SettingsPage
             settings={settings}
@@ -1073,6 +1086,16 @@ export default function App() {
         </div>
         <div>
           <TaskCenterHost center={backgroundTaskCenter} />
+          <button
+            type="button"
+            className={`task-center-trigger ${view === "diagnostics" ? "is-active" : ""}`}
+            aria-current={view === "diagnostics" ? "page" : undefined}
+            title={tx("发生异常时生成脱敏诊断包", "Create a redacted bundle when something fails")}
+            onClick={() => navigateTo("diagnostics")}
+          >
+            <Stethoscope size={14} />
+            <span>{tx("问题诊断", "Diagnostics")}</span>
+          </button>
           <GitBranch size={14} />
           <span>local workspace</span>
           <span>History {history.length}</span>

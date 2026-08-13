@@ -15,6 +15,8 @@ const desktopApi: DesktopApi = {
   diagnostics: {
     runtime: () => ipcRenderer.invoke("diagnostics:runtime"),
     listLogs: (input) => ipcRenderer.invoke("diagnostics:logs:list", input),
+    preview: (input) => ipcRenderer.invoke("diagnostics:preview", input),
+    exportBundle: (input) => ipcRenderer.invoke("diagnostics:bundle:export", input),
   },
   connections: {
     list: () => ipcRenderer.invoke("connections:list"),

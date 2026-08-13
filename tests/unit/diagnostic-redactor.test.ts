@@ -62,6 +62,13 @@ test("redacts credentials embedded in URLs, headers, JSON and query parameters",
   assert.equal(output.includes("mode=read"), true);
 });
 
+test("removes Gremlin request bodies echoed by long-running server errors", () => {
+  const query = "def __graph = ConfiguredGraphFactory.open('graph2'); __graph.io(graphson()).readGraph('/tmp/data.json')";
+  const output = redactDiagnosticText(`Evaluation exceeded timeout for request [${query}] (598)`);
+  assert.equal(output.includes(query), false);
+  assert.equal(output, "Evaluation exceeded timeout for request [[REDACTED]] (598)");
+});
+
 test("redacts error stacks, causes and enumerable secret fields", () => {
   const cause = new Error("Authorization: Bearer cause-token");
   const error = new Error("Failed using password=error-password", { cause }) as Error & {

@@ -120,6 +120,46 @@ test("forwards server cancellation mode for interruptible transfer sessions", as
   assert.equal(executeArguments[7], true);
 });
 
+test("returns a serializable summary instead of a raw ManagementSystem", async () => {
+  let executeArguments: unknown[] = [];
+  const result: QueryExecutionResult = {
+    executionId: request.executionId,
+    durationMs: 1,
+    items: [],
+    truncated: false,
+    totalCount: 0,
+  };
+  const { service } = serviceFor(async (...args) => {
+    executeArguments = args;
+    return result;
+  }, { ...profile, clientMode: "sessioned" });
+
+  await service.execute({ ...request, query: "m = graph3.openManagement()" });
+  assert.equal(
+    executeArguments[4],
+    'm = graph3.openManagement(); [binding: "m", objectType: m.getClass().getName(), state: "open", scope: "session"]',
+  );
+});
+
+test("rolls back an unbound ManagementSystem after returning its summary", async () => {
+  let normalizedQuery = "";
+  const result: QueryExecutionResult = {
+    executionId: request.executionId,
+    durationMs: 1,
+    items: [],
+    truncated: false,
+    totalCount: 0,
+  };
+  const { service } = serviceFor(async (...args) => {
+    normalizedQuery = String(args[4]);
+    return result;
+  });
+
+  await service.execute({ ...request, query: "graph3.openManagement()" });
+  assert.match(normalizedQuery, /^def __janusStudioManagement = graph3\.openManagement\(\)/);
+  assert.match(normalizedQuery, /finally \{ __janusStudioManagement\.rollback\(\) \}$/);
+});
+
 test("enforces connection-level read-only protection before reaching Gremlin", async () => {
   let executions = 0;
   const { service } = serviceFor(async () => {
