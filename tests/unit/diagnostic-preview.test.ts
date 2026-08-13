@@ -9,6 +9,15 @@ import {
 
 const snapshot: DiagnosticPreviewSnapshot = {
   generatedAt: "2026-08-13T14:00:00.000Z",
+  incident: {
+    source: "schema",
+    title: "Schema operation failed",
+    connectionName: "Docker",
+    graphName: "graph2",
+    stage: "IMPORT_SCHEMA",
+    message: "Batch 2 failed",
+    occurredAt: "2026-08-13T13:10:00.000Z",
+  },
   runtime: {
     appVersion: "0.2.0",
     electronVersion: "37.2.6",
@@ -66,6 +75,9 @@ test("builds stable preview documents without internal connection ids", () => {
   const tasks = JSON.parse(files[1]!.content) as Array<Record<string, unknown>>;
 
   assert.equal((summary.privacy as Record<string, unknown>).queryTextIncluded, false);
+  assert.equal((summary.incident as Record<string, unknown>).source, "schema");
+  assert.equal((summary.incident as Record<string, unknown>).graphName, "graph2");
+  assert.equal(String((summary.incident as Record<string, unknown>).occurredAt).includes("T"), false);
   assert.equal(tasks[0]!.connectionName, "Docker");
   assert.match(String(tasks[0]!.createdAt), /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}$/);
   assert.equal(String(tasks[0]!.createdAt).includes("T"), false);

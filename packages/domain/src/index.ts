@@ -423,11 +423,22 @@ export type DiagnosticRuntimeSummary = {
   architecture: string;
 };
 
+export type DiagnosticIncidentContext = {
+  source: "connection" | "schema" | "graphFactory" | "task";
+  title: string;
+  connectionName?: string;
+  graphName?: string;
+  stage?: string;
+  message?: string;
+  occurredAt: string;
+};
+
 export type DiagnosticPreviewSnapshot = {
   generatedAt: string;
   runtime: DiagnosticRuntimeSummary;
   tasks: BackgroundTask[];
   logs: DiagnosticLogEntry[];
+  incident?: DiagnosticIncidentContext;
 };
 
 export type DiagnosticPreviewSelection = {
@@ -436,7 +447,11 @@ export type DiagnosticPreviewSelection = {
   logs: boolean;
 };
 
-export type DiagnosticBundleInput = DiagnosticLogListInput & {
+export type DiagnosticPreviewInput = DiagnosticLogListInput & {
+  incident?: DiagnosticIncidentContext;
+};
+
+export type DiagnosticBundleInput = DiagnosticPreviewInput & {
   selection: DiagnosticPreviewSelection;
 };
 
@@ -454,7 +469,7 @@ export type DesktopApi = {
   diagnostics: {
     runtime(): Promise<DiagnosticRuntimeSummary>;
     listLogs(input?: DiagnosticLogListInput): Promise<DiagnosticLogEntry[]>;
-    preview(input?: DiagnosticLogListInput): Promise<DiagnosticPreviewSnapshot>;
+    preview(input?: DiagnosticPreviewInput): Promise<DiagnosticPreviewSnapshot>;
     exportBundle(input: DiagnosticBundleInput): Promise<DiagnosticBundleResult>;
   };
   connections: {

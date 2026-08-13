@@ -94,6 +94,17 @@ test("keeps diagnostic bundle creation in the main process with an advanced prev
   assert.match(ipc, /diagnosticPreviewContainsExcludedContent/);
 });
 
+test("carries business failure context into problem diagnostics", async () => {
+  const app = await readFile(`${rendererRoot}/App.tsx`, "utf8");
+  const connections = await readFile(`${rendererRoot}/features/connections/ConnectionsPage.tsx`, "utf8");
+  const schema = await readFile(`${rendererRoot}/features/schema/SchemaPage.tsx`, "utf8");
+  const factory = await readFile(`${rendererRoot}/features/graph-factory/GraphFactoryPage.tsx`, "utf8");
+  assert.match(app, /<DiagnosticsPage incident=\{diagnosticIncident\}/);
+  assert.match(connections, /source: "connection"/);
+  assert.match(schema, /source: "schema"/);
+  assert.match(factory, /source: "graphFactory"/);
+});
+
 test("keeps Schema writes behind target confirmation and import review discoverable", async () => {
   const schemaPage = await readFile(`${rendererRoot}/features/schema/SchemaPage.tsx`, "utf8");
   const importDialog = await readFile(`${rendererRoot}/features/schema/SchemaImportDialog.tsx`, "utf8");

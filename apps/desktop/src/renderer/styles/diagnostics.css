@@ -4,6 +4,63 @@
   --diagnostic-elevated: var(--danger);
 }
 
+.diagnostics-incident {
+  display: grid;
+  grid-template-columns: auto minmax(220px, 0.72fr) minmax(280px, 1.28fr);
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 15px 18px;
+  border: 1px solid color-mix(in srgb, var(--danger) 34%, var(--line));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--danger) 5%, var(--surface-1));
+}
+
+.diagnostics-incident-mark {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, var(--surface-2));
+}
+
+.diagnostics-incident > div { display: grid; min-width: 0; gap: 3px; }
+.diagnostics-incident strong { color: var(--bone); font-size: var(--text-md); }
+.diagnostics-incident small { color: var(--muted); font-family: var(--font-code); }
+.diagnostics-incident p {
+  max-height: 62px;
+  margin: 0;
+  overflow: auto;
+  color: var(--muted-2);
+  font-size: var(--text-xs);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+/* Business failure surfaces share one clear route into the diagnostic flow. */
+.diagnostic-inline-action { width: max-content; margin-top: 10px; }
+.connection-test-failure {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin: 0 16px 16px;
+  padding: 11px 12px;
+  border: 1px solid color-mix(in srgb, var(--danger) 30%, var(--line));
+  border-radius: 9px;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 5%, var(--surface-1));
+}
+.connection-test-failure > span { display: grid; min-width: 0; gap: 2px; }
+.connection-test-failure strong { color: var(--bone); font-size: var(--text-xs); }
+.connection-test-failure small { overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
+.connection-test-failure .button { white-space: nowrap; }
+.empty-state-actions,
+.schema-job-detail-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.schema-job-detail-actions { justify-content: flex-end; }
+
 .diagnostics-purpose {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) minmax(210px, auto);
@@ -594,6 +651,8 @@
 }
 
 @media (max-width: 930px) {
+  .diagnostics-incident { grid-template-columns: auto minmax(0, 1fr); }
+  .diagnostics-incident p { grid-column: 2; }
   .diagnostics-purpose { grid-template-columns: auto minmax(0, 1fr); }
   .diagnostics-purpose-action { grid-column: 2; justify-items: start; }
   .diagnostics-safety-rail { grid-template-columns: auto minmax(0, 1fr); }
@@ -603,6 +662,7 @@
 }
 
 @media (max-width: 620px) {
+  .diagnostics-incident { padding: 14px; }
   .diagnostics-page { padding-inline: 16px; }
   .diagnostics-purpose { grid-template-columns: minmax(0, 1fr); padding: 20px; }
   .diagnostics-purpose-action { grid-column: 1; width: 100%; justify-items: stretch; }
@@ -617,6 +677,8 @@
   .diagnostics-preview > header { flex-direction: column; }
   .diagnostics-preview-meta { width: 100%; justify-content: space-between; }
   .diagnostics-levels { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .connection-test-failure { grid-template-columns: auto minmax(0, 1fr); }
+  .connection-test-failure .button { grid-column: 2; justify-self: start; }
 }
 
 @media (prefers-reduced-motion: reduce) {

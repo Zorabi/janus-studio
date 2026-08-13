@@ -24,7 +24,7 @@ type TaskCenterProps = {
   onCancel: (task: BackgroundTask) => Promise<void>;
   onRetry: (task: BackgroundTask) => Promise<void>;
   onOpenSource: (task: BackgroundTask) => void;
-  onOpenDiagnostics: () => void;
+  onOpenDiagnostics: (task: BackgroundTask) => void;
 };
 
 const terminalStatuses = new Set<BackgroundTask["status"]>([
@@ -144,7 +144,7 @@ export function TaskCenter({
               </button>
             )}
             {(task.status === "failed" || task.status === "interrupted") && (
-              <button type="button" onClick={onOpenDiagnostics}>
+              <button type="button" onClick={() => onOpenDiagnostics(task)}>
                 <Stethoscope size={15} />{t("生成诊断包", "Create diagnostic bundle")}
               </button>
             )}

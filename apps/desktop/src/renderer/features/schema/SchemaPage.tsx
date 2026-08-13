@@ -1,5 +1,6 @@
 import type {
   ConnectionSummary,
+  DiagnosticIncidentContext,
   QueryExecutionResult,
   SchemaJob,
 } from "@janusgraph/domain";
@@ -22,6 +23,7 @@ import {
   RefreshCw,
   Search,
   ShieldCheck,
+  Stethoscope,
   TerminalSquare,
   Upload,
   Waypoints,
@@ -464,6 +466,7 @@ export function SchemaPage({
   onGraphContextChange,
   onOpenQueryContext,
   onOpenGraphFactory,
+  onOpenDiagnostics,
   notify,
 }: {
   activeConnection: ConnectionSummary | undefined;
@@ -473,6 +476,7 @@ export function SchemaPage({
   onGraphContextChange: (context: DynamicGraphContext | null) => void;
   onOpenQueryContext: (context: DynamicGraphContext) => void;
   onOpenGraphFactory: () => void;
+  onOpenDiagnostics: (incident: DiagnosticIncidentContext) => void;
   notify: (toast: ToastState) => void;
 }) {
   const t = useTranslate();
@@ -1229,6 +1233,7 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
           busy={Boolean(indexBusy)}
           onRetry={(job) => void retrySchemaJob(job)}
           onDismiss={(job) => void dismissSchemaJob(job)}
+          onOpenDiagnostics={onOpenDiagnostics}
         />
       ) : !activeConnection ? (
         <EmptyState
@@ -1275,9 +1280,20 @@ ${stringLiteral(`Index ${name}: ${action}`)}`;
                   title={t("Schema 操作失败")}
                   description={state.message}
                   action={
-                    <button type="button" className="button secondary" onClick={refresh}>
-                      {t("重试")}
-                    </button>
+                    <div className="empty-state-actions">
+                      <button type="button" className="button secondary" onClick={refresh}>{t("重试")}</button>
+                      <button type="button" className="button text" onClick={() => onOpenDiagnostics({
+                        source: "schema",
+                        title: t("Schema 操作失败", "Schema operation failed"),
+                        connectionName: activeConnection.name,
+                        graphName: graphContext?.name ?? activeConnection.graphBinding,
+                        stage: "management",
+                        message: state.message,
+                        occurredAt: new Date().toISOString(),
+                      })}>
+                        <Stethoscope size={15} />{t("生成诊断包", "Create diagnostic bundle")}
+                      </button>
+                    </div>
                   }
                 />
               )}

@@ -1,4 +1,4 @@
-import type { SchemaJob, SchemaJobStatus } from "@janusgraph/domain";
+import type { DiagnosticIncidentContext, SchemaJob, SchemaJobStatus } from "@janusgraph/domain";
 import {
   AlertTriangle,
   Check,
@@ -7,6 +7,7 @@ import {
   History,
   RotateCcw,
   Search,
+  Stethoscope,
   Trash2,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -24,11 +25,13 @@ export function SchemaHistory({
   busy,
   onRetry,
   onDismiss,
+  onOpenDiagnostics,
 }: {
   jobs: SchemaJob[];
   busy: boolean;
   onRetry: (job: SchemaJob) => void;
   onDismiss: (job: SchemaJob) => void;
+  onOpenDiagnostics: (incident: DiagnosticIncidentContext) => void;
 }) {
   const t = useTranslate();
   const locale = useLocale();
@@ -272,6 +275,21 @@ export function SchemaHistory({
             </div>
             <pre>{detailJob.message}</pre>
           </section>
+          {(detailJob.status === "failed" || detailJob.status === "interrupted") && (
+            <footer className="schema-job-detail-actions">
+              <button type="button" className="button secondary" onClick={() => onOpenDiagnostics({
+                source: "schema",
+                title: t("Schema 操作失败", "Schema operation failed"),
+                connectionName: detailJob.connectionName,
+                graphName: detailJob.indexName || undefined,
+                stage: detailJob.action,
+                message: detailJob.message,
+                occurredAt: detailJob.updatedAt,
+              })}>
+                <Stethoscope size={16} />{t("生成诊断包", "Create diagnostic bundle")}
+              </button>
+            </footer>
+          )}
           {/violates a uniqueness constraint.*SchemaName/i.test(detailJob.message) && (
             <aside>
               <AlertTriangle size={17} />

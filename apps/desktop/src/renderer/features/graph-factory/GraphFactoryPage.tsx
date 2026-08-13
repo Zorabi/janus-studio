@@ -1,4 +1,4 @@
-import type { ConnectionSummary, QueryExecutionResult } from "@janusgraph/domain";
+import type { ConnectionSummary, DiagnosticIncidentContext, QueryExecutionResult } from "@janusgraph/domain";
 import { routeCompatibility } from "@janusgraph/application";
 import {
   AlertTriangle,
@@ -27,6 +27,7 @@ import {
   Search,
   ServerCog,
   ShieldCheck,
+  Stethoscope,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -412,6 +413,7 @@ export function GraphFactoryPage({
   execute,
   onUseGraph,
   onManageSchema,
+  onOpenDiagnostics,
   notify,
 }: {
   activeConnection: ConnectionSummary | undefined;
@@ -422,6 +424,7 @@ export function GraphFactoryPage({
   ) => Promise<QueryExecutionResult>;
   onUseGraph: (graph: ConfiguredGraphSummary) => void;
   onManageSchema: (graph: ConfiguredGraphSummary) => void;
+  onOpenDiagnostics: (incident: DiagnosticIncidentContext) => void;
   notify: (toast: ToastState) => void;
 }) {
   const t = useTranslate();
@@ -955,6 +958,16 @@ export function GraphFactoryPage({
               <li>{t("在集群每个节点配置 JanusGraphManager。", "Configure JanusGraphManager on every cluster node.")}</li>
               <li>{t("确认当前账号可以执行 Gremlin Groovy 管理脚本。", "Ensure the current account can execute Gremlin Groovy management scripts.")}</li>
             </ul>
+            <button type="button" className="button secondary diagnostic-inline-action" onClick={() => onOpenDiagnostics({
+              source: "graphFactory",
+              title: t("ConfiguredGraphFactory 尚不可用", "ConfiguredGraphFactory is unavailable"),
+              connectionName: activeConnection.name,
+              stage: "capability",
+              message: state.message,
+              occurredAt: new Date().toISOString(),
+            })}>
+              <Stethoscope size={16} />{t("生成诊断包", "Create diagnostic bundle")}
+            </button>
           </div>
         </section>
       )}
@@ -1205,6 +1218,19 @@ export function GraphFactoryPage({
                               )
                               : t("请检查图配置和服务端状态后重试。", "Check the graph configuration and server status, then retry.")}</p>
                             <details><summary>{t("查看技术详情", "View technical details")}</summary><code>{instances.message}</code></details>
+                            <button type="button" className="button text diagnostic-inline-action" onClick={() => onOpenDiagnostics({
+                              source: "graphFactory",
+                              title: instanceConflictId
+                                ? t("检测到重复的实例注册", "Duplicate instance registration detected")
+                                : t("实例会话读取失败", "Could not load instance sessions"),
+                              connectionName: activeConnection.name,
+                              graphName: selected.name,
+                              stage: "instances",
+                              message: instances.message,
+                              occurredAt: new Date().toISOString(),
+                            })}>
+                              <Stethoscope size={15} />{t("生成诊断包", "Create diagnostic bundle")}
+                            </button>
                           </div>
                         </div>
                       )}

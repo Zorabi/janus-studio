@@ -1,5 +1,5 @@
 import { connectionEndpoint } from "@janusgraph/application";
-import type { ConnectionSummary, ConnectionTestReport, QueryExecutionResult, QueryHistoryAssetEntry, QueryHistoryEntry, QuerySnippet, SaveConnectionInput } from "@janusgraph/domain";
+import type { ConnectionSummary, ConnectionTestReport, DiagnosticIncidentContext, QueryExecutionResult, QueryHistoryAssetEntry, QueryHistoryEntry, QuerySnippet, SaveConnectionInput } from "@janusgraph/domain";
 import {
   Activity,
   AlertTriangle,
@@ -65,15 +65,7 @@ import {
   saveSettings,
   type AppSettings,
 } from "./lib/settings";
-type ViewId =
-  | "query"
-  | "connections"
-  | "history"
-  | "graphFactory"
-  | "schema"
-  | "transfer"
-  | "diagnostics"
-  | "settings";
+type ViewId = "query" | "connections" | "history" | "graphFactory" | "schema" | "transfer" | "diagnostics" | "settings";
 const NAV_ITEMS: Array<{
   id: ViewId;
   label: string;
@@ -81,12 +73,7 @@ const NAV_ITEMS: Array<{
   icon: ReactNode;
   primary?: boolean;
 }> = [
-  {
-    id: "query",
-    label: "查询工作台",
-    description: "执行 Gremlin 并查看结果",
-    icon: <TerminalSquare size={19} />,
-  },
+  { id: "query", label: "查询工作台", description: "执行 Gremlin 并查看结果", icon: <TerminalSquare size={19} /> },
   {
     id: "connections",
     label: "连接管理",
@@ -134,6 +121,7 @@ const NAV_ITEMS: Array<{
 
 export default function App() {
   const [view, setView] = useState<ViewId>("query");
+  const [diagnosticIncident, setDiagnosticIncident] = useState<DiagnosticIncidentContext>();
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
   const [connections, setConnections] = useState<ConnectionSummary[]>([]);
   const [activeConnectionId, setActiveConnectionId] = useState(
@@ -403,7 +391,7 @@ export default function App() {
     navigate: (kind) => setView(
       kind === "schema" ? "schema" : kind === "maintenance" ? "graphFactory" : "transfer",
     ),
-    navigateToDiagnostics: () => setView("diagnostics"),
+    navigateToDiagnostics: (incident) => { setDiagnosticIncident(incident); setView("diagnostics"); },
   });
 
   const loadConnections = useCallback(async () => {
@@ -755,8 +743,8 @@ export default function App() {
     [],
   );
 
-  const testStoredConnection = async (connection: ConnectionSummary) => {
-    if (!window.janusGraphDesktop) return;
+  const testStoredConnection = async (connection: ConnectionSummary): Promise<ConnectionTestReport> => {
+    if (!window.janusGraphDesktop) throw new Error("Desktop API unavailable");
     try {
       const input: SaveConnectionInput = {
         ...connection,
@@ -770,9 +758,15 @@ export default function App() {
           ? `${connection.name} 连接正常，${report.latencyMs} ms`
           : report.message,
       });
+      return report;
     } catch (error) {
       notify({ tone: "error", message: errorMessage(error) });
+      throw error;
     }
+  };
+
+  const openDiagnostics = (incident?: DiagnosticIncidentContext) => {
+    setDiagnosticIncident(incident); setView("diagnostics");
   };
 
   const activeNav = NAV_ITEMS.find((item) => item.id === view) ?? NAV_ITEMS[0]!;
@@ -996,6 +990,7 @@ export default function App() {
             onEdit={(editing) => setConnectionDialog({ editing })}
             onDelete={setDeleteConnection}
             onTest={testStoredConnection}
+            onOpenDiagnostics={openDiagnostics}
           />
         )}
         {view === "history" && (
@@ -1026,6 +1021,7 @@ export default function App() {
               setSchemaGraphContext(dynamicGraphContext(activeConnectionId, graph));
               setView("schema");
             }}
+            onOpenDiagnostics={openDiagnostics}
             notify={notify}
           />
         )}
@@ -1049,6 +1045,7 @@ export default function App() {
             onGraphContextChange={setSchemaGraphContext}
             onOpenQueryContext={(context) => openGraphQueryContext(context, context.connectionId)}
             onOpenGraphFactory={() => setView("graphFactory")}
+            onOpenDiagnostics={openDiagnostics}
             notify={notify}
           />
         )}
@@ -1067,7 +1064,7 @@ export default function App() {
             notify={notify}
           />
         )}
-        {view === "diagnostics" && <DiagnosticsPage />}
+        {view === "diagnostics" && <DiagnosticsPage incident={diagnosticIncident} />}
         {view === "settings" && (
           <SettingsPage
             settings={settings}
@@ -1091,7 +1088,7 @@ export default function App() {
             className={`task-center-trigger ${view === "diagnostics" ? "is-active" : ""}`}
             aria-current={view === "diagnostics" ? "page" : undefined}
             title={tx("发生异常时生成脱敏诊断包", "Create a redacted bundle when something fails")}
-            onClick={() => navigateTo("diagnostics")}
+            onClick={() => openDiagnostics()}
           >
             <Stethoscope size={14} />
             <span>{tx("问题诊断", "Diagnostics")}</span>

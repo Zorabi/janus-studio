@@ -1,4 +1,5 @@
 import type {
+  DiagnosticIncidentContext,
   DiagnosticLogLevel,
   DiagnosticLogSource,
   DiagnosticPreviewSnapshot,
@@ -58,7 +59,7 @@ function formatTime(value: string): string {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
 
-export function DiagnosticsPage() {
+export function DiagnosticsPage({ incident }: { incident?: DiagnosticIncidentContext }) {
   const t = useTranslate();
   const [state, setState] = useState<PreviewState>({ status: "loading" });
   const [selection, setSelection] = useState<DiagnosticPreviewSelection>(
@@ -80,12 +81,12 @@ export function DiagnosticsPage() {
     try {
       const api = window.janusGraphDesktop;
       if (!api) throw new Error(desktopApiUnavailable);
-      const snapshot = await api.diagnostics.preview({ limit: logLimit, levels, sources });
+      const snapshot = await api.diagnostics.preview({ limit: logLimit, levels, sources, incident });
       setState({ status: "ready", snapshot });
     } catch (error) {
       setState({ status: "error", message: errorMessage(error) });
     }
-  }, [desktopApiUnavailable, levels, logLimit, sources]);
+  }, [desktopApiUnavailable, incident, levels, logLimit, sources]);
 
   useEffect(() => {
     void load();
@@ -137,7 +138,7 @@ export function DiagnosticsPage() {
     setExporting(true);
     setExportResult(null);
     try {
-      const result = await api.diagnostics.exportBundle({ selection, limit: logLimit, levels, sources });
+      const result = await api.diagnostics.exportBundle({ selection, limit: logLimit, levels, sources, incident });
       if (result.path) {
         setExportResult({
           tone: "success",
@@ -191,6 +192,20 @@ export function DiagnosticsPage() {
           "When connections, Schema, dynamic graphs or transfers fail, create a redacted bundle that can be safely shared with developers or operations.",
         )}
       />
+
+      {incident && (
+        <section className="diagnostics-incident" aria-label={t("当前故障上下文", "Current failure context")}>
+          <span className="diagnostics-incident-mark"><AlertTriangle size={19} /></span>
+          <div>
+            <span className="eyebrow">CURRENT INCIDENT</span>
+            <strong>{incident.title}</strong>
+            <small>
+              {[incident.connectionName, incident.graphName, incident.stage].filter(Boolean).join(" · ")}
+            </small>
+          </div>
+          <p>{incident.message || t("已从故障入口带入上下文", "Context was carried from the failure entry")}</p>
+        </section>
+      )}
 
       <section className="diagnostics-purpose">
         <div className="diagnostics-purpose-mark"><Wrench size={28} /></div>

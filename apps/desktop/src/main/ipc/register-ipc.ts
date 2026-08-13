@@ -12,6 +12,7 @@ import { GraphTransferService } from "../services/graph-transfer-service";
 import { QueryAssetRepository } from "../storage/query-asset-repository";
 import { StructuredLogger } from "../diagnostics/structured-logger";
 import { redactDiagnosticValue } from "../diagnostics/redactor";
+import type { DiagnosticIncidentContext, DiagnosticLogListInput } from "@janusgraph/domain";
 import {
   buildDiagnosticPreviewFiles,
   diagnosticPreviewContainsExcludedContent,
@@ -52,6 +53,7 @@ import {
   schemaJobIdSchema,
   startGraphTransferSchema,
   diagnosticLogListSchema,
+  diagnosticPreviewSchema,
   diagnosticBundleSchema,
 } from "./schemas";
 
@@ -79,8 +81,16 @@ function assertTrustedSender(event: IpcMainInvokeEvent, window: BrowserWindow): 
 function diagnosticSnapshot(
   logger: StructuredLogger,
   tasks: BackgroundTaskService,
-  input?: Parameters<StructuredLogger["list"]>[0],
+  input?: {
+    limit?: number;
+    levels?: DiagnosticLogListInput["levels"];
+    sources?: DiagnosticLogListInput["sources"];
+    incident?: DiagnosticIncidentContext;
+  },
 ) {
+  const logInput = input
+    ? { limit: input.limit, levels: input.levels, sources: input.sources }
+    : undefined;
   return {
     generatedAt: new Date().toISOString(),
     runtime: {
@@ -92,7 +102,10 @@ function diagnosticSnapshot(
       architecture: process.arch,
     },
     tasks: redactDiagnosticValue(tasks.list(50)) as ReturnType<BackgroundTaskService["list"]>,
-    logs: logger.list(input),
+    logs: logger.list(logInput),
+    incident: input?.incident
+      ? redactDiagnosticValue(input.incident) as DiagnosticIncidentContext
+      : undefined,
   };
 }
 
@@ -156,7 +169,7 @@ export function registerIpcHandlers({
 
   ipcMain.handle("diagnostics:preview", (event, rawInput: unknown) => {
     assertTrustedSender(event, window);
-    const input = diagnosticLogListSchema.parse(rawInput);
+    const input = diagnosticPreviewSchema.parse(rawInput);
     return diagnosticSnapshot(diagnosticLogger, backgroundTaskService, input);
   });
 

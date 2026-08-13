@@ -70,10 +70,29 @@ export const diagnosticLogListSchema = z.object({
   levels: z.array(diagnosticLogLevelSchema).max(4).optional(),
   sources: z.array(diagnosticLogSourceSchema).max(10).optional(),
 }).optional();
+const diagnosticIncidentSchema = z.object({
+  source: z.enum(["connection", "schema", "graphFactory", "task"]),
+  title: z.string().trim().min(1).max(240),
+  connectionName: z.string().trim().max(160).optional(),
+  graphName: z.string().trim().max(160).optional(),
+  stage: z.string().trim().max(160).optional(),
+  message: z.string().max(16_384).optional(),
+  occurredAt: z.string().max(64).refine(
+    (value) => Number.isFinite(Date.parse(value)),
+    "诊断事件时间必须是有效日期",
+  ),
+}).optional();
+export const diagnosticPreviewSchema = z.object({
+  limit: z.number().int().min(1).max(500).optional(),
+  levels: z.array(diagnosticLogLevelSchema).max(4).optional(),
+  sources: z.array(diagnosticLogSourceSchema).max(10).optional(),
+  incident: diagnosticIncidentSchema,
+}).optional();
 export const diagnosticBundleSchema = z.object({
   limit: z.number().int().min(1).max(500).optional(),
   levels: z.array(diagnosticLogLevelSchema).min(1).max(4).optional(),
   sources: z.array(diagnosticLogSourceSchema).min(1).max(10).optional(),
+  incident: diagnosticIncidentSchema,
   selection: z.object({
     summary: z.boolean(),
     tasks: z.boolean(),

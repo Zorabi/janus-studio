@@ -1,4 +1,4 @@
-import type { BackgroundTask } from "@janusgraph/domain";
+import type { BackgroundTask, DiagnosticIncidentContext } from "@janusgraph/domain";
 import { useCallback, useEffect, useState } from "react";
 import { errorMessage } from "../../lib/presentation";
 import type { ToastState } from "../../features/query/query-workspace";
@@ -7,7 +7,7 @@ type UseBackgroundTasksInput = {
   translate: (chinese: string, english?: string) => string;
   notify: (toast: ToastState) => void;
   navigate: (kind: BackgroundTask["kind"]) => void;
-  navigateToDiagnostics: () => void;
+  navigateToDiagnostics: (incident: DiagnosticIncidentContext) => void;
 };
 
 export function useBackgroundTasks({ translate, notify, navigate, navigateToDiagnostics }: UseBackgroundTasksInput) {
@@ -82,8 +82,16 @@ export function useBackgroundTasks({ translate, notify, navigate, navigateToDiag
     setOpen(false);
   };
 
-  const openDiagnostics = () => {
-    navigateToDiagnostics();
+  const openDiagnostics = (task: BackgroundTask) => {
+    navigateToDiagnostics({
+      source: "task",
+      title: task.title,
+      connectionName: task.connectionName,
+      graphName: task.graphName || undefined,
+      stage: task.stage,
+      message: task.message || undefined,
+      occurredAt: task.updatedAt,
+    });
     setOpen(false);
   };
 

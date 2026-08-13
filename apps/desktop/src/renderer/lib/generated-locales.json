@@ -932,6 +932,7 @@
     "这些字段无法用 Janus Studio 通用模型完整比较，将保持原始 JSON 并交给 JanusGraph 官方导入器处理。": "這些欄位無法用 Janus Studio 通用模型完整比較，將保持原始 JSON 並交給 JanusGraph 官方導入器處理。",
     "诊断": "診斷",
     "诊断包会记录应用版本、最近任务阶段和脱敏日志，帮助定位环境差异、服务端报错与任务中断原因。它不会修改连接、图数据或 Schema。": "The bundle records app versions, recent task stages and redacted logs to diagnose environment differences, server errors and interrupted jobs. It never changes connections, graph data or Schema.",
+    "诊断包已保存": "Diagnostic bundle saved",
     "诊断文件": "Diagnostic files",
     "整理缩进与 Traversal Step": "整理縮排與 Traversal Step",
     "整图导出": "整圖導出",
@@ -1113,7 +1114,9 @@
     "VERTICES + EDGES": "VERTICES + EDGES",
     "WebSocket 压缩": "WebSocket 壓縮",
     "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS 預設開啟；僅在受控測試環境中關閉",
-    "诊断包已保存": "Diagnostic bundle saved"
+    "当前故障上下文": "Current failure context",
+    "连接测试失败": "Connection test failed",
+    "已从故障入口带入上下文": "Context was carried from the failure entry"
   },
   "ja-JP": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "「現在欠落している」とは、定義がベースラインには存在するが、この読み取り結果には表示されないことのみを意味します。 Janus Studio がそのようなスキーマ定義の削除をサポートするという意味ではありません。",
@@ -2048,6 +2051,7 @@
     "这些字段无法用 Janus Studio 通用模型完整比较，将保持原始 JSON 并交给 JanusGraph 官方导入器处理。": "これらのフィールドは、Janus Studio ユニバーサル モデルと完全に比較することはできず、生の JSON として保持され、公式 JanusGraph インポーターに渡されます。",
     "诊断": "診断",
     "诊断包会记录应用版本、最近任务阶段和脱敏日志，帮助定位环境差异、服务端报错与任务中断原因。它不会修改连接、图数据或 Schema。": "The bundle records app versions, recent task stages and redacted logs to diagnose environment differences, server errors and interrupted jobs. It never changes connections, graph data or Schema.",
+    "诊断包已保存": "Diagnostic bundle saved",
     "诊断文件": "Diagnostic files",
     "整理缩进与 Traversal Step": "インデントとトラバースステップを整理する",
     "整图导出": "画像全体をエクスポートする",
@@ -2229,7 +2233,9 @@
     "VERTICES + EDGES": "頂点 + エッジ",
     "WebSocket 压缩": "WebSocket圧縮",
     "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS はデフォルトでオンになっています。管理されたテスト環境でのみオフになります",
-    "诊断包已保存": "Diagnostic bundle saved"
+    "当前故障上下文": "Current failure context",
+    "连接测试失败": "Connection test failed",
+    "已从故障入口带入上下文": "Context was carried from the failure entry"
   },
   "ko-KR": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "\"현재 누락됨\"은 정의가 기준선에 존재하지만 이 읽기 결과에는 나타나지 않음을 의미합니다. 이는 Janus Studio가 그러한 스키마 정의 삭제를 지원한다는 의미는 아닙니다.",
@@ -3164,6 +3170,7 @@
     "这些字段无法用 Janus Studio 通用模型完整比较，将保持原始 JSON 并交给 JanusGraph 官方导入器处理。": "이러한 필드는 Janus Studio 범용 모델과 완전히 비교할 수 없으며 원시 JSON으로 유지되고 공식 JanusGraph 가져오기 도구로 전달됩니다.",
     "诊断": "진단",
     "诊断包会记录应用版本、最近任务阶段和脱敏日志，帮助定位环境差异、服务端报错与任务中断原因。它不会修改连接、图数据或 Schema。": "The bundle records app versions, recent task stages and redacted logs to diagnose environment differences, server errors and interrupted jobs. It never changes connections, graph data or Schema.",
+    "诊断包已保存": "Diagnostic bundle saved",
     "诊断文件": "Diagnostic files",
     "整理缩进与 Traversal Step": "들여쓰기 및 순회 단계 구성",
     "整图导出": "전체 이미지 내보내기",
@@ -3345,7 +3352,9 @@
     "VERTICES + EDGES": "정점 + 가장자리",
     "WebSocket 压缩": "WebSocket 압축",
     "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS는 기본적으로 켜져 있습니다. 통제된 테스트 환경에서만 꺼짐",
-    "诊断包已保存": "Diagnostic bundle saved"
+    "当前故障上下文": "Current failure context",
+    "连接测试失败": "Connection test failed",
+    "已从故障入口带入上下文": "Context was carried from the failure entry"
   },
   "de-DE": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "„Derzeit fehlt“ bedeutet nur, dass die Definition in der Baseline vorhanden ist, aber in diesem Leseergebnis nicht erscheint; Dies bedeutet nicht, dass Janus Studio das Löschen solcher Schemadefinitionen unterstützt.",
@@ -4280,6 +4289,7 @@
     "这些字段无法用 Janus Studio 通用模型完整比较，将保持原始 JSON 并交给 JanusGraph 官方导入器处理。": "Diese Felder können nicht vollständig mit dem Janus Studio-Universalmodell verglichen werden und werden als Roh-JSON beibehalten und an den offiziellen JanusGraph-Importeur übergeben.",
     "诊断": "Diagnose",
     "诊断包会记录应用版本、最近任务阶段和脱敏日志，帮助定位环境差异、服务端报错与任务中断原因。它不会修改连接、图数据或 Schema。": "The bundle records app versions, recent task stages and redacted logs to diagnose environment differences, server errors and interrupted jobs. It never changes connections, graph data or Schema.",
+    "诊断包已保存": "Diagnostic bundle saved",
     "诊断文件": "Diagnostic files",
     "整理缩进与 Traversal Step": "Organisieren Sie Einrückung und Durchlaufschritt",
     "整图导出": "Exportieren Sie das gesamte Bild",
@@ -4461,7 +4471,9 @@
     "VERTICES + EDGES": "Scheitelpunkte + Kanten",
     "WebSocket 压缩": "WebSocket-Komprimierung",
     "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS ist standardmäßig aktiviert; nur in kontrollierten Testumgebungen ausgeschaltet",
-    "诊断包已保存": "Diagnostic bundle saved"
+    "当前故障上下文": "Current failure context",
+    "连接测试失败": "Connection test failed",
+    "已从故障入口带入上下文": "Context was carried from the failure entry"
   },
   "fr-FR": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "« Actuellement manquant » signifie uniquement que la définition existe dans la ligne de base mais n'apparaît pas dans ce résultat de lecture ; cela ne signifie pas que Janus Studio prend en charge la suppression de telles définitions de schéma.",
@@ -5396,6 +5408,7 @@
     "这些字段无法用 Janus Studio 通用模型完整比较，将保持原始 JSON 并交给 JanusGraph 官方导入器处理。": "Ces champs ne peuvent pas être entièrement comparés au modèle universel Janus Studio et seront conservés sous forme de JSON brut et remis à l'importateur officiel JanusGraph.",
     "诊断": "Diagnostic",
     "诊断包会记录应用版本、最近任务阶段和脱敏日志，帮助定位环境差异、服务端报错与任务中断原因。它不会修改连接、图数据或 Schema。": "The bundle records app versions, recent task stages and redacted logs to diagnose environment differences, server errors and interrupted jobs. It never changes connections, graph data or Schema.",
+    "诊断包已保存": "Diagnostic bundle saved",
     "诊断文件": "Diagnostic files",
     "整理缩进与 Traversal Step": "Organiser l'indentation et l'étape de traversée",
     "整图导出": "Exporter l'image entière",
@@ -5577,7 +5590,9 @@
     "VERTICES + EDGES": "SOMMETS + BORDS",
     "WebSocket 压缩": "Compression WebSocket",
     "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS est activé par défaut ; uniquement désactivé dans des environnements de test contrôlés",
-    "诊断包已保存": "Diagnostic bundle saved"
+    "当前故障上下文": "Current failure context",
+    "连接测试失败": "Connection test failed",
+    "已从故障入口带入上下文": "Context was carried from the failure entry"
   },
   "es-ES": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "\"Actualmente faltante\" solo significa que la definición existe en la línea base pero no aparece en este resultado de lectura; Esto no significa que Janus Studio admita la eliminación de dichas definiciones de esquema.",
@@ -6512,6 +6527,7 @@
     "这些字段无法用 Janus Studio 通用模型完整比较，将保持原始 JSON 并交给 JanusGraph 官方导入器处理。": "Estos campos no se pueden comparar completamente con el modelo universal de Janus Studio y se mantendrán como JSON sin formato y se entregarán al importador oficial de JanusGraph.",
     "诊断": "Diagnóstico",
     "诊断包会记录应用版本、最近任务阶段和脱敏日志，帮助定位环境差异、服务端报错与任务中断原因。它不会修改连接、图数据或 Schema。": "The bundle records app versions, recent task stages and redacted logs to diagnose environment differences, server errors and interrupted jobs. It never changes connections, graph data or Schema.",
+    "诊断包已保存": "Diagnostic bundle saved",
     "诊断文件": "Diagnostic files",
     "整理缩进与 Traversal Step": "Organizar sangría y paso transversal",
     "整图导出": "Exportar la imagen completa",
@@ -6693,7 +6709,9 @@
     "VERTICES + EDGES": "VERTICES + ARISTAS",
     "WebSocket 压缩": "Compresión WebSocket",
     "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS está activado de forma predeterminada; sólo apagado en entornos de prueba controlados",
-    "诊断包已保存": "Diagnostic bundle saved"
+    "当前故障上下文": "Current failure context",
+    "连接测试失败": "Connection test failed",
+    "已从故障入口带入上下文": "Context was carried from the failure entry"
   },
   "pt-BR": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "\"Atualmente ausente\" significa apenas que a definição existe na linha de base, mas não aparece neste resultado de leitura; isso não significa que o Janus Studio suporta a exclusão de tais definições de esquema.",
@@ -7628,6 +7646,7 @@
     "这些字段无法用 Janus Studio 通用模型完整比较，将保持原始 JSON 并交给 JanusGraph 官方导入器处理。": "Esses campos não podem ser totalmente comparados com o modelo universal do Janus Studio e serão mantidos como JSON bruto e entregues ao importador oficial do JanusGraph.",
     "诊断": "Diagnóstico",
     "诊断包会记录应用版本、最近任务阶段和脱敏日志，帮助定位环境差异、服务端报错与任务中断原因。它不会修改连接、图数据或 Schema。": "The bundle records app versions, recent task stages and redacted logs to diagnose environment differences, server errors and interrupted jobs. It never changes connections, graph data or Schema.",
+    "诊断包已保存": "Diagnostic bundle saved",
     "诊断文件": "Diagnostic files",
     "整理缩进与 Traversal Step": "Organizar recuo e etapa transversal",
     "整图导出": "Exporte a imagem inteira",
@@ -7809,7 +7828,9 @@
     "VERTICES + EDGES": "VÉRTICES + BORDAS",
     "WebSocket 压缩": "Compressão WebSocket",
     "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS está ativado por padrão; somente desativado em ambientes de teste controlados",
-    "诊断包已保存": "Diagnostic bundle saved"
+    "当前故障上下文": "Current failure context",
+    "连接测试失败": "Connection test failed",
+    "已从故障入口带入上下文": "Context was carried from the failure entry"
   },
   "it-IT": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "\"Attualmente mancante\" significa solo che la definizione esiste nella linea di base ma non appare in questo risultato di lettura; ciò non significa che Janus Studio supporti l'eliminazione di tali definizioni di schema.",
@@ -8744,6 +8765,7 @@
     "这些字段无法用 Janus Studio 通用模型完整比较，将保持原始 JSON 并交给 JanusGraph 官方导入器处理。": "Questi campi non possono essere completamente confrontati con il modello universale Janus Studio e verranno mantenuti come JSON grezzi e consegnati all'importatore ufficiale JanusGraph.",
     "诊断": "Diagnosi",
     "诊断包会记录应用版本、最近任务阶段和脱敏日志，帮助定位环境差异、服务端报错与任务中断原因。它不会修改连接、图数据或 Schema。": "The bundle records app versions, recent task stages and redacted logs to diagnose environment differences, server errors and interrupted jobs. It never changes connections, graph data or Schema.",
+    "诊断包已保存": "Diagnostic bundle saved",
     "诊断文件": "Diagnostic files",
     "整理缩进与 Traversal Step": "Organizzare il rientro e il passaggio trasversale",
     "整图导出": "Esporta l'intera immagine",
@@ -8925,7 +8947,9 @@
     "VERTICES + EDGES": "VERTICI + BORDI",
     "WebSocket 压缩": "Compressione WebSocket",
     "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS è attivo per impostazione predefinita; disattivato solo in ambienti di test controllati",
-    "诊断包已保存": "Diagnostic bundle saved"
+    "当前故障上下文": "Current failure context",
+    "连接测试失败": "Connection test failed",
+    "已从故障入口带入上下文": "Context was carried from the failure entry"
   },
   "ru-RU": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "«В настоящее время отсутствует» означает только то, что определение существует в базовой версии, но не отображается в этом результате чтения; это не означает, что Janus Studio поддерживает удаление таких определений схемы.",
@@ -9860,6 +9884,7 @@
     "这些字段无法用 Janus Studio 通用模型完整比较，将保持原始 JSON 并交给 JanusGraph 官方导入器处理。": "Эти поля невозможно полностью сравнить с универсальной моделью Janus Studio, они будут сохранены в виде необработанного JSON и переданы официальному импортеру JanusGraph.",
     "诊断": "Диагностика",
     "诊断包会记录应用版本、最近任务阶段和脱敏日志，帮助定位环境差异、服务端报错与任务中断原因。它不会修改连接、图数据或 Schema。": "The bundle records app versions, recent task stages and redacted logs to diagnose environment differences, server errors and interrupted jobs. It never changes connections, graph data or Schema.",
+    "诊断包已保存": "Diagnostic bundle saved",
     "诊断文件": "Diagnostic files",
     "整理缩进与 Traversal Step": "Организация отступов и шагов обхода",
     "整图导出": "Экспортируйте все изображение",
@@ -10041,7 +10066,9 @@
     "VERTICES + EDGES": "ВЕРШИНЫ + КРАЯ",
     "WebSocket 压缩": "Сжатие веб-сокетов",
     "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS включен по умолчанию; отключено только в контролируемых средах тестирования",
-    "诊断包已保存": "Diagnostic bundle saved"
+    "当前故障上下文": "Current failure context",
+    "连接测试失败": "Connection test failed",
+    "已从故障入口带入上下文": "Context was carried from the failure entry"
   },
   "pl-PL": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "„Obecnie brak” oznacza jedynie, że definicja istnieje w wersji podstawowej, ale nie pojawia się w tym wyniku odczytu; nie oznacza to, że Janus Studio obsługuje usuwanie takich definicji schematów.",
@@ -10976,6 +11003,7 @@
     "这些字段无法用 Janus Studio 通用模型完整比较，将保持原始 JSON 并交给 JanusGraph 官方导入器处理。": "Pola te nie mogą być w pełni porównane z uniwersalnym modelem Janus Studio i zostaną zachowane w postaci surowego JSON i przekazane oficjalnemu importerowi JanusGraph.",
     "诊断": "Diagnoza",
     "诊断包会记录应用版本、最近任务阶段和脱敏日志，帮助定位环境差异、服务端报错与任务中断原因。它不会修改连接、图数据或 Schema。": "The bundle records app versions, recent task stages and redacted logs to diagnose environment differences, server errors and interrupted jobs. It never changes connections, graph data or Schema.",
+    "诊断包已保存": "Diagnostic bundle saved",
     "诊断文件": "Diagnostic files",
     "整理缩进与 Traversal Step": "Zorganizuj wcięcie i krok przejścia",
     "整图导出": "Eksportuj cały obraz",
@@ -11157,7 +11185,9 @@
     "VERTICES + EDGES": "Wierzchołki + Krawędzie",
     "WebSocket 压缩": "Kompresja WebSocket",
     "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS jest domyślnie włączony; wyłączone tylko w kontrolowanych środowiskach testowych",
-    "诊断包已保存": "Diagnostic bundle saved"
+    "当前故障上下文": "Current failure context",
+    "连接测试失败": "Connection test failed",
+    "已从故障入口带入上下文": "Context was carried from the failure entry"
   },
   "tr-TR": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "\"Şu anda eksik\" yalnızca tanımın taban çizgisinde mevcut olduğu ancak bu okuma sonucunda görünmediği anlamına gelir; bu, Janus Studio'nun bu tür Şema tanımlarının silinmesini desteklediği anlamına gelmez.",
@@ -12092,6 +12122,7 @@
     "这些字段无法用 Janus Studio 通用模型完整比较，将保持原始 JSON 并交给 JanusGraph 官方导入器处理。": "Bu alanlar Janus Studio evrensel modeliyle tam olarak karşılaştırılamaz ve ham JSON olarak tutulacak ve resmi JanusGraph içe aktarıcısına devredilecektir.",
     "诊断": "Teşhis",
     "诊断包会记录应用版本、最近任务阶段和脱敏日志，帮助定位环境差异、服务端报错与任务中断原因。它不会修改连接、图数据或 Schema。": "The bundle records app versions, recent task stages and redacted logs to diagnose environment differences, server errors and interrupted jobs. It never changes connections, graph data or Schema.",
+    "诊断包已保存": "Diagnostic bundle saved",
     "诊断文件": "Diagnostic files",
     "整理缩进与 Traversal Step": "Girintiyi ve Geçiş Adımını Organize Edin",
     "整图导出": "Resmin tamamını dışa aktar",
@@ -12273,7 +12304,9 @@
     "VERTICES + EDGES": "KÖŞELER + KENARLAR",
     "WebSocket 压缩": "WebSocket sıkıştırması",
     "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS varsayılan olarak açıktır; yalnızca kontrollü test ortamlarında kapalı",
-    "诊断包已保存": "Diagnostic bundle saved"
+    "当前故障上下文": "Current failure context",
+    "连接测试失败": "Connection test failed",
+    "已从故障入口带入上下文": "Context was carried from the failure entry"
   },
   "vi-VN": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "\"Hiện bị thiếu\" chỉ có nghĩa là định nghĩa tồn tại trong đường cơ sở nhưng không xuất hiện trong kết quả đọc này; điều đó không có nghĩa là Janus Studio hỗ trợ xóa các định nghĩa Schema như vậy.",
@@ -13208,6 +13241,7 @@
     "这些字段无法用 Janus Studio 通用模型完整比较，将保持原始 JSON 并交给 JanusGraph 官方导入器处理。": "Các trường này không thể so sánh hoàn toàn với mô hình phổ quát của Janus Studio và sẽ được giữ dưới dạng JSON thô và được bàn giao cho nhà nhập khẩu JanusGraph chính thức.",
     "诊断": "Chẩn đoán",
     "诊断包会记录应用版本、最近任务阶段和脱敏日志，帮助定位环境差异、服务端报错与任务中断原因。它不会修改连接、图数据或 Schema。": "The bundle records app versions, recent task stages and redacted logs to diagnose environment differences, server errors and interrupted jobs. It never changes connections, graph data or Schema.",
+    "诊断包已保存": "Diagnostic bundle saved",
     "诊断文件": "Diagnostic files",
     "整理缩进与 Traversal Step": "Tổ chức thụt lề và bước truyền tải",
     "整图导出": "Xuất toàn bộ hình ảnh",
@@ -13389,6 +13423,8 @@
     "VERTICES + EDGES": "ĐỈNH + CẠNH",
     "WebSocket 压缩": "Nén WebSocket",
     "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS được bật theo mặc định; chỉ tắt trong môi trường thử nghiệm được kiểm soát",
-    "诊断包已保存": "Diagnostic bundle saved"
+    "当前故障上下文": "Current failure context",
+    "连接测试失败": "Connection test failed",
+    "已从故障入口带入上下文": "Context was carried from the failure entry"
   }
 }

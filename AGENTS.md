@@ -217,7 +217,8 @@
 - 诊断能力第一阶段已完成：主进程使用 500 条固定容量结构化环形日志；密码、Token、认证 Header、私钥、URL 凭据、查询正文与字符串绑定在写入时统一脱敏；Renderer 仅能通过只读 IPC 获取运行时摘要和筛选后的日志副本。
 - 问题诊断闭环已完成：问题诊断作为状态栏低频工具入口而非日常主工作区，页面首先说明适用场景并提供“生成诊断包”；文件选择和逐文件预览默认收进高级选项。主进程复用同一文档构造生成 ZIP，包含 `summary.json`、`tasks.json`、`logs.ndjson` 和 `README.txt`，写盘前再次执行安全扫描。任务中心的失败/中断记录可直接进入问题诊断。凭据、认证 Header、私钥、查询正文和字符串绑定属于固定排除项，不得提供用户开关。
 - 诊断包任务记录的 `createdAt`、`updatedAt`、`completedAt` 使用本地 `YYYY-MM-DD HH:mm:ss.SSS`，不输出带 `T`/`Z` 的 ISO UTC 文本。交互式查询若仅执行 `m = graph.openManagement()`，必须保留服务端变量赋值并返回可序列化摘要；若直接执行 `graph.openManagement()`，返回摘要后必须回滚不可复用的临时 Management。禁止直接返回 `ManagementSystem` 导致 GraphSON 递归序列化后端驱动对象。
-- i18n 消息目录当前为每种语言 1114 条，并会在生成时清理已从源码移除的废弃文案。翻译服务不可用时生成脚本保留英文 fallback 并正常完成，不能因远端限流阻断本地构建。
+- 连接测试失败、Schema 读取/历史失败、ConfiguredGraphFactory 能力或实例读取失败，以及任务中心失败/中断记录，统一提供“生成诊断包”入口；入口必须携带来源、连接、图、阶段、时间和异常摘要。问题诊断页展示当前故障上下文，主进程再次校验和脱敏后写入 `summary.json`，禁止仅靠 Renderer 隐藏敏感信息。
+- i18n 消息目录当前为每种语言 1117 条，并会在生成时清理已从源码移除的废弃文案。翻译服务不可用时生成脚本保留英文 fallback 并正常完成，不能因远端限流阻断本地构建。
 
 ## 9. 开发与验证命令
 
@@ -232,7 +233,7 @@ pnpm build
 ```
 
 - `pnpm typecheck`：全部 workspace TypeScript 检查。
-- `pnpm test`：当前 161 项测试，其中 157 项本地通过，4 项真实 JanusGraph 集成测试在未配置环境时跳过。
+- `pnpm test`：当前 162 项测试，其中 158 项本地通过，4 项真实 JanusGraph 集成测试在未配置环境时跳过。
 - `pnpm build`：Electron Forge 生产打包。
 - macOS ARM64 打包输出：
   `apps/desktop/out/Janus Studio-darwin-arm64/Janus Studio.app`。
@@ -255,7 +256,7 @@ pnpm build
 
 - 当前代码基线提交：`dc87389 feat: complete query asset workspace`；诊断基础设施第一阶段将在本次提交后更新。
 - 最近一次 `pnpm typecheck`：通过。
-- 最近一次 `pnpm test`：161 项，157 通过，4 个真实环境测试跳过，0 失败。
+- 最近一次 `pnpm test`：162 项，158 通过，4 个真实环境测试跳过，0 失败。
 - 最近一次 `pnpm build`：通过。
 - 最近一次打包时间：2026-08-13。
 - 多节点 Binding 传播、真实 Drop、残留实例处理和关闭后自动重开语义已由用户验收。

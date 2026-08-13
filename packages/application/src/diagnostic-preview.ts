@@ -22,9 +22,17 @@ export const DEFAULT_DIAGNOSTIC_PREVIEW_SELECTION: DiagnosticPreviewSelection = 
   logs: true,
 };
 
-function runtimeDocument(runtime: DiagnosticRuntimeSummary, generatedAt: string): Record<string, unknown> {
+function runtimeDocument(
+  runtime: DiagnosticRuntimeSummary,
+  generatedAt: string,
+  incident?: DiagnosticPreviewSnapshot["incident"],
+): Record<string, unknown> {
   return {
-    generatedAt,
+    generatedAt: readableLocalTime(generatedAt),
+    incident: incident ? {
+      ...incident,
+      occurredAt: readableLocalTime(incident.occurredAt),
+    } : null,
     application: { name: "Janus Studio", version: runtime.appVersion },
     runtime: {
       electron: runtime.electronVersion,
@@ -85,7 +93,7 @@ export function buildDiagnosticPreviewFiles(
       name: "summary.json",
       sensitivity: "low",
       itemCount: 1,
-      content: JSON.stringify(runtimeDocument(snapshot.runtime, snapshot.generatedAt), null, 2),
+      content: JSON.stringify(runtimeDocument(snapshot.runtime, snapshot.generatedAt, snapshot.incident), null, 2),
     });
   }
   if (selection.tasks) {

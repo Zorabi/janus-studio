@@ -1,11 +1,13 @@
 import { connectionEndpoint } from "@janusgraph/application";
-import type { ConnectionSummary } from "@janusgraph/domain";
+import type { ConnectionSummary, ConnectionTestReport, DiagnosticIncidentContext } from "@janusgraph/domain";
 import {
   Activity,
+  AlertTriangle,
   Check,
   Cpu,
   Database,
   Edit3,
+  Stethoscope,
   LoaderCircle,
   LockKeyhole,
   Plus,
@@ -24,7 +26,8 @@ export interface ConnectionsPageProps {
   onAdd: () => void;
   onEdit: (connection: ConnectionSummary) => void;
   onDelete: (connection: ConnectionSummary) => void;
-  onTest: (connection: ConnectionSummary) => Promise<void>;
+  onTest: (connection: ConnectionSummary) => Promise<ConnectionTestReport>;
+  onOpenDiagnostics: (incident: DiagnosticIncidentContext) => void;
 }
 
 export function ConnectionsPage({
@@ -35,9 +38,11 @@ export function ConnectionsPage({
   onEdit,
   onDelete,
   onTest,
+  onOpenDiagnostics,
 }: ConnectionsPageProps) {
   const t = useTranslate();
   const [testingId, setTestingId] = useState("");
+  const [testFailures, setTestFailures] = useState<Record<string, ConnectionTestReport>>({});
   const [compatibilityConnection, setCompatibilityConnection] = useState<ConnectionSummary | null>(null);
 
   return (
@@ -171,8 +176,25 @@ export function ConnectionsPage({
                     disabled={testingId === connection.id}
                     onClick={async () => {
                       setTestingId(connection.id);
-                      await onTest(connection);
-                      setTestingId("");
+                      try {
+                        const report = await onTest(connection);
+                        setTestFailures((current) => report.success
+                          ? Object.fromEntries(Object.entries(current).filter(([id]) => id !== connection.id))
+                          : { ...current, [connection.id]: report });
+                      } catch (error) {
+                        setTestFailures((current) => ({
+                          ...current,
+                          [connection.id]: {
+                            success: false,
+                            latencyMs: 0,
+                            endpoint: connectionEndpoint(connection),
+                            stage: "network",
+                            message: error instanceof Error ? error.message : t("连接测试失败", "Connection test failed"),
+                          },
+                        }));
+                      } finally {
+                        setTestingId("");
+                      }
                     }}
                   >
                     {testingId === connection.id ? (
@@ -206,6 +228,22 @@ export function ConnectionsPage({
                     <Trash2 size={17} />
                   </IconButton>
                 </footer>
+                {testFailures[connection.id] && (
+                  <div className="connection-test-failure" role="alert">
+                    <AlertTriangle size={16} />
+                    <span><strong>{t("连接测试失败", "Connection test failed")}</strong><small>{testFailures[connection.id]!.message}</small></span>
+                    <button type="button" className="button text" onClick={() => onOpenDiagnostics({
+                      source: "connection",
+                      title: t("连接测试失败", "Connection test failed"),
+                      connectionName: connection.name,
+                      stage: testFailures[connection.id]!.stage,
+                      message: testFailures[connection.id]!.message,
+                      occurredAt: new Date().toISOString(),
+                    })}>
+                      <Stethoscope size={15} />{t("生成诊断包", "Create diagnostic bundle")}
+                    </button>
+                  </div>
+                )}
               </article>
             );
           })}
