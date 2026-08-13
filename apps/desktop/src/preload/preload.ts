@@ -17,6 +17,11 @@ const desktopApi: DesktopApi = {
     listLogs: (input) => ipcRenderer.invoke("diagnostics:logs:list", input),
     preview: (input) => ipcRenderer.invoke("diagnostics:preview", input),
     exportBundle: (input) => ipcRenderer.invoke("diagnostics:bundle:export", input),
+    inspectBundle: () => ipcRenderer.invoke("diagnostics:bundle:inspect"),
+    listRecords: (limit) => ipcRenderer.invoke("diagnostics:records:list", limit),
+    saveRecord: (input) => ipcRenderer.invoke("diagnostics:records:save", input),
+    setRecordStatus: (id, status) => ipcRenderer.invoke("diagnostics:records:status", { id, status }),
+    removeRecord: (id) => ipcRenderer.invoke("diagnostics:records:remove", id),
   },
   connections: {
     list: () => ipcRenderer.invoke("connections:list"),

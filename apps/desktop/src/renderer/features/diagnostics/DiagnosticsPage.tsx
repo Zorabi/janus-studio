@@ -1,5 +1,8 @@
 import type {
   DiagnosticIncidentContext,
+  DiagnosticBundleInspectionResult,
+  DiagnosticRecord,
+  DiagnosticRecordStatus,
   DiagnosticLogLevel,
   DiagnosticLogSource,
   DiagnosticPreviewSnapshot,
@@ -13,6 +16,7 @@ import {
   FileCode2,
   FileJson2,
   FileText,
+  FolderSearch,
   Fingerprint,
   LoaderCircle,
   LockKeyhole,
@@ -21,17 +25,20 @@ import {
   TerminalSquare,
   Wrench,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SelectControl } from "../../components/SelectControl";
-import { PageHeader } from "../../components/ui";
+import { ConfirmDialog, PageHeader } from "../../components/ui";
 import { useTranslate } from "../../lib/i18n";
 import { errorMessage } from "../../lib/presentation";
 import {
   buildDiagnosticPreviewFiles,
+  analyzeDiagnosticSnapshot,
   DEFAULT_DIAGNOSTIC_PREVIEW_SELECTION,
   diagnosticPreviewContainsExcludedContent,
 } from "@janusgraph/application";
 import type { DiagnosticPreviewSelection } from "@janusgraph/domain";
+import { DiagnosticReportPanel } from "./DiagnosticReportPanel";
+import { DiagnosticRecordPanel } from "./DiagnosticRecordPanel";
 
 type DiagnosticPreviewSection = keyof DiagnosticPreviewSelection;
 
@@ -73,6 +80,12 @@ export function DiagnosticsPage({ incident }: { incident?: DiagnosticIncidentCon
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportResult, setExportResult] = useState<{ tone: "success" | "error"; message: string } | null>(null);
+  const [inspection, setInspection] = useState<DiagnosticBundleInspectionResult | null>(null);
+  const [records, setRecords] = useState<DiagnosticRecord[]>([]);
+  const [selectedRecord, setSelectedRecord] = useState<DiagnosticRecord | null>(null);
+  const [removingRecord, setRemovingRecord] = useState<DiagnosticRecord | null>(null);
+  const [inspecting, setInspecting] = useState(false);
+  const lastSavedFingerprint = useRef("");
   const desktopApiUnavailable = t("桌面诊断接口不可用", "Desktop diagnostics API is unavailable");
 
   const load = useCallback(async () => {
@@ -101,6 +114,24 @@ export function DiagnosticsPage({ incident }: { incident?: DiagnosticIncidentCon
   const activeFile = files.find((file) => file.id === activeFileId) ?? files[0];
   const totalItems = files.reduce((total, file) => total + file.itemCount, 0);
   const exclusionGuardPassed = !diagnosticPreviewContainsExcludedContent(files);
+  const liveReport = useMemo(() => state.status === "ready" ? analyzeDiagnosticSnapshot(state.snapshot) : null, [state]);
+
+  const loadRecords = useCallback(async () => {
+    const next = await window.janusGraphDesktop?.diagnostics.listRecords(200);
+    if (next) setRecords(next);
+  }, []);
+
+  useEffect(() => { void loadRecords(); }, [loadRecords]);
+  useEffect(() => {
+    if (!liveReport || (!incident && liveReport.findings.length === 0) || !window.janusGraphDesktop) return;
+    const key = JSON.stringify({ incident, findings: liveReport.findings.map((finding) => finding.code) });
+    if (lastSavedFingerprint.current === key) return;
+    lastSavedFingerprint.current = key;
+    const safeIncident = state.status === "ready" ? state.snapshot.incident : undefined;
+    void window.janusGraphDesktop.diagnostics.saveRecord({ origin: "live", incident: safeIncident, report: liveReport })
+      .then(() => loadRecords())
+      .catch((error) => setExportResult({ tone: "error", message: errorMessage(error) }));
+  }, [incident, liveReport, loadRecords, state]);
 
   useEffect(() => {
     if (files.length > 0 && !files.some((file) => file.id === activeFileId)) {
@@ -152,6 +183,38 @@ export function DiagnosticsPage({ incident }: { incident?: DiagnosticIncidentCon
     }
   };
 
+  const inspectBundle = async () => {
+    if (!window.janusGraphDesktop) return;
+    setInspecting(true);
+    try {
+      const result = await window.janusGraphDesktop.diagnostics.inspectBundle();
+      if (result) {
+        setInspection(result);
+        setSelectedRecord(null);
+        await window.janusGraphDesktop.diagnostics.saveRecord({ origin: "bundle", sourceName: result.name, report: result.report });
+        await loadRecords();
+      }
+    } catch (error) {
+      setExportResult({ tone: "error", message: errorMessage(error) });
+    } finally {
+      setInspecting(false);
+    }
+  };
+
+  const setRecordStatus = async (record: DiagnosticRecord, status: DiagnosticRecordStatus) => {
+    const updated = await window.janusGraphDesktop?.diagnostics.setRecordStatus(record.id, status);
+    if (updated) {
+      setSelectedRecord((current) => current?.id === updated.id ? updated : current);
+      await loadRecords();
+    }
+  };
+  const removeRecord = async (record: DiagnosticRecord) => {
+    await window.janusGraphDesktop?.diagnostics.removeRecord(record.id);
+    if (selectedRecord?.id === record.id) setSelectedRecord(null);
+    setRemovingRecord(null);
+    await loadRecords();
+  };
+
   const sectionCards: Array<{
     id: DiagnosticPreviewSection;
     icon: typeof FileJson2;
@@ -188,8 +251,8 @@ export function DiagnosticsPage({ incident }: { incident?: DiagnosticIncidentCon
         eyebrow="TROUBLESHOOTING"
         title={t("问题诊断", "Problem diagnostics")}
         description={t(
-          "当连接、Schema、动态图或导入导出发生异常时，生成一个可安全分享给开发或运维的脱敏诊断包。",
-          "When connections, Schema, dynamic graphs or transfers fail, create a redacted bundle that can be safely shared with developers or operations.",
+          "当连接、Schema、动态图或导入导出发生异常时，先根据证据自动分析，再生成可安全分享的脱敏诊断包。",
+          "When connections, Schema, dynamic graphs or transfers fail, analyze the evidence first, then create a redacted bundle that can be safely shared.",
         )}
       />
 
@@ -207,19 +270,27 @@ export function DiagnosticsPage({ incident }: { incident?: DiagnosticIncidentCon
         </section>
       )}
 
+      <DiagnosticRecordPanel records={records} selectedId={selectedRecord?.id} onToggle={(record) => { setSelectedRecord((current) => current?.id === record.id ? null : record); setInspection(null); }} onStatus={(record, status) => void setRecordStatus(record, status)} onRemove={setRemovingRecord} />
+
+      {selectedRecord
+        ? <DiagnosticReportPanel report={selectedRecord.report} sourceName={selectedRecord.sourceName || selectedRecord.incident?.title} />
+        : inspection
+          ? <DiagnosticReportPanel report={inspection.report} sourceName={inspection.name} />
+          : liveReport && <DiagnosticReportPanel report={liveReport} />}
+
       <section className="diagnostics-purpose">
         <div className="diagnostics-purpose-mark"><Wrench size={28} /></div>
         <div className="diagnostics-purpose-copy">
           <span className="eyebrow">WHEN SOMETHING GOES WRONG</span>
-          <h2>{t("把问题现场打包，而不是截图猜原因", "Package the failure context instead of guessing from screenshots")}</h2>
+          <h2>{t("先给出排查方向，再把证据完整打包", "Find a troubleshooting direction before packaging the evidence")}</h2>
           <p>{t(
-            "诊断包会记录应用版本、最近任务阶段和脱敏日志，帮助定位环境差异、服务端报错与任务中断原因。它不会修改连接、图数据或 Schema。",
-            "The bundle records app versions, recent task stages and redacted logs to diagnose environment differences, server errors and interrupted jobs. It never changes connections, graph data or Schema.",
+            "规则引擎会检查应用版本、最近任务阶段和脱敏日志，展示结论、证据与建议。它不会修改连接、图数据或 Schema。",
+            "The rule engine checks app versions, recent task stages and redacted logs, then shows findings, evidence and recommendations. It never changes connections, graph data or Schema.",
           )}</p>
           <div className="diagnostics-purpose-steps">
             <span><b>01</b>{t("操作发生异常", "An operation fails")}</span>
-            <span><b>02</b>{t("生成脱敏诊断包", "Create a redacted bundle")}</span>
-            <span><b>03</b>{t("发送给开发或运维", "Share with developers or operations")}</span>
+            <span><b>02</b>{t("自动匹配证据", "Match evidence automatically")}</span>
+            <span><b>03</b>{t("导出报告或继续复核", "Export the report or review further")}</span>
           </div>
         </div>
         <div className="diagnostics-purpose-action">
@@ -233,6 +304,10 @@ export function DiagnosticsPage({ incident }: { incident?: DiagnosticIncidentCon
             {exporting ? t("正在生成…", "Creating…") : t("生成诊断包", "Create diagnostic bundle")}
           </button>
           <small>{t("生成前会打开系统保存窗口", "A system save dialog opens before writing")}</small>
+          <button type="button" className="button secondary" disabled={inspecting} onClick={() => void inspectBundle()}>
+            {inspecting ? <LoaderCircle className="spin" size={17} /> : <FolderSearch size={17} />}
+            {t("分析已有诊断包", "Analyze existing bundle")}
+          </button>
           <button type="button" className="button text" onClick={() => setAdvancedOpen((current) => !current)}>
             {advancedOpen ? t("收起高级选项", "Hide advanced options") : t("查看内容与高级选项", "Review contents and advanced options")}
           </button>
@@ -384,6 +459,13 @@ export function DiagnosticsPage({ incident }: { incident?: DiagnosticIncidentCon
         </section>
       </div>
       </>}
+      {removingRecord && <ConfirmDialog
+        title={t("删除诊断记录", "Delete diagnostic record")}
+        description={t("该记录及其自动诊断结论将从本机永久删除，已导出的 ZIP 不受影响。", "This local record and its findings will be permanently deleted. Exported ZIP files are not affected.")}
+        confirmLabel={t("删除记录", "Delete record")}
+        onCancel={() => setRemovingRecord(null)}
+        onConfirm={() => void removeRecord(removingRecord)}
+      />}
     </div>
   );
 }

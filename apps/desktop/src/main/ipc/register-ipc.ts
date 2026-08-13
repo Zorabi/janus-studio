@@ -1,4 +1,5 @@
 import { app, clipboard, ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from "electron";
+import { z } from "zod";
 import { release } from "node:os";
 import { ConnectionService } from "../services/connection-service";
 import { FileService } from "../services/file-service";
@@ -10,11 +11,14 @@ import { BackgroundTaskService } from "../services/background-task-service";
 import { CompatibilityService } from "../services/compatibility-service";
 import { GraphTransferService } from "../services/graph-transfer-service";
 import { QueryAssetRepository } from "../storage/query-asset-repository";
+import { DiagnosticRecordRepository } from "../storage/diagnostic-record-repository";
 import { StructuredLogger } from "../diagnostics/structured-logger";
 import { redactDiagnosticValue } from "../diagnostics/redactor";
-import type { DiagnosticIncidentContext, DiagnosticLogListInput } from "@janusgraph/domain";
+import type { DiagnosticIncidentContext, DiagnosticLogListInput, SaveDiagnosticRecordInput } from "@janusgraph/domain";
 import {
   buildDiagnosticPreviewFiles,
+  analyzeDiagnosticSnapshot,
+  diagnosticReportMarkdown,
   diagnosticPreviewContainsExcludedContent,
 } from "@janusgraph/application";
 import {
@@ -55,6 +59,10 @@ import {
   diagnosticLogListSchema,
   diagnosticPreviewSchema,
   diagnosticBundleSchema,
+  diagnosticRecordIdSchema,
+  diagnosticRecordLimitSchema,
+  diagnosticRecordStatusSchema,
+  saveDiagnosticRecordSchema,
 } from "./schemas";
 
 type RegisterIpcOptions = {
@@ -70,6 +78,7 @@ type RegisterIpcOptions = {
   graphTransferService: GraphTransferService;
   queryAssetRepository: QueryAssetRepository;
   diagnosticLogger: StructuredLogger;
+  diagnosticRecordRepository: DiagnosticRecordRepository;
 };
 
 function assertTrustedSender(event: IpcMainInvokeEvent, window: BrowserWindow): void {
@@ -139,6 +148,7 @@ export function registerIpcHandlers({
   graphTransferService,
   queryAssetRepository,
   diagnosticLogger,
+  diagnosticRecordRepository,
 }: RegisterIpcOptions): void {
   ipcMain.handle("runtime:platform", (event) => {
     assertTrustedSender(event, window);
@@ -178,6 +188,7 @@ export function registerIpcHandlers({
     const input = diagnosticBundleSchema.parse(rawInput);
     const snapshot = diagnosticSnapshot(diagnosticLogger, backgroundTaskService, input);
     const files = buildDiagnosticPreviewFiles(snapshot, input.selection);
+    const report = analyzeDiagnosticSnapshot(snapshot);
     if (diagnosticPreviewContainsExcludedContent(files)) {
       throw new Error("诊断包安全检查未通过，已阻止写入");
     }
@@ -187,16 +198,50 @@ export function registerIpcHandlers({
       `生成时间：${snapshot.generatedAt}`,
       "",
       "此诊断包用于排查连接、Schema、动态图和长任务异常。",
+      `自动分析命中：${report.findings.length} 项；详细结论见 diagnostic-report.md。`,
       "密码、Token、认证 Header、私钥、查询正文和字符串绑定已固定排除。",
       "发送前仍建议在 Janus Studio 的问题诊断页面逐项预览内容。",
       "",
-      `包含文件：${files.map((file) => file.name).join("、")}`,
+      `包含文件：${[...files.map((file) => file.name), "diagnostic-report.md"].join("、")}`,
     ].join("\n");
     const date = snapshot.generatedAt.slice(0, 10).replaceAll("-", "");
     return fileService.saveDiagnosticBundle(
-      [...files.map((file) => ({ name: file.name, content: file.content })), { name: "README.txt", content: readme }],
+      [
+        ...files.map((file) => ({ name: file.name, content: file.content })),
+        { name: "diagnostic-report.md", content: diagnosticReportMarkdown(report) },
+        { name: "README.txt", content: readme },
+      ],
       `janus-studio-diagnostics-${date}.zip`,
     );
+  });
+
+  ipcMain.handle("diagnostics:bundle:inspect", async (event) => {
+    assertTrustedSender(event, window);
+    return fileService.inspectDiagnosticBundle();
+  });
+
+  ipcMain.handle("diagnostics:records:list", (event, rawLimit: unknown) => {
+    assertTrustedSender(event, window);
+    return diagnosticRecordRepository.list(diagnosticRecordLimitSchema.parse(rawLimit) ?? 200);
+  });
+
+  ipcMain.handle("diagnostics:records:save", (event, rawInput: unknown) => {
+    assertTrustedSender(event, window);
+    const input = saveDiagnosticRecordSchema.parse(rawInput);
+    return diagnosticRecordRepository.save(
+      redactDiagnosticValue(input) as SaveDiagnosticRecordInput,
+    );
+  });
+
+  ipcMain.handle("diagnostics:records:status", (event, rawInput: unknown) => {
+    assertTrustedSender(event, window);
+    const input = z.object({ id: diagnosticRecordIdSchema, status: diagnosticRecordStatusSchema }).parse(rawInput);
+    return diagnosticRecordRepository.setStatus(input.id, input.status);
+  });
+
+  ipcMain.handle("diagnostics:records:remove", (event, rawId: unknown) => {
+    assertTrustedSender(event, window);
+    diagnosticRecordRepository.remove(diagnosticRecordIdSchema.parse(rawId));
   });
 
   ipcMain.handle("connections:list", (event) => {

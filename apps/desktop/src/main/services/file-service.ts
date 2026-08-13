@@ -10,6 +10,7 @@ import type {
   SaveQueryFileInput,
   SaveSchemaFileInput,
   DiagnosticBundleResult,
+  DiagnosticBundleInspectionResult,
 } from "@janusgraph/domain";
 import { dialog, type BrowserWindow } from "electron";
 import { access, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
@@ -25,7 +26,9 @@ import {
   parseDockerContainers,
   validateDockerTarget,
 } from "./docker-transfer";
-import { createZipArchive, type ZipArchiveEntry } from "../diagnostics/zip-archive";
+import { analyzeDiagnosticDocuments } from "@janusgraph/application";
+import { createZipArchive, readZipArchive, type ZipArchiveEntry } from "../diagnostics/zip-archive";
+import { redactDiagnosticText } from "../diagnostics/redactor";
 
 const MAX_IMPORT_BYTES = 200 * 1024 * 1024;
 
@@ -415,5 +418,33 @@ export class FileService {
     if (result.canceled || !result.filePath) return { path: null, fileCount: entries.length };
     await writeFile(result.filePath, createZipArchive(entries));
     return { path: result.filePath, fileCount: entries.length };
+  }
+
+  async inspectDiagnosticBundle(): Promise<DiagnosticBundleInspectionResult | null> {
+    const result = await dialog.showOpenDialog(this.window, {
+      title: "选择 Janus Studio 问题诊断包",
+      properties: ["openFile"],
+      filters: [{ name: "Janus Studio 诊断包", extensions: ["zip"] }],
+    });
+    const path = result.filePaths[0];
+    if (result.canceled || !path) return null;
+    const file = await stat(path);
+    if (!file.isFile() || file.size > 32 * 1024 * 1024) throw new Error("诊断包不是文件或超过 32 MB 安全限制");
+    const entries = readZipArchive(await readFile(path));
+    const allowed = new Set(["summary.json", "tasks.json", "logs.ndjson", "diagnostic-report.md", "README.txt"]);
+    const documents = entries
+      .filter((entry) => allowed.has(entry.name) && entry.name !== "diagnostic-report.md" && entry.name !== "README.txt")
+      .map((entry) => ({
+        source: entry.name,
+        content: redactDiagnosticText(Buffer.from(entry.content).toString("utf8")),
+      }));
+    if (!documents.some((document) => document.source === "summary.json")) {
+      throw new Error("诊断包缺少 summary.json，无法确认来源");
+    }
+    return {
+      name: path.split(/[\\/]/).at(-1) ?? "diagnostics.zip",
+      fileNames: entries.map((entry) => entry.name),
+      report: analyzeDiagnosticDocuments(documents),
+    };
   }
 }

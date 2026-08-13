@@ -89,9 +89,21 @@ test("keeps diagnostic bundle creation in the main process with an advanced prev
   assert.match(page, /生成诊断包/);
   assert.match(page, /advancedOpen/);
   assert.match(page, /diagnostics\.exportBundle/);
+  assert.match(page, /analyzeDiagnosticSnapshot/);
+  assert.match(page, /diagnostics\.inspectBundle/);
+  assert.match(page, /diagnostics\.saveRecord/);
+  assert.match(page, /DiagnosticRecordPanel/);
+  const recordPanel = await readFile(`${rendererRoot}/features/diagnostics/DiagnosticRecordPanel.tsx`, "utf8");
+  assert.match(recordPanel, /const PAGE_SIZE = 8/);
+  assert.match(recordPanel, /diagnostic-record-pagination/);
+  assert.match(recordPanel, /pageRecords\.map/);
+  assert.match(recordPanel, /selectedId === record\.id && <div className="diagnostic-record-actions">/);
+  assert.doesNotMatch(recordPanel, /records\.length > PAGE_SIZE && <footer/);
+  assert.match(recordPanel, /aria-expanded=\{selectedId === record\.id\}/);
   assert.doesNotMatch(page, /createZipArchive|writeFile/);
   assert.match(ipc, /diagnostics:bundle:export/);
   assert.match(ipc, /diagnosticPreviewContainsExcludedContent/);
+  assert.match(ipc, /diagnostic-report\.md/);
 });
 
 test("carries business failure context into problem diagnostics", async () => {

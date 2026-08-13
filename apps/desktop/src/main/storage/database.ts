@@ -176,6 +176,25 @@ export function openApplicationDatabase(path: string): DatabaseSync {
     CREATE INDEX IF NOT EXISTS idx_query_history_tags_tag
       ON query_history_tags(tag_id, history_id);
 
+    CREATE TABLE IF NOT EXISTS diagnostic_records (
+      id TEXT PRIMARY KEY,
+      fingerprint TEXT NOT NULL UNIQUE,
+      origin TEXT NOT NULL,
+      source_name TEXT NOT NULL,
+      status TEXT NOT NULL,
+      incident_json TEXT NOT NULL,
+      report_json TEXT NOT NULL,
+      occurrence_count INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_diagnostic_records_updated
+      ON diagnostic_records(updated_at DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_diagnostic_records_status_updated
+      ON diagnostic_records(status, updated_at DESC);
+
   `);
 
   const connectionColumns = database
@@ -228,7 +247,12 @@ export function openApplicationDatabase(path: string): DatabaseSync {
       CASE WHEN status = 'running' THEN '' ELSE updated_at END
     FROM schema_jobs;
   `);
-  database.exec("PRAGMA user_version = 11;");
+  database.exec(`
+    DELETE FROM diagnostic_records
+    WHERE datetime(updated_at) < datetime('now', '-90 days')
+       OR id NOT IN (SELECT id FROM diagnostic_records ORDER BY updated_at DESC LIMIT 200);
+  `);
+  database.exec("PRAGMA user_version = 12;");
 
   return database;
 }

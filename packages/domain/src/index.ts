@@ -460,6 +460,58 @@ export type DiagnosticBundleResult = {
   fileCount: number;
 };
 
+export type DiagnosticFindingCode =
+  | "instance-id-conflict"
+  | "graphson-serialization"
+  | "evaluation-timeout"
+  | "elasticsearch-shard-limit"
+  | "schema-name-conflict"
+  | "index-lifecycle"
+  | "configured-graph-factory"
+  | "capability-probe";
+
+export type DiagnosticFinding = {
+  code: DiagnosticFindingCode;
+  severity: "critical" | "warning" | "info";
+  confidence: "confirmed" | "likely" | "hint";
+  evidence: Array<{ source: string; excerpt: string }>;
+};
+
+export type DiagnosticReport = {
+  generatedAt: string;
+  signalsScanned: number;
+  findings: DiagnosticFinding[];
+};
+
+export type DiagnosticBundleInspectionResult = {
+  name: string;
+  fileNames: string[];
+  report: DiagnosticReport;
+};
+
+export type DiagnosticRecordStatus = "unread" | "acknowledged" | "resolved";
+export type DiagnosticRecordOrigin = "live" | "bundle";
+
+export type DiagnosticRecord = {
+  id: string;
+  fingerprint: string;
+  origin: DiagnosticRecordOrigin;
+  sourceName: string;
+  status: DiagnosticRecordStatus;
+  incident?: DiagnosticIncidentContext;
+  report: DiagnosticReport;
+  occurrenceCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SaveDiagnosticRecordInput = {
+  origin: DiagnosticRecordOrigin;
+  sourceName?: string;
+  incident?: DiagnosticIncidentContext;
+  report: DiagnosticReport;
+};
+
 export type DesktopApi = {
   runtime: {
     platform(): Promise<string>;
@@ -471,6 +523,11 @@ export type DesktopApi = {
     listLogs(input?: DiagnosticLogListInput): Promise<DiagnosticLogEntry[]>;
     preview(input?: DiagnosticPreviewInput): Promise<DiagnosticPreviewSnapshot>;
     exportBundle(input: DiagnosticBundleInput): Promise<DiagnosticBundleResult>;
+    inspectBundle(): Promise<DiagnosticBundleInspectionResult | null>;
+    listRecords(limit?: number): Promise<DiagnosticRecord[]>;
+    saveRecord(input: SaveDiagnosticRecordInput): Promise<DiagnosticRecord>;
+    setRecordStatus(id: string, status: DiagnosticRecordStatus): Promise<DiagnosticRecord>;
+    removeRecord(id: string): Promise<void>;
   };
   connections: {
     list(): Promise<ConnectionSummary[]>;

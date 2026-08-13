@@ -7,6 +7,7 @@ import type {
 } from "@janusgraph/domain";
 
 export * from "./diagnostic-preview";
+export * from "./diagnostic-analysis";
 
 export type CompatibilityOperation =
   | "schemaManagement"

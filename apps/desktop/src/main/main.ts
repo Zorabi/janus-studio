@@ -25,6 +25,7 @@ import { GraphTransferService } from "./services/graph-transfer-service";
 import { QueryAssetRepository } from "./storage/query-asset-repository";
 import { UpdateSourceType, updateElectronApp } from "update-electron-app";
 import { StructuredLogger } from "./diagnostics/structured-logger";
+import { DiagnosticRecordRepository } from "./storage/diagnostic-record-repository";
 
 declare const __UPDATE_REPOSITORY__: string;
 declare const __UPDATE_BASE_URL__: string;
@@ -205,6 +206,7 @@ app.whenReady().then(() => {
   const backgroundTaskRepository = new BackgroundTaskRepository(database);
   const graphTransferRepository = new GraphTransferRepository(database);
   const queryAssetRepository = new QueryAssetRepository(database);
+  const diagnosticRecordRepository = new DiagnosticRecordRepository(database);
   const forceLocalCredentialVault =
     process.env.JANUS_STUDIO_FORCE_LOCAL_CREDENTIAL_VAULT === "1" ||
     process.platform === "darwin";
@@ -263,6 +265,7 @@ app.whenReady().then(() => {
     graphTransferService,
     queryAssetRepository,
     diagnosticLogger,
+    diagnosticRecordRepository,
   });
 
   app.on("activate", () => {

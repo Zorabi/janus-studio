@@ -11,6 +11,7 @@ import { SchemaJobRepository } from "../../apps/desktop/src/main/storage/schema-
 import { BackgroundTaskRepository } from "../../apps/desktop/src/main/storage/background-task-repository.ts";
 import { GraphTransferRepository } from "../../apps/desktop/src/main/storage/graph-transfer-repository.ts";
 import { QueryAssetRepository } from "../../apps/desktop/src/main/storage/query-asset-repository.ts";
+import { DiagnosticRecordRepository } from "../../apps/desktop/src/main/storage/diagnostic-record-repository.ts";
 
 test("persists connection profiles, advanced transport settings and history", () => {
   const directory = mkdtempSync(join(tmpdir(), "janus-studio-test-"));
@@ -47,6 +48,53 @@ test("persists connection profiles, advanced transport settings and history", ()
     assert.equal(history.list(10)[0]?.id, entry.id);
     history.remove(entry.id);
     assert.equal(history.list(10).length, 0);
+  } finally {
+    database.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("persists, deduplicates and resolves diagnostic records across restarts", () => {
+  const directory = mkdtempSync(join(tmpdir(), "janus-studio-diagnostic-record-test-"));
+  const path = join(directory, "app.sqlite");
+  let database = openApplicationDatabase(path);
+  const records = new DiagnosticRecordRepository(database);
+  const input = {
+    origin: "live" as const,
+    incident: { source: "schema" as const, title: "Schema failed", connectionName: "Docker", graphName: "graph2", stage: "IMPORT_SCHEMA", message: "duplicate schema", occurredAt: "2026-08-13T10:00:00.000Z" },
+    report: { generatedAt: "2026-08-13T10:00:00.000Z", signalsScanned: 2, findings: [{ code: "schema-name-conflict" as const, severity: "warning" as const, confidence: "likely" as const, evidence: [{ source: "incident", excerpt: "duplicate schema" }] }] },
+  };
+  const first = records.save(input);
+  const repeated = records.save({ ...input, report: { ...input.report, signalsScanned: 3 } });
+  assert.equal(repeated.id, first.id);
+  assert.equal(repeated.occurrenceCount, 1);
+  const nextIncident = records.save({ ...input, incident: { ...input.incident, occurredAt: "2026-08-13T11:00:00.000Z" } });
+  assert.notEqual(nextIncident.id, first.id);
+  const bundle = records.save({ origin: "bundle", sourceName: "diagnostics.zip", report: input.report });
+  const repeatedBundle = records.save({ origin: "bundle", sourceName: "diagnostics.zip", report: input.report });
+  const changedBundle = records.save({
+    origin: "bundle",
+    sourceName: "diagnostics.zip",
+    report: {
+      ...input.report,
+      findings: [{ ...input.report.findings[0]!, evidence: [{ source: "logs", excerpt: "different evidence" }] }],
+    },
+  });
+  assert.equal(repeatedBundle.id, bundle.id);
+  assert.notEqual(changedBundle.id, bundle.id);
+  records.setStatus(first.id, "resolved");
+  database.close();
+
+  database = openApplicationDatabase(path);
+  try {
+    const restored = new DiagnosticRecordRepository(database).list();
+    assert.equal(restored.length, 4);
+    const restoredFirst = restored.find((record) => record.id === first.id)!;
+    assert.equal(restoredFirst.status, "resolved");
+    assert.equal(restoredFirst.report.signalsScanned, 3);
+    new DiagnosticRecordRepository(database).remove(first.id);
+    assert.equal(new DiagnosticRecordRepository(database).list().length, 3);
+    assert.equal(database.prepare("PRAGMA user_version").get()!.user_version, 12);
   } finally {
     database.close();
     rmSync(directory, { recursive: true, force: true });
@@ -374,7 +422,7 @@ test("migrates existing connection profiles to development with write access", (
     const migrated = new ConnectionRepository(database).find("legacy")?.profile;
     assert.equal(migrated?.environment, "dev");
     assert.equal(migrated?.connectionReadOnly, false);
-    assert.equal(database.prepare("PRAGMA user_version").get()?.user_version, 11);
+    assert.equal(database.prepare("PRAGMA user_version").get()?.user_version, 12);
   } finally {
     database.close();
     rmSync(directory, { recursive: true, force: true });

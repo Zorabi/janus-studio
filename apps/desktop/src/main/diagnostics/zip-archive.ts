@@ -1,4 +1,4 @@
-import { deflateRawSync } from "node:zlib";
+import { deflateRawSync, inflateRawSync } from "node:zlib";
 
 export type ZipArchiveEntry = {
   name: string;
@@ -92,4 +92,46 @@ export function createZipArchive(entries: ZipArchiveEntry[], modifiedAt = new Da
   end.writeUInt32LE(directorySize, 12);
   end.writeUInt32LE(offset, 16);
   return Buffer.concat([...body, ...directory, end]);
+}
+
+export function readZipArchive(
+  archive: Uint8Array,
+  limits: { maxEntries?: number; maxEntryBytes?: number; maxTotalBytes?: number } = {},
+): ZipArchiveEntry[] {
+  const bytes = Buffer.from(archive);
+  const maxEntries = limits.maxEntries ?? 20;
+  const maxEntryBytes = limits.maxEntryBytes ?? 8 * 1024 * 1024;
+  const maxTotalBytes = limits.maxTotalBytes ?? 24 * 1024 * 1024;
+  const entries: ZipArchiveEntry[] = [];
+  const names = new Set<string>();
+  let offset = 0;
+  let total = 0;
+  while (offset + 4 <= bytes.length && bytes.readUInt32LE(offset) === 0x04034b50) {
+    if (entries.length >= maxEntries) throw new Error("诊断包文件数量超出安全限制");
+    if (offset + 30 > bytes.length) throw new Error("诊断包 ZIP 头不完整");
+    const flags = bytes.readUInt16LE(offset + 6);
+    const method = bytes.readUInt16LE(offset + 8);
+    const compressedSize = bytes.readUInt32LE(offset + 18);
+    const size = bytes.readUInt32LE(offset + 22);
+    const nameLength = bytes.readUInt16LE(offset + 26);
+    const extraLength = bytes.readUInt16LE(offset + 28);
+    if ((flags & 0x0008) !== 0) throw new Error("诊断包不支持数据描述符 ZIP");
+    if (size > maxEntryBytes || total + size > maxTotalBytes) throw new Error("诊断包解压体积超出安全限制");
+    const nameStart = offset + 30;
+    const contentStart = nameStart + nameLength + extraLength;
+    const contentEnd = contentStart + compressedSize;
+    if (contentEnd > bytes.length) throw new Error("诊断包 ZIP 内容不完整");
+    const name = bytes.subarray(nameStart, nameStart + nameLength).toString("utf8");
+    if (!name || name.startsWith("/") || name.includes("..") || name.includes("\\")) throw new Error("诊断包包含不安全路径");
+    if (names.has(name)) throw new Error("诊断包包含重复文件名");
+    names.add(name);
+    const compressed = bytes.subarray(contentStart, contentEnd);
+    const content = method === 8 ? inflateRawSync(compressed) : method === 0 ? compressed : null;
+    if (!content || content.length !== size) throw new Error("诊断包包含不支持或损坏的 ZIP 项");
+    total += content.length;
+    entries.push({ name, content });
+    offset = contentEnd;
+  }
+  if (entries.length === 0) throw new Error("选择的文件不是有效诊断 ZIP");
+  return entries;
 }

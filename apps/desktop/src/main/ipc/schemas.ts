@@ -99,6 +99,24 @@ export const diagnosticBundleSchema = z.object({
     logs: z.boolean(),
   }).refine((value) => Object.values(value).some(Boolean), "至少选择一个诊断文件"),
 });
+export const diagnosticRecordIdSchema = z.string().uuid();
+export const diagnosticRecordLimitSchema = z.number().int().min(1).max(200).optional();
+export const diagnosticRecordStatusSchema = z.enum(["unread", "acknowledged", "resolved"]);
+export const saveDiagnosticRecordSchema = z.object({
+  origin: z.enum(["live", "bundle"]),
+  sourceName: z.string().max(255).optional(),
+  incident: diagnosticIncidentSchema,
+  report: z.object({
+    generatedAt: z.string().max(64),
+    signalsScanned: z.number().int().min(0).max(100_000),
+    findings: z.array(z.object({
+      code: z.enum(["instance-id-conflict", "graphson-serialization", "evaluation-timeout", "elasticsearch-shard-limit", "schema-name-conflict", "index-lifecycle", "configured-graph-factory", "capability-probe"]),
+      severity: z.enum(["critical", "warning", "info"]),
+      confidence: z.enum(["confirmed", "likely", "hint"]),
+      evidence: z.array(z.object({ source: z.string().max(255), excerpt: z.string().max(500) })).max(3),
+    })).max(20),
+  }),
+});
 export const historyIdSchema = z.string().uuid();
 export const historyLimitSchema = z.number().int().min(1).max(2_000).optional();
 const historyDateSchema = z.string().max(64).refine(

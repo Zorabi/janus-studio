@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { inflateRawSync } from "node:zlib";
-import { createZipArchive } from "../../apps/desktop/src/main/diagnostics/zip-archive.ts";
+import { createZipArchive, readZipArchive } from "../../apps/desktop/src/main/diagnostics/zip-archive.ts";
 
 function readLocalEntries(archive: Buffer): Map<string, string> {
   const entries = new Map<string, string>();
@@ -43,4 +43,15 @@ test("rejects empty, duplicate and unsafe ZIP entries", () => {
     { name: "summary.json", content: "b" },
   ]), /Duplicate ZIP entry/);
   assert.throws(() => createZipArchive([{ name: "../secret", content: "x" }]), /Unsafe ZIP entry/);
+});
+
+test("reads bounded diagnostic ZIP entries for offline analysis", () => {
+  const archive = createZipArchive([{ name: "summary.json", content: "{\"safe\":true}" }]);
+  const entries = readZipArchive(archive);
+  assert.equal(entries[0]!.name, "summary.json");
+  assert.equal(Buffer.from(entries[0]!.content).toString("utf8"), "{\"safe\":true}");
+  assert.throws(() => readZipArchive(archive, { maxTotalBytes: 4 }), /解压体积/);
+  const duplicate = createZipArchive([{ name: "a", content: "1" }, { name: "b", content: "2" }]);
+  duplicate.write("a", duplicate.indexOf(Buffer.from("b", "utf8")), "utf8");
+  assert.throws(() => readZipArchive(duplicate), /重复文件名/);
 });

@@ -39,6 +39,93 @@
   overflow-wrap: anywhere;
 }
 
+.diagnostic-report {
+  margin-bottom: 16px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--acid) 28%, var(--line));
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+
+.diagnostic-records { margin-bottom: 16px; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-1); }
+.diagnostic-records > header { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 11px; padding: 13px 16px; border-bottom: 1px solid var(--line); }
+.diagnostic-records > header > svg { color: var(--acid); }
+.diagnostic-records > header > div { display: grid; gap: 2px; }
+.diagnostic-records > header strong { font-size: var(--text-sm); }
+.diagnostic-records > header small { color: var(--muted); font-size: 10px; }
+.diagnostic-records > header > span { color: var(--acid); font-family: var(--font-code); }
+.diagnostic-records > p { margin: 0; padding: 18px; color: var(--muted); font-size: var(--text-xs); text-align: center; }
+.diagnostic-record-list { display: grid; gap: 8px; padding: 10px; }
+.diagnostic-record-list article { display: grid; grid-template-columns: minmax(0, 1fr); overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--surface-2) 62%, var(--surface-1)); transition: border-color 130ms ease, background-color 130ms ease; }
+.diagnostic-record-list article:hover { border-color: color-mix(in srgb, var(--bone) 22%, var(--line)); }
+.diagnostic-record-list article.is-selected { border-color: color-mix(in srgb, var(--acid) 46%, var(--line)); background: color-mix(in srgb, var(--acid) 6%, var(--surface-2)); }
+.diagnostic-record-main { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 11px; min-width: 0; min-height: 64px; padding: 11px 14px; border: 0; color: var(--bone); background: transparent; text-align: left; }
+.diagnostic-record-main:hover { background: color-mix(in srgb, var(--bone) 3%, transparent); }
+.diagnostic-record-main > span:nth-child(2) { display: grid; min-width: 0; gap: 2px; }
+.diagnostic-record-main strong,
+.diagnostic-record-main small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.diagnostic-record-main small { color: var(--muted); font-size: 10px; }
+.diagnostic-record-tail { display: flex; align-items: center; gap: 8px; }
+.diagnostic-record-tail b { color: var(--muted); font-family: var(--font-code); font-size: 10px; }
+.diagnostic-record-chevron { color: var(--muted); transition: transform 150ms ease, color 150ms ease; }
+.diagnostic-record-main[aria-expanded="true"] .diagnostic-record-chevron { color: var(--acid); transform: rotate(180deg); }
+.diagnostic-record-signal { color: var(--danger); }
+.diagnostic-record-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; padding: 8px 12px; border-top: 1px solid color-mix(in srgb, var(--acid) 16%, var(--line)); background: color-mix(in srgb, var(--acid) 3%, var(--surface-1)); }
+.diagnostic-record-status { padding: 4px 8px; border-radius: 99px; color: var(--amber); background: color-mix(in srgb, var(--amber) 10%, var(--surface-1)); font-size: 10px; font-style: normal; white-space: nowrap; }
+.is-resolved .diagnostic-record-status { color: var(--acid); background: color-mix(in srgb, var(--acid) 10%, var(--surface-1)); }
+.is-unread .diagnostic-record-status { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, var(--surface-1)); }
+.diagnostic-record-actions button { display: inline-flex; min-height: 30px; align-items: center; gap: 4px; padding: 0 9px; border: 1px solid var(--line); border-radius: 7px; color: var(--muted-2); background: color-mix(in srgb, var(--surface-1) 70%, transparent); font-size: 10px; }
+.diagnostic-record-actions button:hover { color: var(--bone); background: var(--surface-2); }
+.diagnostic-record-actions button.is-danger { width: 30px; justify-content: center; padding: 0; color: var(--danger); }
+.diagnostic-record-pagination { display: flex; min-height: 42px; align-items: center; justify-content: space-between; gap: 12px; margin: 2px -10px -10px; padding: 7px 12px; border-top: 1px solid var(--line); color: var(--muted); background: color-mix(in srgb, var(--surface-2) 55%, var(--surface-1)); }
+.diagnostic-record-pagination > span { font-family: var(--font-code); font-size: 10px; white-space: nowrap; }
+.diagnostic-record-pagination nav { display: flex; align-items: center; gap: 4px; }
+.diagnostic-record-pagination button { display: grid; min-width: 30px; height: 30px; place-items: center; padding: 0 7px; border: 1px solid transparent; border-radius: 7px; color: var(--muted-2); background: transparent; font-family: var(--font-code); font-size: 10px; }
+.diagnostic-record-pagination button:hover:not(:disabled) { border-color: var(--line); color: var(--bone); background: var(--surface-2); }
+.diagnostic-record-pagination button.is-current { border-color: color-mix(in srgb, var(--acid) 40%, var(--line)); color: var(--acid); background: color-mix(in srgb, var(--acid) 9%, var(--surface-2)); }
+.diagnostic-record-pagination button:disabled { cursor: default; opacity: 0.32; }
+.diagnostic-record-pagination i { min-width: 16px; color: var(--muted); font-size: 11px; font-style: normal; text-align: center; }
+.diagnostic-report > header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 15px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(100deg, color-mix(in srgb, var(--acid) 6%, var(--surface-1)), var(--surface-1));
+}
+.diagnostic-report-mark { display: grid; width: 46px; height: 46px; place-items: center; border-radius: 13px; color: var(--acid); background: color-mix(in srgb, var(--acid) 11%, var(--surface-2)); }
+.diagnostic-report > header > div { min-width: 0; }
+.diagnostic-report h2 { margin: 2px 0 3px; font-size: var(--text-xl); }
+.diagnostic-report > header p { margin: 0; color: var(--muted); font-size: var(--text-xs); }
+.diagnostic-report > header > strong { display: grid; min-width: 48px; height: 48px; place-items: center; border-radius: 12px; font-family: var(--font-code); font-size: var(--text-xl); }
+.diagnostic-report > header > strong.has-findings { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, var(--surface-2)); }
+.diagnostic-report > header > strong.is-clear { color: var(--acid); background: color-mix(in srgb, var(--acid) 10%, var(--surface-2)); }
+.diagnostic-findings { display: grid; gap: 8px; padding: 12px; }
+.diagnostic-finding { overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--canvas-soft); }
+.diagnostic-finding > button { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; width: 100%; align-items: center; gap: 12px; padding: 13px 14px; border: 0; color: var(--bone); background: transparent; text-align: left; }
+.diagnostic-finding > button:hover { background: var(--surface-2); }
+.diagnostic-finding > button > span:nth-child(2) { display: grid; min-width: 0; gap: 3px; }
+.diagnostic-finding > button strong { font-size: var(--text-sm); }
+.diagnostic-finding > button small { overflow: hidden; color: var(--muted); font-size: var(--text-xs); text-overflow: ellipsis; white-space: nowrap; }
+.diagnostic-finding > button em { padding: 3px 8px; border-radius: 999px; color: var(--amber); background: color-mix(in srgb, var(--amber) 10%, var(--surface-2)); font-size: 10px; font-style: normal; }
+.diagnostic-finding > button > svg { color: var(--muted); transition: transform 150ms ease; }
+.diagnostic-finding.is-open > button > svg { transform: rotate(90deg); }
+.diagnostic-finding-icon { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 10px; color: var(--amber); background: color-mix(in srgb, var(--amber) 9%, var(--surface-2)); }
+.diagnostic-finding.is-critical .diagnostic-finding-icon { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, var(--surface-2)); }
+.diagnostic-finding-detail { display: grid; grid-template-columns: minmax(240px, 0.8fr) minmax(320px, 1.2fr); gap: 18px; padding: 4px 15px 16px 64px; }
+.diagnostic-finding-detail section > span { color: var(--muted); font-size: 10px; font-weight: 760; letter-spacing: 0.08em; text-transform: uppercase; }
+.diagnostic-finding-detail ol { margin: 9px 0 0; padding-left: 19px; color: var(--bone-soft); font-size: var(--text-xs); line-height: 1.7; }
+.diagnostic-evidence-list { display: grid; gap: 6px; margin-top: 9px; }
+.diagnostic-evidence-list blockquote { margin: 0; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--canvas); }
+.diagnostic-evidence-list code { color: var(--acid); font-size: 10px; }
+.diagnostic-evidence-list p { margin: 4px 0 0; color: var(--muted-2); font-family: var(--font-code); font-size: 10px; line-height: 1.55; overflow-wrap: anywhere; }
+.diagnostic-no-findings { display: flex; align-items: flex-start; gap: 12px; padding: 20px; color: var(--acid); }
+.diagnostic-no-findings div { display: grid; gap: 5px; }
+.diagnostic-no-findings strong { color: var(--bone); }
+.diagnostic-no-findings p { margin: 0; color: var(--muted); font-size: var(--text-xs); line-height: 1.6; }
+.diagnostic-report > footer { padding: 10px 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; }
+
 /* Business failure surfaces share one clear route into the diagnostic flow. */
 .diagnostic-inline-action { width: max-content; margin-top: 10px; }
 .connection-test-failure {
@@ -651,6 +738,7 @@
 }
 
 @media (max-width: 930px) {
+  .diagnostic-finding-detail { grid-template-columns: minmax(0, 1fr); padding-left: 64px; }
   .diagnostics-incident { grid-template-columns: auto minmax(0, 1fr); }
   .diagnostics-incident p { grid-column: 2; }
   .diagnostics-purpose { grid-template-columns: auto minmax(0, 1fr); }
@@ -662,6 +750,15 @@
 }
 
 @media (max-width: 620px) {
+  .diagnostic-record-main { align-items: start; }
+  .diagnostic-record-tail { align-self: center; }
+  .diagnostic-record-pagination { align-items: flex-start; flex-direction: column; }
+  .diagnostic-record-pagination nav { width: 100%; justify-content: flex-end; }
+  .diagnostic-report > header { padding: 15px; }
+  .diagnostic-finding > button { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .diagnostic-finding > button em { grid-column: 2; width: max-content; }
+  .diagnostic-finding > button > svg { grid-column: 3; grid-row: 1 / span 2; }
+  .diagnostic-finding-detail { padding: 4px 13px 14px; }
   .diagnostics-incident { padding: 14px; }
   .diagnostics-page { padding-inline: 16px; }
   .diagnostics-purpose { grid-template-columns: minmax(0, 1fr); padding: 20px; }
