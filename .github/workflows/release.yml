@@ -33,15 +33,12 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
-      - name: Verify tag matches application version
-        shell: bash
-        run: node -e "const p=require('./apps/desktop/package.json');if('v'+p.version!==process.env.GITHUB_REF_NAME)throw new Error('Tag must equal v'+p.version)"
       - name: Install Linux packaging tools
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y fakeroot rpm xvfb
       - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
-      - run: pnpm test
+      - name: Release preflight
+        run: pnpm release:preflight
 
       - name: Import Apple signing identity
         if: runner.os == 'macOS' && env.MACOS_CERTIFICATE_BASE64 != ''
@@ -93,7 +90,9 @@ jobs:
         env:
           JANUSGRAPH_UPDATE_REPOSITORY: ${{ github.repository }}
       - run: pnpm test:e2e
-      - run: pnpm release:checksums
+      - run: pnpm release:metadata
+        env:
+          JANUS_STUDIO_REQUIRE_OFFICIAL_RELEASE: "1"
       - uses: actions/upload-artifact@v4
         with:
           name: janus-studio-${{ matrix.artifact }}

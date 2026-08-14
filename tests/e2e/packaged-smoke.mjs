@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repositoryRoot = fileURLToPath(new URL("../../", import.meta.url));
+const expectedVersion = JSON.parse(readFileSync(join(repositoryRoot, "apps", "desktop", "package.json"), "utf8")).version;
 const outDirectory = join(repositoryRoot, "apps", "desktop", "out");
 const packageDirectory = readdirSync(outDirectory, { withFileTypes: true })
   .filter((entry) => entry.isDirectory() && !entry.name.includes("make"))
@@ -124,6 +125,7 @@ try {
     });
     const connections = await window.janusGraphDesktop.connections.list();
     const security = await window.janusGraphDesktop.security.status();
+    const runtime = await window.janusGraphDesktop.diagnostics.runtime();
     const schemaJobs = await window.janusGraphDesktop.schemaJobs.list(saved.id);
     return {
       title: document.title,
@@ -132,6 +134,7 @@ try {
       savedPassword: saved.hasPassword,
       connectionCount: connections.length,
       securityMode: security.mode,
+      appVersion: runtime.appVersion,
       schemaJobCount: schemaJobs.length,
     };
   })()`);
@@ -146,6 +149,7 @@ try {
     { title: "Janus Studio", shell: true, savedPassword: true, connectionCount: 1, schemaJobCount: 0 },
   );
   assert.equal(audit.securityMode, "local-fallback");
+  assert.equal(audit.appVersion, expectedVersion, "Packaged runtime version does not match apps/desktop/package.json");
 
   const contextMenuAudit = await evaluate(page, `(async () => {
     const deadline = Date.now() + 20000;

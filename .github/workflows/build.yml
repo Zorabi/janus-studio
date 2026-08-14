@@ -62,14 +62,14 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y fakeroot rpm xvfb
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Typecheck
-        run: pnpm typecheck
-      - name: Unit and integration tests
-        run: pnpm test
+      - name: Release preflight
+        run: pnpm release:preflight
       - name: Build installers
         run: pnpm make
       - name: Packaged application smoke test
         run: pnpm test:e2e
+      - name: Generate test-build release metadata
+        run: pnpm release:metadata
       - uses: actions/upload-artifact@v4
         with:
           name: janus-studio-${{ matrix.artifact }}

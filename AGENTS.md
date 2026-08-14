@@ -235,7 +235,7 @@ pnpm build
 ```
 
 - `pnpm typecheck`：全部 workspace TypeScript 检查。
-- `pnpm test`：当前 167 项测试，其中 163 项本地通过，4 项真实 JanusGraph 集成测试在未配置环境时跳过。
+- `pnpm test`：当前 169 项测试，其中 165 项本地通过，4 项真实 JanusGraph 集成测试在未配置环境时跳过。
 - `pnpm build`：Electron Forge 生产打包。
 - macOS ARM64 打包输出：
   `apps/desktop/out/Janus Studio-darwin-arm64/Janus Studio.app`。
@@ -256,16 +256,16 @@ pnpm build
 
 ## 11. 当前验证状态
 
-- 当前代码基线提交：`dc87389 feat: complete query asset workspace`；诊断基础设施第一阶段将在本次提交后更新。
+- 当前代码基线提交：`eae5f8f feat: persist automatic diagnostic reports`；发布与兼容验收第一切片尚未提交。
 - 最近一次 `pnpm typecheck`：通过。
-- 最近一次 `pnpm test`：167 项，163 通过，4 个真实环境测试跳过，0 失败。
-- 最近一次 `pnpm build`：通过。
+- 最近一次 `pnpm test`：169 项，165 通过，4 个真实环境测试跳过，0 失败。
+- 最近一次 `pnpm make`：macOS ARM64 ZIP 测试包生成成功，并输出 release manifest、CycloneDX SBOM、SHA-256、变更说明和已知限制。
 - 最近一次打包时间：2026-08-13。
 - 多节点 Binding 传播、真实 Drop、残留实例处理和关闭后自动重开语义已由用户验收。
-- 最近一次功能任务按用户要求重新构建并启动了应用；能力探测由用户在真实连接上验证，Agent 未主动执行其他真实连接操作。
+- 本次发布切片未启动新应用，未触发钥匙串或真实 JanusGraph 连接；此前用于 UI 验证的打包应用仍可能在运行。
 
 ## 12. 后续路线
 
 - 统一长任务中心第一阶段、JanusGraph 兼容层探测/脚本路由、官方 Schema JSON 路由和 1.0/1.1 fixture 矩阵已经完成；GraphSON 执行编排迁入主进程仍待后续切片。
-- 查询资产管理和问题诊断闭环已完成；后续主线为补齐连接/Schema/动态图失败详情入口，再进入发布与兼容验收。连接基础设施仍按 0.4.0 规划。
+- 查询资产管理和问题诊断闭环已完成；发布与兼容验收第一切片已进入实现，后续主线为平台签名、公证、安装及升级/回滚 smoke。连接基础设施仍按 0.4.0 规划。
 - 详细分期、依赖和验收标准见 `docs/剩余功能迭代计划.md`。
