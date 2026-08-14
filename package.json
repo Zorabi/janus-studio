@@ -19,6 +19,9 @@
     "i18n:generate": "node scripts/generate-i18n.mjs",
     "release:verify": "node scripts/release-verify.mjs",
     "release:preflight": "node scripts/release-preflight.mjs",
+    "release:inspect": "node scripts/release-artifact-verification.mjs",
+    "release:sign-linux": "node scripts/release-sign-linux.mjs",
+    "release:upgrade-smoke": "node scripts/release-upgrade-smoke.mjs",
     "release:metadata": "node scripts/release-metadata.mjs",
     "release:checksums": "node scripts/release-metadata.mjs"
   },

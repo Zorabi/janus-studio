@@ -82,6 +82,12 @@ export function normalizeConnectionInput(
     tlsCaPath: input.tlsCaPath?.trim() || "",
     tlsClientCertPath: input.tlsClientCertPath?.trim() || "",
     tlsClientKeyPath: input.tlsClientKeyPath?.trim() || "",
+    proxyMode: input.proxyMode ?? "direct",
+    proxyUrl: input.proxyUrl?.trim() || "",
+    proxyHost: input.proxyHost?.trim() || "",
+    proxyPort: input.proxyPort ?? 8080,
+    proxyBypass: input.proxyBypass?.trim() || "",
+    proxyUsername: input.proxyUsername?.trim() || "",
     enableCompression: input.enableCompression ?? false,
     customHeaders: input.customHeaders?.trim() || "{}",
   };

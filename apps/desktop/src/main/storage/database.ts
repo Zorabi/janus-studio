@@ -29,6 +29,13 @@ export function openApplicationDatabase(path: string): DatabaseSync {
       tls_ca_path TEXT NOT NULL DEFAULT '',
       tls_client_cert_path TEXT NOT NULL DEFAULT '',
       tls_client_key_path TEXT NOT NULL DEFAULT '',
+      proxy_mode TEXT NOT NULL DEFAULT 'direct',
+      proxy_url TEXT NOT NULL DEFAULT '',
+      proxy_host TEXT NOT NULL DEFAULT '',
+      proxy_port INTEGER NOT NULL DEFAULT 8080,
+      proxy_bypass TEXT NOT NULL DEFAULT '',
+      proxy_username TEXT NOT NULL DEFAULT '',
+      proxy_password_cipher BLOB,
       enable_compression INTEGER NOT NULL DEFAULT 0,
       custom_headers TEXT NOT NULL DEFAULT '{}',
       password_cipher BLOB,
@@ -227,6 +234,27 @@ export function openApplicationDatabase(path: string): DatabaseSync {
   if (!connectionColumns.some((column) => column.name === "tls_client_key_passphrase_cipher")) {
     database.exec("ALTER TABLE connection_profiles ADD COLUMN tls_client_key_passphrase_cipher BLOB");
   }
+  if (!connectionColumns.some((column) => column.name === "proxy_mode")) {
+    database.exec("ALTER TABLE connection_profiles ADD COLUMN proxy_mode TEXT NOT NULL DEFAULT 'direct'");
+  }
+  if (!connectionColumns.some((column) => column.name === "proxy_url")) {
+    database.exec("ALTER TABLE connection_profiles ADD COLUMN proxy_url TEXT NOT NULL DEFAULT ''");
+  }
+  if (!connectionColumns.some((column) => column.name === "proxy_host")) {
+    database.exec("ALTER TABLE connection_profiles ADD COLUMN proxy_host TEXT NOT NULL DEFAULT ''");
+  }
+  if (!connectionColumns.some((column) => column.name === "proxy_port")) {
+    database.exec("ALTER TABLE connection_profiles ADD COLUMN proxy_port INTEGER NOT NULL DEFAULT 8080");
+  }
+  if (!connectionColumns.some((column) => column.name === "proxy_bypass")) {
+    database.exec("ALTER TABLE connection_profiles ADD COLUMN proxy_bypass TEXT NOT NULL DEFAULT ''");
+  }
+  if (!connectionColumns.some((column) => column.name === "proxy_username")) {
+    database.exec("ALTER TABLE connection_profiles ADD COLUMN proxy_username TEXT NOT NULL DEFAULT ''");
+  }
+  if (!connectionColumns.some((column) => column.name === "proxy_password_cipher")) {
+    database.exec("ALTER TABLE connection_profiles ADD COLUMN proxy_password_cipher BLOB");
+  }
   if (!connectionColumns.some((column) => column.name === "custom_headers")) {
     database.exec("ALTER TABLE connection_profiles ADD COLUMN custom_headers TEXT NOT NULL DEFAULT '{}'");
   }
@@ -268,7 +296,7 @@ export function openApplicationDatabase(path: string): DatabaseSync {
     WHERE datetime(updated_at) < datetime('now', '-90 days')
        OR id NOT IN (SELECT id FROM diagnostic_records ORDER BY updated_at DESC LIMIT 200);
   `);
-  database.exec("PRAGMA user_version = 13;");
+  database.exec("PRAGMA user_version = 14;");
 
   return database;
 }

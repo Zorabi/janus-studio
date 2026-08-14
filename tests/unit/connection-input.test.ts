@@ -36,3 +36,19 @@ test("rejects incomplete mTLS pairs and orphaned key passphrases", () => {
   assert.equal(connectionInputSchema.safeParse({ ...base, tlsClientCertPath: "/certs/client.pem" }).success, false);
   assert.equal(connectionInputSchema.safeParse({ ...base, tlsClientKeyPassphrase: "orphaned" }).success, false);
 });
+
+test("validates manual proxy settings without allowing plaintext URL credentials", () => {
+  assert.equal(connectionInputSchema.safeParse({
+    ...base,
+    proxyMode: "manual",
+    proxyUrl: "http://proxy.example.test:3128",
+    proxyUsername: "proxy-user",
+    proxyPassword: "proxy-secret",
+  }).success, true);
+  assert.equal(connectionInputSchema.safeParse({ ...base, proxyMode: "manual" }).success, false);
+  assert.equal(connectionInputSchema.safeParse({
+    ...base,
+    proxyMode: "manual",
+    proxyUrl: "http://proxy-user:proxy-secret@proxy.example.test:3128",
+  }).success, false);
+});

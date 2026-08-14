@@ -114,6 +114,11 @@ export function ConnectionsPage({
                         {connection.tlsClientCertPath && connection.tlsClientKeyPath && (
                           <span className="badge transport">mTLS</span>
                         )}
+                        {connection.proxyMode !== "direct" && (
+                          <span className="badge transport">
+                            {connection.proxyMode === "system" ? t("系统代理", "System proxy") : t("手动代理", "Manual proxy")}
+                          </span>
+                        )}
                         {active && (
                           <span className="badge success">{t("当前连接")}</span>
                         )}

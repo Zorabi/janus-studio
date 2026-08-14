@@ -22,6 +22,13 @@ export const connectionInputSchema = z
     tlsClientCertPath: z.string().trim().max(4096).default(""),
     tlsClientKeyPath: z.string().trim().max(4096).default(""),
     tlsClientKeyPassphrase: z.string().max(4096).optional(),
+    proxyMode: z.enum(["direct", "system", "manual"]).default("direct"),
+    proxyUrl: z.string().trim().max(4096).default(""),
+    proxyHost: z.string().trim().max(255).default(""),
+    proxyPort: z.number().int().min(1).max(65_535).default(8080),
+    proxyBypass: z.string().trim().max(8192).default(""),
+    proxyUsername: z.string().trim().max(255).default(""),
+    proxyPassword: z.string().max(4096).optional(),
     enableCompression: z.boolean().default(false),
     customHeaders: z.string().max(32_768).default("{}"),
   })
@@ -50,6 +57,33 @@ export const connectionInputSchema = z
         path: ["tlsClientKeyPassphrase"],
         message: "配置客户端私钥后才能保存私钥口令",
       });
+    }
+    if (input.proxyMode === "manual" && !input.proxyUrl && !input.proxyHost) {
+      context.addIssue({
+        code: "custom",
+        path: ["proxyHost"],
+        message: "手动代理需要填写代理 URL 或主机",
+      });
+    }
+    if (input.proxyUrl) {
+      try {
+        const value = input.proxyUrl.includes("://") ? input.proxyUrl : `http://${input.proxyUrl}`;
+        const url = new URL(value);
+        if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error();
+        if (url.username || url.password) {
+          context.addIssue({
+            code: "custom",
+            path: ["proxyUrl"],
+            message: "代理 URL 不得包含凭据，请使用代理账号和密码字段",
+          });
+        }
+      } catch {
+        context.addIssue({
+          code: "custom",
+          path: ["proxyUrl"],
+          message: "代理 URL 必须使用 http:// 或 https://",
+        });
+      }
     }
     try {
       const headers = JSON.parse(input.customHeaders) as unknown;

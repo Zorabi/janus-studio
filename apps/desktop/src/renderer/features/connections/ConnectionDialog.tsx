@@ -9,6 +9,7 @@ import {
   FolderOpen,
   LoaderCircle,
   LockKeyhole,
+  Route,
   Save,
   SlidersHorizontal,
   X,
@@ -40,6 +41,13 @@ const EMPTY_CONNECTION: Omit<SaveConnectionInput, "id"> = {
   tlsClientCertPath: "",
   tlsClientKeyPath: "",
   tlsClientKeyPassphrase: "",
+  proxyMode: "direct",
+  proxyUrl: "",
+  proxyHost: "",
+  proxyPort: 8080,
+  proxyBypass: "",
+  proxyUsername: "",
+  proxyPassword: "",
   enableCompression: false,
   customHeaders: "{}",
 };
@@ -52,6 +60,7 @@ function connectionFromForm(
   const password = String(data.get("password") ?? "");
   const tlsClientKeyPath = String(data.get("tlsClientKeyPath") ?? "").trim();
   const tlsClientKeyPassphrase = String(data.get("tlsClientKeyPassphrase") ?? "");
+  const proxyPassword = String(data.get("proxyPassword") ?? "");
   return {
     id: editing?.id,
     name: String(data.get("name") ?? "").trim(),
@@ -81,6 +90,13 @@ function connectionFromForm(
       : editing?.hasTlsClientKeyPassphrase && tlsClientKeyPassphrase === ""
         ? undefined
         : tlsClientKeyPassphrase,
+    proxyMode: String(data.get("proxyMode") ?? "direct") as SaveConnectionInput["proxyMode"],
+    proxyUrl: String(data.get("proxyUrl") ?? "").trim(),
+    proxyHost: String(data.get("proxyHost") ?? "").trim(),
+    proxyPort: Number(data.get("proxyPort") || 8080),
+    proxyBypass: String(data.get("proxyBypass") ?? "").trim(),
+    proxyUsername: String(data.get("proxyUsername") ?? "").trim(),
+    proxyPassword: editing?.hasProxyPassword && proxyPassword === "" ? undefined : proxyPassword,
     enableCompression: data.get("enableCompression") === "on",
     customHeaders: String(data.get("customHeaders") ?? "{}").trim() || "{}",
   };
@@ -111,6 +127,8 @@ export function ConnectionDialog({
   const [tlsClientKeyPath, setTlsClientKeyPath] = useState(defaults.tlsClientKeyPath);
   const [showTlsPassphrase, setShowTlsPassphrase] = useState(false);
   const [testReport, setTestReport] = useState<ConnectionTestReport | null>(null);
+  const [proxyMode, setProxyMode] = useState(defaults.proxyMode);
+  const [showProxyPassword, setShowProxyPassword] = useState(false);
 
   const pickTlsFile = async (
     kind: "ca" | "certificate" | "private-key",
@@ -361,7 +379,7 @@ export function ConnectionDialog({
               <SlidersHorizontal size={17} />
               <span>
                 <strong>{t("高级网络设置", "Advanced network settings")}</strong>
-                <small>{t("TLS 验证、WebSocket 压缩与自定义请求头", "TLS validation, WebSocket compression and custom headers")}</small>
+                <small>{t("代理、TLS 验证、WebSocket 压缩与自定义请求头", "Proxy, TLS validation, WebSocket compression and custom headers")}</small>
               </span>
               <ChevronDown size={17} />
             </summary>
@@ -380,6 +398,70 @@ export function ConnectionDialog({
                   <small>{t("启用 per-message deflate，适合大型响应", "Enable per-message deflate for larger responses")}</small>
                 </span>
               </label>
+              <section className="connection-route-settings field-span-2">
+                <header>
+                  <span className="connection-route-icon"><Route size={18} /></span>
+                  <span>
+                    <strong>{t("网络路径", "Network route")}</strong>
+                    <small>{t("选择直连、操作系统代理或连接专用代理", "Choose direct, operating-system, or connection-specific routing")}</small>
+                  </span>
+                </header>
+                <SelectControl
+                  name="proxyMode"
+                  value={proxyMode}
+                  onValueChange={(value) => setProxyMode(value as SaveConnectionInput["proxyMode"])}
+                  ariaLabel={t("代理模式", "Proxy mode")}
+                  options={[
+                    { value: "direct", label: t("直接连接", "Direct connection"), description: t("不读取系统代理，也不经过显式代理", "Ignore system proxy settings and connect directly") },
+                    { value: "system", label: t("跟随系统代理", "Use system proxy"), description: t("使用操作系统代理与绕过规则", "Use operating-system proxy and bypass settings") },
+                    { value: "manual", label: t("手动代理", "Manual proxy"), description: t("为此连接配置独立的 HTTP/HTTPS 代理", "Use a dedicated HTTP/HTTPS proxy for this connection") },
+                  ]}
+                />
+                {proxyMode === "manual" && (
+                  <div className="connection-route-manual">
+                    <label className="field field-span-2">
+                      <span>{t("代理地址", "Proxy URL")}</span>
+                      <input name="proxyUrl" defaultValue={defaults.proxyUrl} placeholder="http://127.0.0.1:7890" required />
+                      <small>{t("支持 HTTP/HTTPS 代理；请勿在地址中嵌入用户名或密码。", "HTTP/HTTPS proxies are supported. Do not embed credentials in the URL.")}</small>
+                    </label>
+                    <input type="hidden" name="proxyHost" value="" />
+                    <input type="hidden" name="proxyPort" value={defaults.proxyPort || 8080} />
+                    <label className="field">
+                      <span>{t("代理账号", "Proxy username")}</span>
+                      <input name="proxyUsername" defaultValue={defaults.proxyUsername} autoComplete="off" />
+                    </label>
+                    <label className="field">
+                      <span>{t("代理密码", "Proxy password")}</span>
+                      <div className="password-field">
+                        <input
+                          name="proxyPassword"
+                          type={showProxyPassword ? "text" : "password"}
+                          placeholder={editing?.hasProxyPassword ? t("留空以保留已加密密码", "Leave blank to keep the encrypted password") : t("可选", "Optional")}
+                          autoComplete="off"
+                        />
+                        <IconButton label={showProxyPassword ? t("隐藏代理密码", "Hide proxy password") : t("显示代理密码", "Show proxy password")} onClick={() => setShowProxyPassword((current) => !current)}>
+                          {showProxyPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                        </IconButton>
+                      </div>
+                    </label>
+                    <label className="field field-span-2">
+                      <span>{t("绕过代理", "Proxy bypass")}</span>
+                      <input name="proxyBypass" defaultValue={defaults.proxyBypass} placeholder="localhost,127.0.0.1,*.internal.example" />
+                      <small>{t("使用逗号分隔主机、域名或通配符；匹配目标将直接连接。", "Comma-separate hosts, domains, or wildcards that should connect directly.")}</small>
+                    </label>
+                  </div>
+                )}
+                {proxyMode !== "manual" && (
+                  <>
+                    <input type="hidden" name="proxyUrl" value={defaults.proxyUrl} />
+                    <input type="hidden" name="proxyHost" value={defaults.proxyHost} />
+                    <input type="hidden" name="proxyPort" value={defaults.proxyPort || 8080} />
+                    <input type="hidden" name="proxyBypass" value={defaults.proxyBypass} />
+                    <input type="hidden" name="proxyUsername" value={defaults.proxyUsername} />
+                    <input type="hidden" name="proxyPassword" value="" />
+                  </>
+                )}
+              </section>
               <div className="field field-span-2">
                 <span>{t("自定义 CA 证书", "Custom CA certificate")}</span>
                 <div className="tls-file-field">

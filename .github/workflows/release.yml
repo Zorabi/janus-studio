@@ -17,12 +17,19 @@ jobs:
           - name: macOS arm64
             os: macos-14
             artifact: macos-arm64
+            arch: arm64
+          - name: macOS x64
+            os: macos-15-intel
+            artifact: macos-x64
+            arch: x64
           - name: Windows x64
             os: windows-2022
             artifact: windows-x64
+            arch: x64
           - name: Linux x64
             os: ubuntu-22.04
             artifact: linux-x64
+            arch: x64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -41,12 +48,16 @@ jobs:
         run: pnpm release:preflight
 
       - name: Import Apple signing identity
-        if: runner.os == 'macOS' && env.MACOS_CERTIFICATE_BASE64 != ''
+        if: runner.os == 'macOS'
         shell: bash
         env:
           MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
           MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
         run: |
+          if [ -z "$MACOS_CERTIFICATE_BASE64" ]; then
+            echo "Apple signing identity is not configured; this run can only produce a test build."
+            exit 0
+          fi
           CERTIFICATE_PATH="$RUNNER_TEMP/developer-id.p12"
           KEYCHAIN_PATH="$RUNNER_TEMP/janus-studio-signing.keychain-db"
           KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
@@ -60,13 +71,17 @@ jobs:
           echo "MACOS_SIGN_IDENTITY=Developer ID Application" >> "$GITHUB_ENV"
 
       - name: Configure Apple notarization key
-        if: runner.os == 'macOS' && env.APPLE_API_KEY_BASE64 != ''
+        if: runner.os == 'macOS'
         shell: bash
         env:
           APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: |
+          if [ -z "$APPLE_API_KEY_BASE64" ] || [ -z "$APPLE_API_KEY_ID" ] || [ -z "$APPLE_API_ISSUER" ]; then
+            echo "Apple notarization credentials are incomplete; artifact verification will classify this as a test build."
+            exit 0
+          fi
           APPLE_KEY_PATH="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
           echo "$APPLE_API_KEY_BASE64" | base64 --decode > "$APPLE_KEY_PATH"
           echo "APPLE_API_KEY=$APPLE_KEY_PATH" >> "$GITHUB_ENV"
@@ -74,23 +89,41 @@ jobs:
           echo "APPLE_API_ISSUER=$APPLE_API_ISSUER" >> "$GITHUB_ENV"
 
       - name: Configure Windows signing certificate
-        if: runner.os == 'Windows' && env.WINDOWS_CERTIFICATE_BASE64 != ''
+        if: runner.os == 'Windows'
         shell: pwsh
         env:
           WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         run: |
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_BASE64)) {
+            Write-Host "Windows signing certificate is not configured; this run can only produce a test build."
+            exit 0
+          }
           $certificatePath = Join-Path $env:RUNNER_TEMP "janus-studio.pfx"
           [IO.File]::WriteAllBytes($certificatePath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64))
           "WINDOWS_CERTIFICATE_FILE=$certificatePath" | Out-File -FilePath $env:GITHUB_ENV -Append
           "WINDOWS_CERTIFICATE_PASSWORD=$env:WINDOWS_CERTIFICATE_PASSWORD" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Build signed installers
-        run: pnpm make
+        run: pnpm --filter @janusgraph/desktop make --arch=${{ matrix.arch }}
         env:
           JANUSGRAPH_UPDATE_REPOSITORY: ${{ github.repository }}
+      - name: Sign Linux packages with detached OpenPGP signatures
+        if: runner.os == 'Linux'
+        run: pnpm release:sign-linux
+        env:
+          LINUX_GPG_PRIVATE_KEY_BASE64: ${{ secrets.LINUX_GPG_PRIVATE_KEY_BASE64 }}
+          LINUX_GPG_KEY_ID: ${{ secrets.LINUX_GPG_KEY_ID }}
+          LINUX_GPG_PASSPHRASE: ${{ secrets.LINUX_GPG_PASSPHRASE }}
       - run: pnpm test:e2e
-      - run: pnpm release:metadata
+      - name: Upgrade and rollback smoke plan
+        run: pnpm release:upgrade-smoke
+      - name: Verify signature, notarization and installability
+        run: pnpm release:inspect
+        env:
+          LINUX_GPG_FINGERPRINT: ${{ secrets.LINUX_GPG_FINGERPRINT }}
+      - name: Generate verified release metadata
+        run: pnpm release:metadata
         env:
           JANUS_STUDIO_REQUIRE_OFFICIAL_RELEASE: "1"
       - uses: actions/upload-artifact@v4

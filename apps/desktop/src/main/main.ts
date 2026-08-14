@@ -214,7 +214,9 @@ app.whenReady().then(() => {
     join(app.getPath("userData"), "credential-vault.key"),
     forceLocalCredentialVault,
   );
-  const gremlinService = new GremlinService();
+  const gremlinService = new GremlinService((endpoint) =>
+    session.defaultSession.resolveProxy(endpoint),
+  );
   activeGremlinService = gremlinService;
   const connectionService = new ConnectionService(
     repository,

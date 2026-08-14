@@ -15,7 +15,12 @@ import { ConnectionRepository } from "../storage/connection-repository";
 
 function transientProfile(input: SaveConnectionInput): ConnectionProfile {
   const timestamp = new Date().toISOString();
-  const { password: _password, tlsClientKeyPassphrase: _tlsClientKeyPassphrase, ...profile } = input;
+  const {
+    password: _password,
+    tlsClientKeyPassphrase: _tlsClientKeyPassphrase,
+    proxyPassword: _proxyPassword,
+    ...profile
+  } = input;
   return {
     ...profile,
     id: input.id ?? randomUUID(),
@@ -27,6 +32,7 @@ function transientProfile(input: SaveConnectionInput): ConnectionProfile {
 export class ConnectionService {
   private readonly passwordCache = new Map<string, string>();
   private readonly tlsPassphraseCache = new Map<string, string>();
+  private readonly proxyPasswordCache = new Map<string, string>();
 
   constructor(
     private readonly repository: ConnectionRepository,
@@ -53,6 +59,12 @@ export class ConnectionService {
         : input.tlsClientKeyPassphrase
           ? await this.credentialVault.encrypt(input.tlsClientKeyPassphrase)
           : null;
+    const proxyPasswordCipher =
+      input.proxyPassword === undefined
+        ? undefined
+        : input.proxyPassword
+          ? await this.credentialVault.encrypt(input.proxyPassword)
+          : null;
 
     if (input.password !== undefined) {
       if (input.password) this.passwordCache.set(id, input.password);
@@ -62,15 +74,20 @@ export class ConnectionService {
       if (input.tlsClientKeyPassphrase) this.tlsPassphraseCache.set(id, input.tlsClientKeyPassphrase);
       else this.tlsPassphraseCache.delete(id);
     }
+    if (input.proxyPassword !== undefined) {
+      if (input.proxyPassword) this.proxyPasswordCache.set(id, input.proxyPassword);
+      else this.proxyPasswordCache.delete(id);
+    }
 
     await this.gremlinService.closeConnection(id);
-    return this.repository.save(id, input, passwordCipher, tlsClientKeyPassphraseCipher);
+    return this.repository.save(id, input, passwordCipher, tlsClientKeyPassphraseCipher, proxyPasswordCipher);
   }
 
   async remove(id: string): Promise<void> {
     await this.gremlinService.closeConnection(id);
     this.passwordCache.delete(id);
     this.tlsPassphraseCache.delete(id);
+    this.proxyPasswordCache.delete(id);
     this.repository.remove(id);
   }
 
@@ -79,7 +96,8 @@ export class ConnectionService {
     const profile = transientProfile(input);
     const password = await this.resolvePassword(input.id, input.password);
     const tlsClientKeyPassphrase = await this.resolveTlsPassphrase(input.id, input.tlsClientKeyPassphrase);
-    const report = await this.gremlinService.test(profile, password, tlsClientKeyPassphrase);
+    const proxyPassword = await this.resolveProxyPassword(input.id, input.proxyPassword);
+    const report = await this.gremlinService.test(profile, password, tlsClientKeyPassphrase, proxyPassword);
     return { ...report, endpoint: connectionEndpoint(profile) };
   }
 
@@ -89,6 +107,10 @@ export class ConnectionService {
 
   async tlsClientKeyPassphraseFor(id: string): Promise<string> {
     return this.resolveTlsPassphrase(id);
+  }
+
+  async proxyPasswordFor(id: string): Promise<string> {
+    return this.resolveProxyPassword(id);
   }
 
   profile(id: string): ConnectionProfile {
@@ -120,5 +142,17 @@ export class ConnectionService {
     const passphrase = await this.credentialVault.decrypt(stored.tlsClientKeyPassphraseCipher);
     this.tlsPassphraseCache.set(id, passphrase);
     return passphrase;
+  }
+
+  private async resolveProxyPassword(id?: string, inputPassword?: string): Promise<string> {
+    if (inputPassword !== undefined) return inputPassword;
+    if (!id) return "";
+    const stored = this.repository.find(id);
+    if (!stored?.proxyPasswordCipher) return "";
+    const cached = this.proxyPasswordCache.get(id);
+    if (cached !== undefined) return cached;
+    const password = await this.credentialVault.decrypt(stored.proxyPasswordCipher);
+    this.proxyPasswordCache.set(id, password);
+    return password;
   }
 }

@@ -1,6 +1,7 @@
 export type ConnectionProtocol = "ws" | "wss" | "http" | "https";
 export type GremlinClientMode = "sessionless" | "sessioned";
 export type ConnectionEnvironment = "dev" | "test" | "prod";
+export type ConnectionProxyMode = "direct" | "system" | "manual";
 
 export type ConnectionProfile = {
   id: string;
@@ -21,6 +22,12 @@ export type ConnectionProfile = {
   tlsCaPath: string;
   tlsClientCertPath: string;
   tlsClientKeyPath: string;
+  proxyMode: ConnectionProxyMode;
+  proxyUrl: string;
+  proxyHost: string;
+  proxyPort: number;
+  proxyBypass: string;
+  proxyUsername: string;
   enableCompression: boolean;
   customHeaders: string;
   createdAt: string;
@@ -30,6 +37,7 @@ export type ConnectionProfile = {
 export type ConnectionSummary = ConnectionProfile & {
   hasPassword: boolean;
   hasTlsClientKeyPassphrase: boolean;
+  hasProxyPassword: boolean;
 };
 
 export type SaveConnectionInput = Omit<
@@ -39,9 +47,10 @@ export type SaveConnectionInput = Omit<
   id?: string;
   password?: string;
   tlsClientKeyPassphrase?: string;
+  proxyPassword?: string;
 };
 
-export type ConnectionTestStage = "dns" | "tcp" | "tls" | "authentication" | "gremlin" | "schema";
+export type ConnectionTestStage = "dns" | "tcp" | "proxy" | "tls" | "authentication" | "gremlin" | "schema";
 export type ConnectionTestStageResult = {
   stage: ConnectionTestStage;
   status: "passed" | "failed" | "skipped";

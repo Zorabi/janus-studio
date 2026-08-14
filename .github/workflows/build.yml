@@ -41,12 +41,19 @@ jobs:
           - name: macOS arm64
             os: macos-14
             artifact: macos-arm64
+            arch: arm64
+          - name: macOS x64
+            os: macos-15-intel
+            artifact: macos-x64
+            arch: x64
           - name: Windows x64
             os: windows-2022
             artifact: windows-x64
+            arch: x64
           - name: Linux x64
             os: ubuntu-22.04
             artifact: linux-x64
+            arch: x64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -65,9 +72,13 @@ jobs:
       - name: Release preflight
         run: pnpm release:preflight
       - name: Build installers
-        run: pnpm make
+        run: pnpm --filter @janusgraph/desktop make --arch=${{ matrix.arch }}
       - name: Packaged application smoke test
         run: pnpm test:e2e
+      - name: Upgrade and rollback smoke plan
+        run: pnpm release:upgrade-smoke
+      - name: Inspect signature, notarization and installability
+        run: pnpm release:inspect
       - name: Generate test-build release metadata
         run: pnpm release:metadata
       - uses: actions/upload-artifact@v4

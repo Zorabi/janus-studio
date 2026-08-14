@@ -58,16 +58,6 @@ function flattenDependencies(dependencies, components) {
   }
 }
 
-function signingIdentity() {
-  if (process.platform === "darwin") return process.env.MACOS_SIGN_IDENTITY
-    ? { status: "signed", identity: process.env.MACOS_SIGN_IDENTITY, notarizationConfigured: Boolean(process.env.APPLE_API_KEY && process.env.APPLE_API_KEY_ID && process.env.APPLE_API_ISSUER) }
-    : { status: "ad-hoc", identity: null, notarizationConfigured: false };
-  if (process.platform === "win32") return process.env.WINDOWS_CERTIFICATE_FILE
-    ? { status: "signed", identity: "Authenticode certificate", notarizationConfigured: false }
-    : { status: "unsigned", identity: null, notarizationConfigured: false };
-  return { status: "unsigned", identity: null, notarizationConfigured: false };
-}
-
 await mkdir(makeRoot, { recursive: true });
 const identity = await verifyReleaseIdentity({ allowDirty: process.argv.includes("--allow-dirty") });
 const gitCommit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repositoryRoot, encoding: "utf8" }).trim();
@@ -96,12 +86,17 @@ for (const file of files) {
   });
 }
 
-const signing = signingIdentity();
-const officialIdentity = process.platform === "darwin"
-  ? signing.status === "signed" && signing.notarizationConfigured
-  : process.platform === "win32"
-    ? signing.status === "signed"
-    : Boolean(identity.tag);
+const verificationName = `release-verification-${platformId}.json`;
+const verification = await readFile(path.join(makeRoot, verificationName), "utf8")
+  .then(JSON.parse)
+  .catch(() => null);
+const signing = verification?.overall ?? {
+  signature: process.platform === "darwin" ? "ad-hoc" : "unsigned",
+  notarization: process.platform === "darwin" ? "missing" : "not-applicable",
+  installability: "not-checked",
+  officialReady: false,
+};
+const officialIdentity = signing.officialReady === true;
 const releaseClass = officialIdentity ? "official-release" : "test-build";
 if (process.env.JANUS_STUDIO_REQUIRE_OFFICIAL_RELEASE === "1" && releaseClass !== "official-release") {
   throw new Error(`Official release requirements are not satisfied for ${platformId}: ${JSON.stringify(signing)}`);
@@ -117,10 +112,15 @@ const manifest = {
   gitCommit,
   tag: identity.tag,
   signing,
+  verification: verification
+    ? { report: verificationName, artifactsChecked: verification.artifacts?.length ?? 0 }
+    : { report: null, artifactsChecked: 0 },
   documentation: { releaseNotes: releaseNotesName, knownLimitations: knownLimitationsName },
   artifacts,
   notices: releaseClass === "test-build"
-    ? ["This artifact is a local or CI test build and must not be presented as an officially signed release."]
+    ? [verification
+        ? "Artifact verification did not satisfy official release requirements; this is a test build."
+        : "Artifact verification was not run; this is a test build and must not be presented as an officially signed release."]
     : [],
 };
 

@@ -50,6 +50,8 @@
 - 支持 WS、WSS、HTTP、HTTPS、用户名和密码。
 - 支持 Sessionless 和 Sessioned 客户端，默认使用 Sessionless。
 - 支持显式输入并使用 Traversal Source、Graph Binding、超时、TLS、Headers 等高级配置。
+- 支持直连、系统代理和连接专用 HTTP/HTTPS 代理；WS/WSS 与 HTTP/HTTPS 查询、流式导出和连接测试使用同一网络路径。代理密码独立进入凭据库，不得写入连接普通字段。
+- 连接测试按 DNS、TCP、代理、TLS、认证、Gremlin、Schema 权限分阶段展示；Node 22 主进程必须让 Gremlin 3.7.x 使用 `ws` 传输，不能回退到会忽略 Agent、自定义 CA 和 mTLS 选项的全局 WebSocket。
 - Sessioned 模式支持显式事务开启、提交和回滚；提交或回滚后当前显式事务状态结束，后续是否重新开启由用户操作决定。
 
 ### 4.2 Gremlin 编辑器
@@ -220,7 +222,7 @@
 - 连接测试失败、Schema 读取/历史失败、ConfiguredGraphFactory 能力或实例读取失败，以及任务中心失败/中断记录，统一提供“生成诊断包”入口；入口必须携带来源、连接、图、阶段、时间和异常摘要。问题诊断页展示当前故障上下文，主进程再次校验和脱敏后写入 `summary.json`，禁止仅靠 Renderer 隐藏敏感信息。
 - 问题诊断使用确定性规则引擎，不调用外部 AI 或上传诊断数据；结论必须包含严重度、置信度、证据和可执行建议。首批识别实例 ID 冲突、GraphSON 序列化、evaluationTimeout、Elasticsearch 分片上限、Schema 重名、索引生命周期、ConfiguredGraphFactory 残留和能力探测失败。ZIP 必须包含 `diagnostic-report.md`；离线复诊仅接受带 `summary.json` 的 ZIP，并限制压缩包大小、文件数量、单项和总解压体积。
 - 自动诊断和离线复诊结果通过 SQLite v12 `diagnostic_records` 持久化；同一故障刷新按来源、故障时间和结论指纹去重，不得重复累加。记录状态由用户显式在未读、已确认、已解决之间推进，支持重新打开与二次确认删除。默认保留最近 200 条且不超过 90 天，查看记录本身不得自动更改状态。
-- i18n 消息目录当前为每种语言 1147 条，并会在生成时清理已从源码移除的废弃文案。翻译服务不可用时生成脚本保留英文 fallback 并正常完成，不能因远端限流阻断本地构建。
+- i18n 消息目录当前为每种语言 1190 条，并会在生成时清理已从源码移除的废弃文案。翻译服务不可用时生成脚本保留英文 fallback 并正常完成，不能因远端限流阻断本地构建。
 
 ## 9. 开发与验证命令
 
@@ -235,7 +237,7 @@ pnpm build
 ```
 
 - `pnpm typecheck`：全部 workspace TypeScript 检查。
-- `pnpm test`：当前 169 项测试，其中 165 项本地通过，4 项真实 JanusGraph 集成测试在未配置环境时跳过。
+- `pnpm test`：当前 181 项测试，其中 177 项本地通过，4 项真实 JanusGraph 集成测试在未配置环境时跳过。
 - `pnpm build`：Electron Forge 生产打包。
 - macOS ARM64 打包输出：
   `apps/desktop/out/Janus Studio-darwin-arm64/Janus Studio.app`。
@@ -256,16 +258,16 @@ pnpm build
 
 ## 11. 当前验证状态
 
-- 当前代码基线提交：`eae5f8f feat: persist automatic diagnostic reports`；发布与兼容验收第一切片尚未提交。
+- 当前代码基线：查询资产、诊断闭环、发布验收第二切片，以及连接代理基础设施均已实现；以仓库最新提交为准。
 - 最近一次 `pnpm typecheck`：通过。
-- 最近一次 `pnpm test`：169 项，165 通过，4 个真实环境测试跳过，0 失败。
-- 最近一次 `pnpm make`：macOS ARM64 ZIP 测试包生成成功，并输出 release manifest、CycloneDX SBOM、SHA-256、变更说明和已知限制。
-- 最近一次打包时间：2026-08-13。
+- 最近一次 `pnpm test`：181 项，177 通过，4 个真实环境测试跳过，0 失败。
+- 最近一次 `pnpm build`：macOS ARM64 生产包生成成功。
+- 最近一次打包时间：2026-08-14。
 - 多节点 Binding 传播、真实 Drop、残留实例处理和关闭后自动重开语义已由用户验收。
-- 本次发布切片未启动新应用，未触发钥匙串或真实 JanusGraph 连接；此前用于 UI 验证的打包应用仍可能在运行。
+- 本次未启动新应用、未触发钥匙串；已在用户授权下对本地 JanusGraph 1.1.0 完成只读 WS/HTTP/认证/Binding/Management 与 CONNECT 代理回归，未修改图、Schema、容器或 Elasticsearch。
 
 ## 12. 后续路线
 
-- 统一长任务中心第一阶段、JanusGraph 兼容层探测/脚本路由、官方 Schema JSON 路由和 1.0/1.1 fixture 矩阵已经完成；GraphSON 执行编排迁入主进程仍待后续切片。
-- 查询资产管理和问题诊断闭环已完成；发布与兼容验收第一切片已进入实现，后续主线为平台签名、公证、安装及升级/回滚 smoke。连接基础设施仍按 0.4.0 规划。
+- 统一长任务中心、JanusGraph 兼容层、官方 Schema JSON 路由、GraphSON 主进程编排、查询资产管理和问题诊断闭环已经完成。
+- 发布与兼容验收第二切片及连接代理切片已经完成；连接基础设施下一步为 SSH Tunnel，再推进 Bearer Token、敏感 Header 凭据化与认证 Profile。
 - 详细分期、依赖和验收标准见 `docs/剩余功能迭代计划.md`。

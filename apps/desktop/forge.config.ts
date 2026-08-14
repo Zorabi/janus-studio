@@ -9,6 +9,7 @@ import { VitePlugin } from "@electron-forge/plugin-vite";
 
 const githubRepository = process.env.GITHUB_REPOSITORY?.split("/");
 const windowsCertificate = process.env.WINDOWS_CERTIFICATE_FILE;
+const windowsTimestampServer = process.env.WINDOWS_TIMESTAMP_SERVER ?? "http://timestamp.digicert.com";
 const macIdentity = process.env.MACOS_SIGN_IDENTITY;
 const appleApiKey = process.env.APPLE_API_KEY;
 const macSignConfig = process.platform === "darwin"
@@ -51,6 +52,7 @@ const config: ForgeConfig = {
         ? {
             certificateFile: windowsCertificate,
             certificatePassword: process.env.WINDOWS_CERTIFICATE_PASSWORD,
+            signWithParams: `/tr ${windowsTimestampServer} /td sha256 /fd sha256`,
           }
         : {}),
     }),

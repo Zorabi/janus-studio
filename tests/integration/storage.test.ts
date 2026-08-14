@@ -36,15 +36,25 @@ test("persists connection profiles, advanced transport settings and history", ()
       tlsCaPath: "/certs/company-ca.pem",
       tlsClientCertPath: "/certs/client.pem",
       tlsClientKeyPath: "/certs/client.key",
+      proxyMode: "manual",
+      proxyUrl: "http://proxy.example.test:3128",
+      proxyHost: "",
+      proxyPort: 3128,
+      proxyBypass: "localhost,.internal.example.test",
+      proxyUsername: "proxy-user",
       enableCompression: true,
       customHeaders: "{\"X-QA\":\"1\"}",
-    }, new Uint8Array([1, 2, 3]), new Uint8Array([4, 5, 6]));
+    }, new Uint8Array([1, 2, 3]), new Uint8Array([4, 5, 6]), new Uint8Array([7, 8, 9]));
     assert.equal(saved.hasPassword, true);
     assert.equal(saved.tlsRejectUnauthorized, false);
     assert.equal(saved.enableCompression, true);
     assert.equal(saved.environment, "test");
     assert.equal(saved.connectionReadOnly, true);
     assert.equal(saved.hasTlsClientKeyPassphrase, true);
+    assert.equal(saved.hasProxyPassword, true);
+    assert.equal(saved.proxyMode, "manual");
+    assert.equal(saved.proxyUsername, "proxy-user");
+    assert.deepEqual(connections.find(saved.id)?.proxyPasswordCipher, new Uint8Array([7, 8, 9]));
     assert.equal(saved.tlsCaPath, "/certs/company-ca.pem");
     assert.equal(saved.tlsClientCertPath, "/certs/client.pem");
     assert.equal(saved.tlsClientKeyPath, "/certs/client.key");
@@ -101,7 +111,7 @@ test("persists, deduplicates and resolves diagnostic records across restarts", (
     assert.equal(restoredFirst.report.signalsScanned, 3);
     new DiagnosticRecordRepository(database).remove(first.id);
     assert.equal(new DiagnosticRecordRepository(database).list().length, 3);
-    assert.equal(database.prepare("PRAGMA user_version").get()!.user_version, 13);
+    assert.equal(database.prepare("PRAGMA user_version").get()!.user_version, 14);
   } finally {
     database.close();
     rmSync(directory, { recursive: true, force: true });
@@ -429,7 +439,7 @@ test("migrates existing connection profiles to development with write access", (
     const migrated = new ConnectionRepository(database).find("legacy")?.profile;
     assert.equal(migrated?.environment, "dev");
     assert.equal(migrated?.connectionReadOnly, false);
-    assert.equal(database.prepare("PRAGMA user_version").get()?.user_version, 13);
+    assert.equal(database.prepare("PRAGMA user_version").get()?.user_version, 14);
   } finally {
     database.close();
     rmSync(directory, { recursive: true, force: true });

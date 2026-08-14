@@ -30,6 +30,12 @@ test("normalizes connection profiles without changing security choices", () => {
     tlsCaPath: " /certs/ca.pem ",
     tlsClientCertPath: " /certs/client.pem ",
     tlsClientKeyPath: " /certs/client.key ",
+    proxyMode: "manual",
+    proxyUrl: " http://proxy.example.test:3128 ",
+    proxyHost: " proxy.example.test ",
+    proxyPort: 3128,
+    proxyBypass: " localhost,.internal.example.test ",
+    proxyUsername: " proxy-user ",
     enableCompression: true,
     customHeaders: "  {\"X-Test\":\"1\"}  ",
   });
@@ -46,6 +52,9 @@ test("normalizes connection profiles without changing security choices", () => {
   assert.equal(normalized.tlsCaPath, "/certs/ca.pem");
   assert.equal(normalized.tlsClientCertPath, "/certs/client.pem");
   assert.equal(normalized.tlsClientKeyPath, "/certs/client.key");
+  assert.equal(normalized.proxyUrl, "http://proxy.example.test:3128");
+  assert.equal(normalized.proxyHost, "proxy.example.test");
+  assert.equal(normalized.proxyUsername, "proxy-user");
   assert.equal(normalized.enableCompression, true);
   assert.equal(normalized.customHeaders, "{\"X-Test\":\"1\"}");
 });

@@ -51,6 +51,7 @@ export class QueryService {
     }
     const password = await this.connections.passwordFor(request.connectionId);
     const tlsClientKeyPassphrase = await this.connections.tlsClientKeyPassphraseFor(request.connectionId);
+    const proxyPassword = await this.connections.proxyPasswordFor(request.connectionId);
     const startedAt = performance.now();
     const normalizedQuery = normalizeManagementConsoleText(
       normalizeTraversalConsoleText(request.query),
@@ -68,6 +69,7 @@ export class QueryService {
         request.timeoutMs,
         request.serverCancellation,
         tlsClientKeyPassphrase,
+        proxyPassword,
       );
       if (request.recordHistory !== false) {
         this.history.add(
@@ -138,6 +140,7 @@ export class QueryService {
       : storedProfile;
     const password = await this.connections.passwordFor(request.connectionId);
     const tlsClientKeyPassphrase = await this.connections.tlsClientKeyPassphraseFor(request.connectionId);
+    const proxyPassword = await this.connections.proxyPasswordFor(request.connectionId);
     return this.files.streamQueryResult(
       request.suggestedName,
       request.format,
@@ -149,6 +152,7 @@ export class QueryService {
         request.bindings ?? {},
         writeItems,
         tlsClientKeyPassphrase,
+        proxyPassword,
       ),
     );
   }
