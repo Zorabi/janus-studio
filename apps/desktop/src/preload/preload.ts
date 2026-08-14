@@ -29,6 +29,11 @@ const desktopApi: DesktopApi = {
     remove: (id) => ipcRenderer.invoke("connections:remove", id),
     test: (input) => ipcRenderer.invoke("connections:test", input),
   },
+  authProfiles: {
+    list: () => ipcRenderer.invoke("auth-profiles:list"),
+    save: (input) => ipcRenderer.invoke("auth-profiles:save", input),
+    remove: (id) => ipcRenderer.invoke("auth-profiles:remove", id),
+  },
   compatibility: {
     get: (connectionId, refresh) => ipcRenderer.invoke("compatibility:get", { connectionId, refresh }),
   },

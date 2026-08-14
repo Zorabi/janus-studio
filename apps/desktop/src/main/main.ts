@@ -26,6 +26,8 @@ import { QueryAssetRepository } from "./storage/query-asset-repository";
 import { UpdateSourceType, updateElectronApp } from "update-electron-app";
 import { StructuredLogger } from "./diagnostics/structured-logger";
 import { DiagnosticRecordRepository } from "./storage/diagnostic-record-repository";
+import { AuthenticationProfileRepository } from "./storage/authentication-profile-repository";
+import { AuthenticationProfileService } from "./services/authentication-profile-service";
 
 declare const __UPDATE_REPOSITORY__: string;
 declare const __UPDATE_BASE_URL__: string;
@@ -170,7 +172,7 @@ function createWindow(): BrowserWindow {
   return window;
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   diagnosticLogger.info("application", "application.ready", "Janus Studio is ready", {
     appVersion: app.getVersion(),
     platform: process.platform,
@@ -207,6 +209,7 @@ app.whenReady().then(() => {
   const graphTransferRepository = new GraphTransferRepository(database);
   const queryAssetRepository = new QueryAssetRepository(database);
   const diagnosticRecordRepository = new DiagnosticRecordRepository(database);
+  const authenticationProfileRepository = new AuthenticationProfileRepository(database);
   const forceLocalCredentialVault =
     process.env.JANUS_STUDIO_FORCE_LOCAL_CREDENTIAL_VAULT === "1" ||
     process.platform === "darwin";
@@ -218,11 +221,17 @@ app.whenReady().then(() => {
     session.defaultSession.resolveProxy(endpoint),
   );
   activeGremlinService = gremlinService;
+  const authenticationProfileService = new AuthenticationProfileService(
+    authenticationProfileRepository,
+    credentialVault,
+  );
   const connectionService = new ConnectionService(
     repository,
     credentialVault,
     gremlinService,
+    authenticationProfileService,
   );
+  await connectionService.migrateLegacySensitiveHeaders();
 
   mainWindow = createWindow();
   installApplicationMenu(mainWindow);
@@ -268,6 +277,7 @@ app.whenReady().then(() => {
     queryAssetRepository,
     diagnosticLogger,
     diagnosticRecordRepository,
+    authenticationProfileService,
   });
 
   app.on("activate", () => {

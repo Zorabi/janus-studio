@@ -9,6 +9,7 @@ import {
   Edit3,
   Stethoscope,
   LoaderCircle,
+  KeyRound,
   LockKeyhole,
   Plus,
   Server,
@@ -19,6 +20,7 @@ import { EmptyState, IconButton, PageHeader } from "../../components/ui";
 import { useTranslate } from "../../lib/i18n";
 import { CompatibilityDialog } from "./CompatibilityDialog";
 import { ConnectionTestStages } from "./ConnectionTestStages";
+import { AuthenticationProfilesDialog } from "./AuthenticationProfilesDialog";
 
 export interface ConnectionsPageProps {
   connections: ConnectionSummary[];
@@ -29,6 +31,7 @@ export interface ConnectionsPageProps {
   onDelete: (connection: ConnectionSummary) => void;
   onTest: (connection: ConnectionSummary) => Promise<ConnectionTestReport>;
   onOpenDiagnostics: (incident: DiagnosticIncidentContext) => void;
+  onConnectionsChanged: () => void;
 }
 
 export function ConnectionsPage({
@@ -40,11 +43,13 @@ export function ConnectionsPage({
   onDelete,
   onTest,
   onOpenDiagnostics,
+  onConnectionsChanged,
 }: ConnectionsPageProps) {
   const t = useTranslate();
   const [testingId, setTestingId] = useState("");
   const [testReports, setTestReports] = useState<Record<string, ConnectionTestReport>>({});
   const [compatibilityConnection, setCompatibilityConnection] = useState<ConnectionSummary | null>(null);
+  const [showAuthenticationProfiles, setShowAuthenticationProfiles] = useState(false);
 
   return (
     <div className="page-scroll">
@@ -56,10 +61,10 @@ export function ConnectionsPage({
           "Manage JanusGraph profiles, protocols, credentials and timeouts. Credentials use OS secure storage with an encrypted local fallback.",
         )}
         actions={
-          <button type="button" className="button primary" onClick={onAdd}>
-            <Plus size={17} />
-            {t("添加连接", "Add Connection")}
-          </button>
+          <>
+            <button type="button" className="button secondary" onClick={() => setShowAuthenticationProfiles(true)}><KeyRound size={17} />{t("认证方案", "Authentication Profiles")}</button>
+            <button type="button" className="button primary" onClick={onAdd}><Plus size={17} />{t("添加连接", "Add Connection")}</button>
+          </>
         }
       />
       {connections.length === 0 ? (
@@ -119,6 +124,9 @@ export function ConnectionsPage({
                             {connection.proxyMode === "system" ? t("系统代理", "System proxy") : t("手动代理", "Manual proxy")}
                           </span>
                         )}
+                        {connection.sshEnabled && <span className="badge transport">SSH Tunnel</span>}
+                        {connection.authProfileId && <span className="badge transport">{t("认证方案", "Auth profile")}</span>}
+                        {connection.hasSensitiveHeaders && <span className="badge transport">{t("加密 Header", "Encrypted headers")}</span>}
                         {active && (
                           <span className="badge success">{t("当前连接")}</span>
                         )}
@@ -162,12 +170,14 @@ export function ConnectionsPage({
                   </div>
                   <div>
                     <dt>{t("账号", "Account")}</dt>
-                    <dd>{connection.username || t("匿名", "Anonymous")}</dd>
+                    <dd>{connection.authProfileId ? t("认证方案", "Auth profile") : connection.username || t("匿名", "Anonymous")}</dd>
                   </div>
                   <div>
                     <dt>{t("凭据", "Credential")}</dt>
                     <dd>
-                      {connection.hasPassword
+                      {connection.authProfileId
+                        ? t("复用加密方案", "Encrypted profile")
+                        : connection.hasPassword
                         ? t("已加密保存", "Encrypted")
                         : t("未保存", "Not saved")}
                     </dd>
@@ -283,6 +293,7 @@ export function ConnectionsPage({
           onClose={() => setCompatibilityConnection(null)}
         />
       )}
+      {showAuthenticationProfiles && <AuthenticationProfilesDialog onClose={() => setShowAuthenticationProfiles(false)} onConnectionsChanged={onConnectionsChanged} />}
     </div>
   );
 }

@@ -14,8 +14,13 @@ export default defineConfig({
   },
   build: {
     target: "node22",
+    commonjsOptions: {
+      // ssh2 probes optional native accelerators inside try/catch. Keep those
+      // requires dynamic so packaged builds reliably fall back to pure JS.
+      ignore: ["cpu-features", "./crypto/build/Release/sshcrypto.node"],
+    },
     rollupOptions: {
-      external: ["electron", /^node:/],
+      external: ["electron", /^node:/, "cpu-features", /sshcrypto\.node$/],
     },
   },
 });

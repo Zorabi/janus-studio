@@ -36,6 +36,18 @@ export function openApplicationDatabase(path: string): DatabaseSync {
       proxy_bypass TEXT NOT NULL DEFAULT '',
       proxy_username TEXT NOT NULL DEFAULT '',
       proxy_password_cipher BLOB,
+      auth_profile_id TEXT NOT NULL DEFAULT '',
+      sensitive_headers_cipher BLOB,
+      ssh_enabled INTEGER NOT NULL DEFAULT 0,
+      ssh_host TEXT NOT NULL DEFAULT '',
+      ssh_port INTEGER NOT NULL DEFAULT 22,
+      ssh_username TEXT NOT NULL DEFAULT '',
+      ssh_auth_mode TEXT NOT NULL DEFAULT 'private-key',
+      ssh_private_key_path TEXT NOT NULL DEFAULT '',
+      ssh_agent_path TEXT NOT NULL DEFAULT '',
+      ssh_host_key_fingerprint TEXT NOT NULL DEFAULT '',
+      ssh_password_cipher BLOB,
+      ssh_private_key_passphrase_cipher BLOB,
       enable_compression INTEGER NOT NULL DEFAULT 0,
       custom_headers TEXT NOT NULL DEFAULT '{}',
       password_cipher BLOB,
@@ -208,6 +220,20 @@ export function openApplicationDatabase(path: string): DatabaseSync {
 
   `);
 
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS authentication_profiles (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+      mode TEXT NOT NULL,
+      username TEXT NOT NULL DEFAULT '',
+      header_name TEXT NOT NULL DEFAULT 'Authorization',
+      secret_cipher BLOB,
+      sensitive_headers_cipher BLOB,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  `);
+
   const connectionColumns = database
     .prepare("PRAGMA table_info(connection_profiles)")
     .all() as Array<{ name: string }>;
@@ -255,6 +281,25 @@ export function openApplicationDatabase(path: string): DatabaseSync {
   if (!connectionColumns.some((column) => column.name === "proxy_password_cipher")) {
     database.exec("ALTER TABLE connection_profiles ADD COLUMN proxy_password_cipher BLOB");
   }
+  const enterpriseConnectionColumns: Array<[string, string]> = [
+    ["auth_profile_id", "TEXT NOT NULL DEFAULT ''"],
+    ["sensitive_headers_cipher", "BLOB"],
+    ["ssh_enabled", "INTEGER NOT NULL DEFAULT 0"],
+    ["ssh_host", "TEXT NOT NULL DEFAULT ''"],
+    ["ssh_port", "INTEGER NOT NULL DEFAULT 22"],
+    ["ssh_username", "TEXT NOT NULL DEFAULT ''"],
+    ["ssh_auth_mode", "TEXT NOT NULL DEFAULT 'private-key'"],
+    ["ssh_private_key_path", "TEXT NOT NULL DEFAULT ''"],
+    ["ssh_agent_path", "TEXT NOT NULL DEFAULT ''"],
+    ["ssh_host_key_fingerprint", "TEXT NOT NULL DEFAULT ''"],
+    ["ssh_password_cipher", "BLOB"],
+    ["ssh_private_key_passphrase_cipher", "BLOB"],
+  ];
+  for (const [column, definition] of enterpriseConnectionColumns) {
+    if (!connectionColumns.some((entry) => entry.name === column)) {
+      database.exec(`ALTER TABLE connection_profiles ADD COLUMN ${column} ${definition}`);
+    }
+  }
   if (!connectionColumns.some((column) => column.name === "custom_headers")) {
     database.exec("ALTER TABLE connection_profiles ADD COLUMN custom_headers TEXT NOT NULL DEFAULT '{}'");
   }
@@ -296,7 +341,7 @@ export function openApplicationDatabase(path: string): DatabaseSync {
     WHERE datetime(updated_at) < datetime('now', '-90 days')
        OR id NOT IN (SELECT id FROM diagnostic_records ORDER BY updated_at DESC LIMIT 200);
   `);
-  database.exec("PRAGMA user_version = 14;");
+  database.exec("PRAGMA user_version = 15;");
 
   return database;
 }

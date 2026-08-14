@@ -30,11 +30,23 @@ type ConnectionRow = {
   proxy_port: number;
   proxy_bypass: string;
   proxy_username: string;
+  auth_profile_id: string;
+  ssh_enabled: number;
+  ssh_host: string;
+  ssh_port: number;
+  ssh_username: string;
+  ssh_auth_mode: ConnectionProfile["sshAuthMode"];
+  ssh_private_key_path: string;
+  ssh_agent_path: string;
+  ssh_host_key_fingerprint: string;
   enable_compression: number;
   custom_headers: string;
   password_cipher: Uint8Array | null;
   tls_client_key_passphrase_cipher: Uint8Array | null;
   proxy_password_cipher: Uint8Array | null;
+  sensitive_headers_cipher: Uint8Array | null;
+  ssh_password_cipher: Uint8Array | null;
+  ssh_private_key_passphrase_cipher: Uint8Array | null;
   created_at: string;
   updated_at: string;
 };
@@ -65,6 +77,15 @@ function toProfile(row: ConnectionRow): ConnectionProfile {
     proxyPort: row.proxy_port || 8080,
     proxyBypass: row.proxy_bypass || "",
     proxyUsername: row.proxy_username || "",
+    authProfileId: row.auth_profile_id || "",
+    sshEnabled: row.ssh_enabled !== 0,
+    sshHost: row.ssh_host || "",
+    sshPort: row.ssh_port || 22,
+    sshUsername: row.ssh_username || "",
+    sshAuthMode: row.ssh_auth_mode || "private-key",
+    sshPrivateKeyPath: row.ssh_private_key_path || "",
+    sshAgentPath: row.ssh_agent_path || "",
+    sshHostKeyFingerprint: row.ssh_host_key_fingerprint || "",
     enableCompression: row.enable_compression !== 0,
     customHeaders: row.custom_headers || "{}",
     createdAt: row.created_at,
@@ -85,10 +106,13 @@ export class ConnectionRepository {
       hasPassword: row.password_cipher !== null,
       hasTlsClientKeyPassphrase: row.tls_client_key_passphrase_cipher !== null,
       hasProxyPassword: row.proxy_password_cipher !== null,
+      hasSensitiveHeaders: row.sensitive_headers_cipher !== null,
+      hasSshPassword: row.ssh_password_cipher !== null,
+      hasSshPrivateKeyPassphrase: row.ssh_private_key_passphrase_cipher !== null,
     }));
   }
 
-  find(id: string): { profile: ConnectionProfile; passwordCipher: Uint8Array | null; tlsClientKeyPassphraseCipher: Uint8Array | null; proxyPasswordCipher: Uint8Array | null } | null {
+  find(id: string): { profile: ConnectionProfile; passwordCipher: Uint8Array | null; tlsClientKeyPassphraseCipher: Uint8Array | null; proxyPasswordCipher: Uint8Array | null; sensitiveHeadersCipher: Uint8Array | null; sshPasswordCipher: Uint8Array | null; sshPrivateKeyPassphraseCipher: Uint8Array | null } | null {
     const row = this.database
       .prepare("SELECT * FROM connection_profiles WHERE id = ?")
       .get(id) as ConnectionRow | undefined;
@@ -100,6 +124,9 @@ export class ConnectionRepository {
       passwordCipher: row.password_cipher,
       tlsClientKeyPassphraseCipher: row.tls_client_key_passphrase_cipher,
       proxyPasswordCipher: row.proxy_password_cipher,
+      sensitiveHeadersCipher: row.sensitive_headers_cipher,
+      sshPasswordCipher: row.ssh_password_cipher,
+      sshPrivateKeyPassphraseCipher: row.ssh_private_key_passphrase_cipher,
     };
   }
 
@@ -109,6 +136,9 @@ export class ConnectionRepository {
     passwordCipher: Uint8Array | null | undefined = undefined,
     tlsClientKeyPassphraseCipher: Uint8Array | null | undefined = undefined,
     proxyPasswordCipher: Uint8Array | null | undefined = undefined,
+    sensitiveHeadersCipher: Uint8Array | null | undefined = undefined,
+    sshPasswordCipher: Uint8Array | null | undefined = undefined,
+    sshPrivateKeyPassphraseCipher: Uint8Array | null | undefined = undefined,
   ): ConnectionSummary {
     const existing = this.find(id);
     const now = new Date().toISOString();
@@ -116,6 +146,9 @@ export class ConnectionRepository {
     const cipher = passwordCipher === undefined ? existing?.passwordCipher ?? null : passwordCipher;
     const tlsPassphraseCipher = tlsClientKeyPassphraseCipher === undefined ? existing?.tlsClientKeyPassphraseCipher ?? null : tlsClientKeyPassphraseCipher;
     const proxyCipher = proxyPasswordCipher === undefined ? existing?.proxyPasswordCipher ?? null : proxyPasswordCipher;
+    const headersCipher = sensitiveHeadersCipher === undefined ? existing?.sensitiveHeadersCipher ?? null : sensitiveHeadersCipher;
+    const tunnelPasswordCipher = sshPasswordCipher === undefined ? existing?.sshPasswordCipher ?? null : sshPasswordCipher;
+    const tunnelPassphraseCipher = sshPrivateKeyPassphraseCipher === undefined ? existing?.sshPrivateKeyPassphraseCipher ?? null : sshPrivateKeyPassphraseCipher;
 
     this.database
       .prepare(`
@@ -124,9 +157,12 @@ export class ConnectionRepository {
           client_mode, traversal_source, graph_binding, connect_timeout_ms, query_timeout_ms,
           tls_reject_unauthorized, tls_ca_path, tls_client_cert_path, tls_client_key_path,
           proxy_mode, proxy_url, proxy_host, proxy_port, proxy_bypass, proxy_username,
+          auth_profile_id, sensitive_headers_cipher,
+          ssh_enabled, ssh_host, ssh_port, ssh_username, ssh_auth_mode, ssh_private_key_path, ssh_agent_path, ssh_host_key_fingerprint,
+          ssh_password_cipher, ssh_private_key_passphrase_cipher,
           enable_compression, custom_headers, password_cipher, tls_client_key_passphrase_cipher, proxy_password_cipher,
           created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (${Array.from({ length: 43 }, () => "?").join(", ")})
         ON CONFLICT(id) DO UPDATE SET
           name = excluded.name,
           protocol = excluded.protocol,
@@ -151,6 +187,18 @@ export class ConnectionRepository {
           proxy_port = excluded.proxy_port,
           proxy_bypass = excluded.proxy_bypass,
           proxy_username = excluded.proxy_username,
+          auth_profile_id = excluded.auth_profile_id,
+          sensitive_headers_cipher = excluded.sensitive_headers_cipher,
+          ssh_enabled = excluded.ssh_enabled,
+          ssh_host = excluded.ssh_host,
+          ssh_port = excluded.ssh_port,
+          ssh_username = excluded.ssh_username,
+          ssh_auth_mode = excluded.ssh_auth_mode,
+          ssh_private_key_path = excluded.ssh_private_key_path,
+          ssh_agent_path = excluded.ssh_agent_path,
+          ssh_host_key_fingerprint = excluded.ssh_host_key_fingerprint,
+          ssh_password_cipher = excluded.ssh_password_cipher,
+          ssh_private_key_passphrase_cipher = excluded.ssh_private_key_passphrase_cipher,
           enable_compression = excluded.enable_compression,
           custom_headers = excluded.custom_headers,
           password_cipher = excluded.password_cipher,
@@ -183,6 +231,18 @@ export class ConnectionRepository {
         input.proxyPort ?? 8080,
         input.proxyBypass ?? "",
         input.proxyUsername ?? "",
+        input.authProfileId ?? "",
+        headersCipher,
+        input.sshEnabled ? 1 : 0,
+        input.sshHost ?? "",
+        input.sshPort ?? 22,
+        input.sshUsername ?? "",
+        input.sshAuthMode ?? "private-key",
+        input.sshPrivateKeyPath ?? "",
+        input.sshAgentPath ?? "",
+        input.sshHostKeyFingerprint ?? "",
+        tunnelPasswordCipher,
+        tunnelPassphraseCipher,
         input.enableCompression ? 1 : 0,
         input.customHeaders,
         cipher,
@@ -200,6 +260,9 @@ export class ConnectionRepository {
       hasPassword: saved.passwordCipher !== null,
       hasTlsClientKeyPassphrase: saved.tlsClientKeyPassphraseCipher !== null,
       hasProxyPassword: saved.proxyPasswordCipher !== null,
+      hasSensitiveHeaders: saved.sensitiveHeadersCipher !== null,
+      hasSshPassword: saved.sshPasswordCipher !== null,
+      hasSshPrivateKeyPassphrase: saved.sshPrivateKeyPassphraseCipher !== null,
     };
   }
 

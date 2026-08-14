@@ -49,9 +49,7 @@ export class QueryService {
     ) {
       throw new Error("生产环境写操作尚未确认，查询已被安全阻止");
     }
-    const password = await this.connections.passwordFor(request.connectionId);
-    const tlsClientKeyPassphrase = await this.connections.tlsClientKeyPassphraseFor(request.connectionId);
-    const proxyPassword = await this.connections.proxyPasswordFor(request.connectionId);
+    const credentials = await this.connections.credentialsFor(request.connectionId);
     const startedAt = performance.now();
     const normalizedQuery = normalizeManagementConsoleText(
       normalizeTraversalConsoleText(request.query),
@@ -61,15 +59,13 @@ export class QueryService {
     try {
       const result = await this.gremlin.execute(
         profile,
-        password,
+        credentials,
         request.consoleId,
         request.executionId,
         normalizedQuery,
         request.bindings ?? {},
         request.timeoutMs,
         request.serverCancellation,
-        tlsClientKeyPassphrase,
-        proxyPassword,
       );
       if (request.recordHistory !== false) {
         this.history.add(
@@ -138,21 +134,17 @@ export class QueryService {
     const profile = request.traversalSource
       ? { ...storedProfile, traversalSource: request.traversalSource }
       : storedProfile;
-    const password = await this.connections.passwordFor(request.connectionId);
-    const tlsClientKeyPassphrase = await this.connections.tlsClientKeyPassphraseFor(request.connectionId);
-    const proxyPassword = await this.connections.proxyPasswordFor(request.connectionId);
+    const credentials = await this.connections.credentialsFor(request.connectionId);
     return this.files.streamQueryResult(
       request.suggestedName,
       request.format,
       (writeItems) => this.gremlin.exportAll(
         profile,
-        password,
+        credentials,
         request.executionId,
         request.query,
         request.bindings ?? {},
         writeItems,
-        tlsClientKeyPassphrase,
-        proxyPassword,
       ),
     );
   }

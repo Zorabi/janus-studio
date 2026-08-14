@@ -2,6 +2,38 @@ export type ConnectionProtocol = "ws" | "wss" | "http" | "https";
 export type GremlinClientMode = "sessionless" | "sessioned";
 export type ConnectionEnvironment = "dev" | "test" | "prod";
 export type ConnectionProxyMode = "direct" | "system" | "manual";
+export type ConnectionSshAuthMode = "password" | "private-key" | "agent";
+export type AuthenticationProfileMode = "basic" | "janus-hmac" | "bearer" | "custom-headers";
+
+export type AuthenticationProfile = {
+  id: string;
+  name: string;
+  mode: AuthenticationProfileMode;
+  username: string;
+  headerName: string;
+  hasSecret: boolean;
+  hasSensitiveHeaders: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SaveAuthenticationProfileInput = {
+  id?: string;
+  name: string;
+  mode: AuthenticationProfileMode;
+  username: string;
+  headerName: string;
+  secret?: string;
+  sensitiveHeaders?: string;
+};
+
+export type RuntimeAuthentication = {
+  mode: AuthenticationProfileMode;
+  username: string;
+  secret: string;
+  headerName: string;
+  headers: Record<string, string>;
+};
 
 export type ConnectionProfile = {
   id: string;
@@ -28,6 +60,15 @@ export type ConnectionProfile = {
   proxyPort: number;
   proxyBypass: string;
   proxyUsername: string;
+  authProfileId: string;
+  sshEnabled: boolean;
+  sshHost: string;
+  sshPort: number;
+  sshUsername: string;
+  sshAuthMode: ConnectionSshAuthMode;
+  sshPrivateKeyPath: string;
+  sshAgentPath: string;
+  sshHostKeyFingerprint: string;
   enableCompression: boolean;
   customHeaders: string;
   createdAt: string;
@@ -38,6 +79,9 @@ export type ConnectionSummary = ConnectionProfile & {
   hasPassword: boolean;
   hasTlsClientKeyPassphrase: boolean;
   hasProxyPassword: boolean;
+  hasSensitiveHeaders: boolean;
+  hasSshPassword: boolean;
+  hasSshPrivateKeyPassphrase: boolean;
 };
 
 export type SaveConnectionInput = Omit<
@@ -48,9 +92,12 @@ export type SaveConnectionInput = Omit<
   password?: string;
   tlsClientKeyPassphrase?: string;
   proxyPassword?: string;
+  sensitiveHeaders?: string;
+  sshPassword?: string;
+  sshPrivateKeyPassphrase?: string;
 };
 
-export type ConnectionTestStage = "dns" | "tcp" | "proxy" | "tls" | "authentication" | "gremlin" | "schema";
+export type ConnectionTestStage = "dns" | "tcp" | "ssh" | "proxy" | "tls" | "authentication" | "gremlin" | "schema";
 export type ConnectionTestStageResult = {
   stage: ConnectionTestStage;
   status: "passed" | "failed" | "skipped";
@@ -557,6 +604,11 @@ export type DesktopApi = {
     save(input: SaveConnectionInput): Promise<ConnectionSummary>;
     remove(id: string): Promise<void>;
     test(input: SaveConnectionInput): Promise<ConnectionTestReport>;
+  };
+  authProfiles: {
+    list(): Promise<AuthenticationProfile[]>;
+    save(input: SaveAuthenticationProfileInput): Promise<AuthenticationProfile>;
+    remove(id: string): Promise<void>;
   };
   compatibility: {
     get(connectionId: string, refresh?: boolean): Promise<CompatibilityProfile>;

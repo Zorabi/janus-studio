@@ -12,6 +12,7 @@ import { CompatibilityService } from "../services/compatibility-service";
 import { GraphTransferService } from "../services/graph-transfer-service";
 import { QueryAssetRepository } from "../storage/query-asset-repository";
 import { DiagnosticRecordRepository } from "../storage/diagnostic-record-repository";
+import { AuthenticationProfileService } from "../services/authentication-profile-service";
 import { StructuredLogger } from "../diagnostics/structured-logger";
 import { redactDiagnosticValue } from "../diagnostics/redactor";
 import type { DiagnosticIncidentContext, DiagnosticLogListInput, SaveDiagnosticRecordInput } from "@janusgraph/domain";
@@ -23,6 +24,8 @@ import {
 } from "@janusgraph/application";
 import {
   backgroundTaskIdSchema,
+  authenticationProfileIdSchema,
+  authenticationProfileInputSchema,
   backgroundTaskLimitSchema,
   connectionIdSchema,
   connectionInputSchema,
@@ -80,6 +83,7 @@ type RegisterIpcOptions = {
   queryAssetRepository: QueryAssetRepository;
   diagnosticLogger: StructuredLogger;
   diagnosticRecordRepository: DiagnosticRecordRepository;
+  authenticationProfileService: AuthenticationProfileService;
 };
 
 function assertTrustedSender(event: IpcMainInvokeEvent, window: BrowserWindow): void {
@@ -150,6 +154,7 @@ export function registerIpcHandlers({
   queryAssetRepository,
   diagnosticLogger,
   diagnosticRecordRepository,
+  authenticationProfileService,
 }: RegisterIpcOptions): void {
   ipcMain.handle("runtime:platform", (event) => {
     assertTrustedSender(event, window);
@@ -265,6 +270,21 @@ export function registerIpcHandlers({
     assertTrustedSender(event, window);
     return invokeWithDiagnostics(diagnosticLogger, "connections:test", "connection", () =>
       connectionService.test(connectionInputSchema.parse(rawInput)));
+  });
+
+  ipcMain.handle("auth-profiles:list", (event) => {
+    assertTrustedSender(event, window);
+    return authenticationProfileService.list();
+  });
+
+  ipcMain.handle("auth-profiles:save", async (event, rawInput: unknown) => {
+    assertTrustedSender(event, window);
+    return authenticationProfileService.save(authenticationProfileInputSchema.parse(rawInput));
+  });
+
+  ipcMain.handle("auth-profiles:remove", (event, rawId: unknown) => {
+    assertTrustedSender(event, window);
+    authenticationProfileService.remove(authenticationProfileIdSchema.parse(rawId));
   });
 
   ipcMain.handle("compatibility:get", async (event, rawInput: unknown) => {

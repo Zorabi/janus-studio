@@ -7,6 +7,7 @@ import {
   LoaderCircle,
   Network,
   Route,
+  ServerCog,
   ShieldCheck,
   TerminalSquare,
   Unplug,
@@ -15,12 +16,13 @@ import {
 import type { ReactNode } from "react";
 import { useTranslate } from "../../lib/i18n";
 
-const STAGES: ConnectionTestStage[] = ["dns", "tcp", "proxy", "tls", "authentication", "gremlin", "schema"];
+const STAGES: ConnectionTestStage[] = ["dns", "tcp", "ssh", "proxy", "tls", "authentication", "gremlin", "schema"];
 
 function stageIcon(stage: ConnectionTestStage): ReactNode {
   if (stage === "dns") return <Network size={16} />;
   if (stage === "proxy") return <Route size={16} />;
   if (stage === "tcp") return <Unplug size={16} />;
+  if (stage === "ssh") return <ServerCog size={16} />;
   if (stage === "tls") return <ShieldCheck size={16} />;
   if (stage === "authentication") return <KeyRound size={16} />;
   if (stage === "gremlin") return <TerminalSquare size={16} />;
@@ -33,6 +35,7 @@ export function ConnectionTestStages({ report, loading = false }: { report?: Con
     dns: "DNS",
     proxy: t("代理", "Proxy"),
     tcp: "TCP",
+    ssh: "SSH Tunnel",
     tls: "TLS",
     authentication: t("认证", "Authentication"),
     gremlin: "Gremlin",

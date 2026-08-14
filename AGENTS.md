@@ -260,14 +260,14 @@ pnpm build
 
 - 当前代码基线：查询资产、诊断闭环、发布验收第二切片，以及连接代理基础设施均已实现；以仓库最新提交为准。
 - 最近一次 `pnpm typecheck`：通过。
-- 最近一次 `pnpm test`：182 项，178 通过，4 个真实环境测试跳过，0 失败。
+- 最近一次 `pnpm test`：185 项，181 通过，4 个真实环境测试跳过，0 失败。
 - 最近一次 `pnpm build`：macOS ARM64 生产包生成成功。
 - 最近一次打包时间：2026-08-14。
 - 多节点 Binding 传播、真实 Drop、残留实例处理和关闭后自动重开语义已由用户验收。
-- 本次未启动新应用、未触发钥匙串；已在用户授权下对本地 JanusGraph 1.1.0 完成只读 WS/HTTP/认证/Binding/Management 与 CONNECT 代理回归，未修改图、Schema、容器或 Elasticsearch。
+- 当前 macOS ARM64 生产包已重新生成并由用户启动验证；已在用户授权下对本地 JanusGraph 1.1.0 完成只读 WS/HTTP/认证/Binding/Management 与 CONNECT 代理回归，未修改图、Schema、容器或 Elasticsearch。
 
 ## 12. 后续路线
 
 - 统一长任务中心、JanusGraph 兼容层、官方 Schema JSON 路由、GraphSON 主进程编排、查询资产管理和问题诊断闭环已经完成。
-- 发布与兼容验收第二切片及连接代理切片已经完成；连接基础设施下一步为 SSH Tunnel，再推进 Bearer Token、敏感 Header 凭据化与认证 Profile。
+- 连接基础设施实现切片已经完成：mTLS、自定义 CA、直连/系统/专用代理、SSH Tunnel、Bearer/HMAC、敏感 Header 凭据化、认证 Profile 和分阶段连接测试均已贯通。下一步进入真实 SSH/mTLS fixture、Tunnel 生命周期与跨平台验收，不再继续堆叠认证表单字段。
 - 详细分期、依赖和验收标准见 `docs/剩余功能迭代计划.md`。

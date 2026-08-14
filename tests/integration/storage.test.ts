@@ -111,7 +111,7 @@ test("persists, deduplicates and resolves diagnostic records across restarts", (
     assert.equal(restoredFirst.report.signalsScanned, 3);
     new DiagnosticRecordRepository(database).remove(first.id);
     assert.equal(new DiagnosticRecordRepository(database).list().length, 3);
-    assert.equal(database.prepare("PRAGMA user_version").get()!.user_version, 14);
+    assert.equal(database.prepare("PRAGMA user_version").get()!.user_version, 15);
   } finally {
     database.close();
     rmSync(directory, { recursive: true, force: true });
@@ -439,7 +439,7 @@ test("migrates existing connection profiles to development with write access", (
     const migrated = new ConnectionRepository(database).find("legacy")?.profile;
     assert.equal(migrated?.environment, "dev");
     assert.equal(migrated?.connectionReadOnly, false);
-    assert.equal(database.prepare("PRAGMA user_version").get()?.user_version, 14);
+    assert.equal(database.prepare("PRAGMA user_version").get()?.user_version, 15);
   } finally {
     database.close();
     rmSync(directory, { recursive: true, force: true });

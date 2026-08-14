@@ -1,4 +1,4 @@
-import type { ConnectionSummary, ConnectionTestReport, SaveConnectionInput } from "@janusgraph/domain";
+import type { AuthenticationProfile, ConnectionSummary, ConnectionTestReport, SaveConnectionInput } from "@janusgraph/domain";
 import {
   Activity,
   AlertTriangle,
@@ -10,11 +10,12 @@ import {
   LoaderCircle,
   LockKeyhole,
   Route,
+  ServerCog,
   Save,
   SlidersHorizontal,
   X,
 } from "lucide-react";
-import { type FormEvent, useRef, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { SelectControl } from "../../components/SelectControl";
 import { IconButton, Modal } from "../../components/ui";
 import { useTranslate } from "../../lib/i18n";
@@ -48,6 +49,18 @@ const EMPTY_CONNECTION: Omit<SaveConnectionInput, "id"> = {
   proxyBypass: "",
   proxyUsername: "",
   proxyPassword: "",
+  authProfileId: "",
+  sensitiveHeaders: "{}",
+  sshEnabled: false,
+  sshHost: "",
+  sshPort: 22,
+  sshUsername: "",
+  sshAuthMode: "private-key",
+  sshPrivateKeyPath: "",
+  sshAgentPath: "",
+  sshHostKeyFingerprint: "",
+  sshPassword: "",
+  sshPrivateKeyPassphrase: "",
   enableCompression: false,
   customHeaders: "{}",
 };
@@ -61,6 +74,9 @@ function connectionFromForm(
   const tlsClientKeyPath = String(data.get("tlsClientKeyPath") ?? "").trim();
   const tlsClientKeyPassphrase = String(data.get("tlsClientKeyPassphrase") ?? "");
   const proxyPassword = String(data.get("proxyPassword") ?? "");
+  const sensitiveHeaders = String(data.get("sensitiveHeaders") ?? "").trim();
+  const sshPassword = String(data.get("sshPassword") ?? "");
+  const sshPrivateKeyPassphrase = String(data.get("sshPrivateKeyPassphrase") ?? "");
   return {
     id: editing?.id,
     name: String(data.get("name") ?? "").trim(),
@@ -97,6 +113,18 @@ function connectionFromForm(
     proxyBypass: String(data.get("proxyBypass") ?? "").trim(),
     proxyUsername: String(data.get("proxyUsername") ?? "").trim(),
     proxyPassword: editing?.hasProxyPassword && proxyPassword === "" ? undefined : proxyPassword,
+    authProfileId: String(data.get("authProfileId") ?? ""),
+    sensitiveHeaders: editing?.hasSensitiveHeaders && sensitiveHeaders === "" ? undefined : sensitiveHeaders || "{}",
+    sshEnabled: data.get("sshEnabled") === "on",
+    sshHost: String(data.get("sshHost") ?? editing?.sshHost ?? "").trim(),
+    sshPort: Number(data.get("sshPort") ?? editing?.sshPort ?? 22),
+    sshUsername: String(data.get("sshUsername") ?? editing?.sshUsername ?? "").trim(),
+    sshAuthMode: String(data.get("sshAuthMode") ?? editing?.sshAuthMode ?? "private-key") as SaveConnectionInput["sshAuthMode"],
+    sshPrivateKeyPath: String(data.get("sshPrivateKeyPath") ?? editing?.sshPrivateKeyPath ?? "").trim(),
+    sshAgentPath: String(data.get("sshAgentPath") ?? editing?.sshAgentPath ?? "").trim(),
+    sshHostKeyFingerprint: String(data.get("sshHostKeyFingerprint") ?? editing?.sshHostKeyFingerprint ?? "").trim(),
+    sshPassword: editing?.hasSshPassword && sshPassword === "" ? undefined : sshPassword,
+    sshPrivateKeyPassphrase: editing?.hasSshPrivateKeyPassphrase && sshPrivateKeyPassphrase === "" ? undefined : sshPrivateKeyPassphrase,
     enableCompression: data.get("enableCompression") === "on",
     customHeaders: String(data.get("customHeaders") ?? "{}").trim() || "{}",
   };
@@ -129,6 +157,18 @@ export function ConnectionDialog({
   const [testReport, setTestReport] = useState<ConnectionTestReport | null>(null);
   const [proxyMode, setProxyMode] = useState(defaults.proxyMode);
   const [showProxyPassword, setShowProxyPassword] = useState(false);
+  const [authProfiles, setAuthProfiles] = useState<AuthenticationProfile[]>([]);
+  const [authProfileId, setAuthProfileId] = useState(defaults.authProfileId);
+  const [sshEnabled, setSshEnabled] = useState(defaults.sshEnabled);
+  const [sshAuthMode, setSshAuthMode] = useState(defaults.sshAuthMode);
+  const [sshPrivateKeyPath, setSshPrivateKeyPath] = useState(defaults.sshPrivateKeyPath);
+  const [showSshSecret, setShowSshSecret] = useState(false);
+
+  useEffect(() => {
+    void window.janusGraphDesktop?.authProfiles.list().then(setAuthProfiles).catch((error) => {
+      setMessage({ tone: "error", text: errorMessage(error) });
+    });
+  }, []);
 
   const pickTlsFile = async (
     kind: "ca" | "certificate" | "private-key",
@@ -256,38 +296,51 @@ export function ConnectionDialog({
             <span>{t("Gremlin 路径", "Gremlin path")}</span>
             <input name="path" defaultValue={defaults.path} required />
           </label>
-          <label className="field">
-            <span>{t("用户名", "Username")}</span>
-            <input name="username" defaultValue={defaults.username} autoComplete="username" />
+          <label className="field field-span-2">
+            <span>{t("认证方案", "Authentication profile")}</span>
+            <SelectControl
+              name="authProfileId"
+              value={authProfileId}
+              onValueChange={setAuthProfileId}
+              ariaLabel={t("认证方案", "Authentication profile")}
+              options={[
+                { value: "", label: t("连接内账号密码", "Connection credentials"), description: t("使用此连接自己的用户名与密码", "Use credentials stored only on this connection") },
+                ...authProfiles.map((profile) => ({
+                  value: profile.id,
+                  label: profile.name,
+                  description: profile.mode === "janus-hmac" ? "JanusGraph HMAC Token" : profile.mode === "custom-headers" ? t("加密请求头", "Encrypted headers") : profile.mode.toUpperCase(),
+                })),
+              ]}
+            />
+            <small>{t("认证方案可被多个连接复用；Bearer 与自定义 Header 需要服务端或网关支持。", "Profiles can be reused by multiple connections. Bearer and custom headers require server or gateway support.")}</small>
           </label>
-          <label className="field">
-            <span>{t("密码", "Password")}</span>
-            <div className="password-field">
-              <input
-                name="password"
-                type={showPassword ? "text" : "password"}
-                placeholder={
-                  editing?.hasPassword
-                    ? t(
-                        "留空以保留已保存密码；迁移失败时请重新输入",
-                        "Leave blank to keep it; re-enter after a credential migration error",
-                      )
-                    : t("可选", "Optional")
-                }
-                autoComplete="current-password"
-              />
-              <IconButton
-                label={
-                  showPassword
-                    ? t("隐藏密码", "Hide password")
-                    : t("显示密码", "Show password")
-                }
-                onClick={() => setShowPassword((current) => !current)}
-              >
-                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
-              </IconButton>
-            </div>
-          </label>
+          {authProfileId ? (
+            <>
+              <input type="hidden" name="username" value="" />
+              <input type="hidden" name="password" value="" />
+            </>
+          ) : (
+            <>
+              <label className="field">
+                <span>{t("用户名", "Username")}</span>
+                <input name="username" defaultValue={defaults.username} autoComplete="username" />
+              </label>
+              <label className="field">
+                <span>{t("密码", "Password")}</span>
+                <div className="password-field">
+                  <input
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder={editing?.hasPassword ? t("留空以保留已保存密码", "Leave blank to keep the saved password") : t("可选", "Optional")}
+                    autoComplete="current-password"
+                  />
+                  <IconButton label={showPassword ? t("隐藏密码", "Hide password") : t("显示密码", "Show password")} onClick={() => setShowPassword((current) => !current)}>
+                    {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                  </IconButton>
+                </div>
+              </label>
+            </>
+          )}
           <label className="field">
             <span>{t("客户端模式", "Client mode")}</span>
             <SelectControl
@@ -384,6 +437,58 @@ export function ConnectionDialog({
               <ChevronDown size={17} />
             </summary>
             <div>
+              <section className={`connection-ssh-settings field-span-2 ${sshEnabled ? "is-enabled" : ""}`}>
+                <header>
+                  <span className="connection-route-icon"><ServerCog size={18} /></span>
+                  <span>
+                    <strong>SSH Tunnel</strong>
+                    <small>{t("先连接跳板机，再由跳板机访问 Gremlin Server；必须固定校验主机密钥。", "Connect through a bastion host and pin its SSH host key before reaching Gremlin Server.")}</small>
+                  </span>
+                  <label className="connection-route-toggle">
+                    <input type="checkbox" name="sshEnabled" checked={sshEnabled} onChange={(event) => {
+                      setSshEnabled(event.currentTarget.checked);
+                      if (event.currentTarget.checked) setProxyMode("direct");
+                    }} />
+                    <span>{sshEnabled ? t("已启用", "Enabled") : t("未启用", "Disabled")}</span>
+                  </label>
+                </header>
+                {sshEnabled && (
+                  <div className="connection-ssh-grid">
+                    <label className="field"><span>{t("跳板机地址", "Bastion host")}</span><input name="sshHost" defaultValue={defaults.sshHost} required /></label>
+                    <label className="field"><span>{t("SSH 端口", "SSH port")}</span><input name="sshPort" type="number" min={1} max={65535} defaultValue={defaults.sshPort} required /></label>
+                    <label className="field"><span>{t("SSH 账号", "SSH username")}</span><input name="sshUsername" defaultValue={defaults.sshUsername} required /></label>
+                    <label className="field">
+                      <span>{t("认证方式", "Authentication method")}</span>
+                      <SelectControl name="sshAuthMode" value={sshAuthMode} onValueChange={(value) => setSshAuthMode(value as SaveConnectionInput["sshAuthMode"])} ariaLabel={t("SSH 认证方式", "SSH authentication method")} options={[
+                        { value: "private-key", label: t("私钥", "Private key"), description: t("推荐；私钥文件始终保留在本机", "Recommended; the key file remains local") },
+                        { value: "agent", label: "SSH Agent", description: t("使用系统 Agent Socket", "Use the system agent socket") },
+                        { value: "password", label: t("密码", "Password"), description: t("密码加密保存在本地凭据库", "Password is encrypted in the local vault") },
+                      ]} />
+                    </label>
+                    {sshAuthMode === "private-key" && (
+                      <>
+                        <div className="field field-span-2">
+                          <span>{t("SSH 私钥", "SSH private key")}</span>
+                          <div className="tls-file-field">
+                            <input name="sshPrivateKeyPath" value={sshPrivateKeyPath} readOnly required />
+                            {sshPrivateKeyPath && <IconButton label={t("清除 SSH 私钥", "Clear SSH private key")} onClick={() => setSshPrivateKeyPath("")}><X size={16} /></IconButton>}
+                            <button type="button" className="button secondary" onClick={() => void pickTlsFile("private-key", setSshPrivateKeyPath)}><FolderOpen size={16} />{t("选择", "Choose")}</button>
+                          </div>
+                        </div>
+                        <label className="field field-span-2"><span>{t("私钥口令", "Private-key passphrase")}</span><input name="sshPrivateKeyPassphrase" type={showSshSecret ? "text" : "password"} placeholder={editing?.hasSshPrivateKeyPassphrase ? t("留空以保留已加密口令", "Leave blank to keep the encrypted passphrase") : t("可选", "Optional")} /></label>
+                      </>
+                    )}
+                    {sshAuthMode === "password" && <label className="field field-span-2"><span>{t("SSH 密码", "SSH password")}</span><input name="sshPassword" type={showSshSecret ? "text" : "password"} placeholder={editing?.hasSshPassword ? t("留空以保留已加密密码", "Leave blank to keep the encrypted password") : ""} required={!editing?.hasSshPassword} /></label>}
+                    {sshAuthMode === "agent" && <label className="field field-span-2"><span>{t("Agent Socket（可选）", "Agent socket (optional)")}</span><input name="sshAgentPath" defaultValue={defaults.sshAgentPath} placeholder="$SSH_AUTH_SOCK" /></label>}
+                    <label className="field field-span-2">
+                      <span>{t("SSH 主机密钥指纹", "SSH host-key fingerprint")}</span>
+                      <input name="sshHostKeyFingerprint" defaultValue={defaults.sshHostKeyFingerprint} placeholder="SHA256:…" required />
+                      <small>{t("严格固定 SHA256 指纹；不提供“自动接受首次连接”，避免中间人攻击。", "Strict SHA256 pinning is required; trust-on-first-use is intentionally not supported.")}</small>
+                    </label>
+                    {(sshAuthMode === "private-key" || sshAuthMode === "password") && <label className="check-field field-span-2"><input type="checkbox" checked={showSshSecret} onChange={(event) => setShowSshSecret(event.currentTarget.checked)} /><span><strong>{t("显示 SSH 凭据", "Show SSH credential")}</strong></span></label>}
+                  </div>
+                )}
+              </section>
               <label className="check-field">
                 <input type="checkbox" name="tlsRejectUnauthorized" defaultChecked={defaults.tlsRejectUnauthorized} />
                 <span>
@@ -411,12 +516,14 @@ export function ConnectionDialog({
                   value={proxyMode}
                   onValueChange={(value) => setProxyMode(value as SaveConnectionInput["proxyMode"])}
                   ariaLabel={t("代理模式", "Proxy mode")}
+                  disabled={sshEnabled}
                   options={[
                     { value: "direct", label: t("直接连接", "Direct connection"), description: t("不读取系统代理，也不经过显式代理", "Ignore system proxy settings and connect directly") },
                     { value: "system", label: t("跟随系统代理", "Use system proxy"), description: t("使用操作系统代理与绕过规则", "Use operating-system proxy and bypass settings") },
                     { value: "manual", label: t("手动代理", "Manual proxy"), description: t("为此连接配置独立的 HTTP/HTTPS 代理", "Use a dedicated HTTP/HTTPS proxy for this connection") },
                   ]}
                 />
+                {sshEnabled && <small className="field-span-2">{t("SSH Tunnel 已接管网络路径，连接专用代理暂不可叠加。", "SSH Tunnel owns the network route; an additional Gremlin proxy cannot be layered on it.")}</small>}
                 {proxyMode === "manual" && (
                   <div className="connection-route-manual">
                     <label className="field field-span-2">
@@ -513,6 +620,16 @@ export function ConnectionDialog({
                   placeholder={'{\n  "X-Tenant": "graph-team"\n}'}
                 />
                 <small>{t("请求头以明文保存在本机数据库中，请勿在此填写密码或 Token。", "Headers are stored locally in plain text. Do not place passwords or tokens here.")}</small>
+              </label>
+              <label className="field field-span-2">
+                <span>{t("加密请求头（JSON）", "Encrypted headers (JSON)")}</span>
+                <textarea
+                  name="sensitiveHeaders"
+                  defaultValue=""
+                  spellCheck={false}
+                  placeholder={editing?.hasSensitiveHeaders ? t("留空以保留已加密请求头", "Leave blank to keep encrypted headers") : '{\n  "X-API-Key": "…"\n}'}
+                />
+                <small>{t("Authorization、Cookie、API Key 等敏感值写入本地加密凭据库，不会在连接列表、日志或导出中回显。", "Authorization, cookies, API keys and other sensitive values are encrypted and never shown in connection lists, logs or exports.")}</small>
               </label>
             </div>
           </details>

@@ -37,6 +37,15 @@ const profile: ConnectionProfile = {
   proxyPort: 3128,
   proxyBypass: "",
   proxyUsername: "proxy-user",
+  authProfileId: "",
+  sshEnabled: false,
+  sshHost: "",
+  sshPort: 22,
+  sshUsername: "",
+  sshAuthMode: "private-key",
+  sshPrivateKeyPath: "",
+  sshAgentPath: "",
+  sshHostKeyFingerprint: "",
   enableCompression: false,
   customHeaders: "{}",
   createdAt: "2026-08-14T00:00:00.000Z",
@@ -63,6 +72,9 @@ test("keeps optional ws native accelerators out of the packaged main-process bun
   const config = await readFile("apps/desktop/vite.main.config.ts", "utf8");
   assert.match(config, /process\.env\.WS_NO_BUFFER_UTIL/);
   assert.match(config, /process\.env\.WS_NO_UTF_8_VALIDATE/);
+  assert.match(config, /sshcrypto\\\.node/);
+  assert.match(config, /commonjsOptions/);
+  assert.doesNotMatch(config, /external:\s*\[[^\]]*["']ssh2["']/s);
 });
 
 test("resolves direct, manual and system proxy routes without exposing credentials in the URL", async () => {

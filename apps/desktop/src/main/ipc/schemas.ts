@@ -1,5 +1,47 @@
 import { z } from "zod";
 
+const headerObjectSchema = z.record(z.string(), z.string());
+const sensitiveHeaderPattern = /^(?:authorization|proxy-authorization|cookie|set-cookie|x-api-key|x-auth-token|x-access-token)$/i;
+const forbiddenHeaderPattern = /^(?:host|connection|content-length|transfer-encoding|upgrade)$/i;
+
+function addHeaderIssues(headers: Record<string, string>, context: z.RefinementCtx, path: string): void {
+  for (const key of Object.keys(headers)) {
+    if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(key) || forbiddenHeaderPattern.test(key)) {
+      context.addIssue({ code: "custom", path: [path], message: `请求头 ${key} 不允许由连接配置覆盖` });
+    }
+  }
+}
+
+function parseHeaderObject(value: string): Record<string, string> {
+  const parsed = JSON.parse(value) as unknown;
+  return headerObjectSchema.parse(parsed);
+}
+
+export const authenticationProfileInputSchema = z.object({
+  id: z.string().uuid().optional(),
+  name: z.string().trim().min(1).max(80),
+  mode: z.enum(["basic", "janus-hmac", "bearer", "custom-headers"]),
+  username: z.string().trim().max(255).default(""),
+  headerName: z.string().trim().min(1).max(255).default("Authorization"),
+  secret: z.string().max(16_384).optional(),
+  sensitiveHeaders: z.string().max(32_768).optional(),
+}).superRefine((input, context) => {
+  if ((input.mode === "basic" || input.mode === "janus-hmac") && !input.username) {
+    context.addIssue({ code: "custom", path: ["username"], message: "该认证方式需要账号" });
+  }
+  if (input.sensitiveHeaders !== undefined && input.sensitiveHeaders.trim()) {
+    try { addHeaderIssues(parseHeaderObject(input.sensitiveHeaders), context, "sensitiveHeaders"); }
+    catch { context.addIssue({ code: "custom", path: ["sensitiveHeaders"], message: "敏感请求头必须是仅包含字符串值的 JSON 对象" }); }
+  }
+  if (!input.id && input.mode !== "custom-headers" && !input.secret) {
+    context.addIssue({ code: "custom", path: ["secret"], message: "新认证方案必须填写凭据" });
+  }
+  if (!input.id && input.mode === "custom-headers" && (!input.sensitiveHeaders || input.sensitiveHeaders.trim() === "{}")) {
+    context.addIssue({ code: "custom", path: ["sensitiveHeaders"], message: "自定义 Header 方案至少需要一个加密请求头" });
+  }
+});
+export const authenticationProfileIdSchema = z.string().uuid();
+
 export const connectionInputSchema = z
   .object({
     id: z.string().uuid().optional(),
@@ -29,6 +71,18 @@ export const connectionInputSchema = z
     proxyBypass: z.string().trim().max(8192).default(""),
     proxyUsername: z.string().trim().max(255).default(""),
     proxyPassword: z.string().max(4096).optional(),
+    authProfileId: z.union([z.string().uuid(), z.literal("")]).default(""),
+    sensitiveHeaders: z.string().max(32_768).optional(),
+    sshEnabled: z.boolean().default(false),
+    sshHost: z.string().trim().max(255).default(""),
+    sshPort: z.number().int().min(1).max(65_535).default(22),
+    sshUsername: z.string().trim().max(255).default(""),
+    sshAuthMode: z.enum(["password", "private-key", "agent"]).default("private-key"),
+    sshPrivateKeyPath: z.string().trim().max(4096).default(""),
+    sshAgentPath: z.string().trim().max(4096).default(""),
+    sshHostKeyFingerprint: z.string().trim().max(255).default(""),
+    sshPassword: z.string().max(4096).optional(),
+    sshPrivateKeyPassphrase: z.string().max(4096).optional(),
     enableCompression: z.boolean().default(false),
     customHeaders: z.string().max(32_768).default("{}"),
   })
@@ -85,16 +139,36 @@ export const connectionInputSchema = z
         });
       }
     }
+    if (input.sshEnabled) {
+      if (!input.sshHost) context.addIssue({ code: "custom", path: ["sshHost"], message: "启用 SSH Tunnel 后必须填写跳板机地址" });
+      if (!input.sshUsername) context.addIssue({ code: "custom", path: ["sshUsername"], message: "启用 SSH Tunnel 后必须填写 SSH 账号" });
+      if (!/^SHA256:[A-Za-z0-9+/]{43}=?$/.test(input.sshHostKeyFingerprint)) {
+        context.addIssue({ code: "custom", path: ["sshHostKeyFingerprint"], message: "必须填写完整的 SHA256 SSH 主机密钥指纹" });
+      }
+      if (input.sshAuthMode === "private-key" && !input.sshPrivateKeyPath) {
+        context.addIssue({ code: "custom", path: ["sshPrivateKeyPath"], message: "私钥认证需要选择 SSH 私钥" });
+      }
+      if (input.proxyMode !== "direct") {
+        context.addIssue({ code: "custom", path: ["proxyMode"], message: "当前版本的 SSH Tunnel 不能与 Gremlin 代理叠加" });
+      }
+    }
     try {
-      const headers = JSON.parse(input.customHeaders) as unknown;
-      if (!headers || typeof headers !== "object" || Array.isArray(headers)) throw new Error();
-      if (Object.values(headers).some((value) => typeof value !== "string")) throw new Error();
+      const headers = parseHeaderObject(input.customHeaders);
+      addHeaderIssues(headers, context, "customHeaders");
+      const sensitiveKey = Object.keys(headers).find((key) => sensitiveHeaderPattern.test(key));
+      if (sensitiveKey) {
+        context.addIssue({ code: "custom", path: ["customHeaders"], message: `请求头 ${sensitiveKey} 属于敏感值，请移入加密请求头` });
+      }
     } catch {
       context.addIssue({
         code: "custom",
         path: ["customHeaders"],
         message: "自定义请求头必须是仅包含字符串值的 JSON 对象",
       });
+    }
+    if (input.sensitiveHeaders !== undefined && input.sensitiveHeaders.trim()) {
+      try { addHeaderIssues(parseHeaderObject(input.sensitiveHeaders), context, "sensitiveHeaders"); }
+      catch { context.addIssue({ code: "custom", path: ["sensitiveHeaders"], message: "加密请求头必须是仅包含字符串值的 JSON 对象" }); }
     }
   });
 

@@ -3,6 +3,7 @@ import type {
   ConnectionProfile,
   ConnectionTestReport,
   QueryExecutionResult,
+  RuntimeAuthentication,
 } from "@janusgraph/domain";
 import gremlin from "gremlin";
 import { createHash, randomUUID } from "node:crypto";
@@ -12,7 +13,7 @@ import { isIP } from "node:net";
 import net from "node:net";
 import tls from "node:tls";
 import { Agent as HttpsAgent } from "node:https";
-import { Agent, ProxyAgent, fetch as undiciFetch } from "undici";
+import { Agent, ProxyAgent, fetch as undiciFetch, type Dispatcher } from "undici";
 import {
   createWebSocketProxyAgent,
   openProxyTunnel,
@@ -21,6 +22,8 @@ import {
   type ResolvedProxy,
   type SystemProxyResolver,
 } from "./proxy-support";
+import type { ConnectionRuntimeCredentials } from "./connection-service";
+import { SshTunnelService, type RoutedConnectionProfile } from "./ssh-tunnel-service";
 
 const GRAPHSON_V3 = "application/vnd.gremlin-v3.0+json";
 const MAX_RESULT_ITEMS = 10_000;
@@ -52,12 +55,17 @@ async function tlsMaterial(profile: ConnectionProfile, passphrase = ""): Promise
   return { ...(ca ? { ca } : {}), ...(cert ? { cert } : {}), ...(key ? { key } : {}), ...(passphrase ? { passphrase } : {}) };
 }
 
-function websocketTlsOptions(profile: ConnectionProfile, material: TlsMaterial) {
+function routeServerName(profile: RoutedConnectionProfile): string {
+  return profile.routeServerName || profile.host;
+}
+
+function websocketTlsOptions(profile: RoutedConnectionProfile, material: TlsMaterial) {
   const options = { rejectUnauthorized: profile.tlsRejectUnauthorized, ...material };
   return material.key
-    ? { rejectUnauthorized: profile.tlsRejectUnauthorized, agent: new HttpsAgent(options) }
+    ? { rejectUnauthorized: profile.tlsRejectUnauthorized, agent: new HttpsAgent(options), servername: routeServerName(profile) }
     : {
         rejectUnauthorized: profile.tlsRejectUnauthorized,
+        servername: routeServerName(profile),
         ...(material.ca ? { ca: material.ca } : {}),
         ...(material.cert ? { cert: material.cert } : {}),
       };
@@ -88,14 +96,14 @@ function isProxyError(error: unknown): boolean {
 }
 
 async function probeTlsThroughProxy(
-  profile: ConnectionProfile,
+  profile: RoutedConnectionProfile,
   proxy: ResolvedProxy,
   material: TlsMaterial,
 ): Promise<void> {
   const socket = await openProxyTunnel(proxy, profile.host, profile.port, profile.connectTimeoutMs);
   await probeSocket(() => tls.connect({
     socket,
-    servername: isIP(profile.host) ? undefined : profile.host,
+    servername: isIP(routeServerName(profile)) ? undefined : routeServerName(profile),
     rejectUnauthorized: profile.tlsRejectUnauthorized,
     ...material,
   }), "secureConnect", profile.connectTimeoutMs);
@@ -188,11 +196,29 @@ function basicAuth(username: string, password: string): string {
   return `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`;
 }
 
-function customHeaders(profile: ConnectionProfile): Record<string, string> {
+function authenticationHeaders(authentication: RuntimeAuthentication | null): Record<string, string> {
+  if (!authentication) return {};
+  if (authentication.mode === "bearer") {
+    return { ...authentication.headers, [authentication.headerName || "Authorization"]: `Bearer ${authentication.secret}` };
+  }
+  if (authentication.mode === "custom-headers") return authentication.headers;
+  return {};
+}
+
+function customHeaders(profile: ConnectionProfile, credentials: ConnectionRuntimeCredentials): Record<string, string> {
   const value = JSON.parse(profile.customHeaders || "{}") as Record<string, unknown>;
-  return Object.fromEntries(
-    Object.entries(value).map(([key, entry]) => [key, String(entry)]),
-  );
+  return {
+    ...Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, String(entry)])),
+    ...credentials.sensitiveHeaders,
+    ...authenticationHeaders(credentials.authentication),
+  };
+}
+
+function basicCredentials(profile: ConnectionProfile, credentials: ConnectionRuntimeCredentials): { username: string; password: string } {
+  if (credentials.authentication?.mode === "basic") {
+    return { username: credentials.authentication.username, password: credentials.authentication.secret };
+  }
+  return { username: profile.username, password: credentials.password };
 }
 
 async function closeClientTransport(
@@ -243,8 +269,12 @@ export class GremlinService {
       cancel: () => Promise<void>;
     }
   >();
+  private readonly hmacTokens = new Map<string, { token: string; expiresAt: number }>();
 
-  constructor(private readonly systemProxyResolver?: SystemProxyResolver) {
+  constructor(
+    private readonly systemProxyResolver?: SystemProxyResolver,
+    private readonly sshTunnels = new SshTunnelService(),
+  ) {
     // gremlin 3.7.x prefers Node 22's global WebSocket when it exists, but that
     // implementation ignores the Node-only connection options we rely on for
     // proxy agents, custom headers, compression, custom CAs and mTLS. Removing
@@ -257,9 +287,7 @@ export class GremlinService {
 
   async test(
     profile: ConnectionProfile,
-    password: string,
-    tlsClientKeyPassphrase = "",
-    proxyPassword = "",
+    credentials: ConnectionRuntimeCredentials,
   ): Promise<ConnectionTestReport> {
     const start = performance.now();
     const endpoint = connectionEndpoint(profile);
@@ -277,9 +305,23 @@ export class GremlinService {
       }
     };
     try {
+      let routedProfile: RoutedConnectionProfile = profile;
+      if (profile.sshEnabled) {
+        await runStage("dns", async () => {
+          if (!isIP(profile.sshHost)) await lookup(profile.sshHost);
+        });
+        await runStage("tcp", () => probeSocket(
+          () => net.connect({ host: profile.sshHost, port: profile.sshPort }),
+          "connect",
+          profile.connectTimeoutMs,
+        ));
+        routedProfile = await runStage("ssh", () => this.sshTunnels.route(profile, credentials));
+      } else {
+        stages.push({ stage: "ssh", status: "skipped", durationMs: 0, message: "未启用 SSH Tunnel" });
+      }
       let proxy: ResolvedProxy | null;
       try {
-        proxy = await resolveConnectionProxy(profile, endpoint, proxyPassword, this.systemProxyResolver);
+        proxy = await resolveConnectionProxy(routedProfile, connectionEndpoint(routedProfile), credentials.proxyPassword, this.systemProxyResolver);
       } catch (error) {
         stages.push({
           stage: "proxy",
@@ -289,36 +331,38 @@ export class GremlinService {
         });
         throw error;
       }
-      await runStage("dns", async () => {
-        const host = proxy ? proxyHost(proxy) : profile.host;
-        if (!isIP(host)) await lookup(host);
-      });
-      const routeHost = proxy ? proxy.url.hostname : profile.host;
-      const routePort = proxy
-        ? proxy.url.port ? Number(proxy.url.port) : proxy.url.protocol === "https:" ? 443 : 80
-        : profile.port;
-      await runStage("tcp", () => probeSocket(() => net.connect({ host: routeHost, port: routePort }), "connect", profile.connectTimeoutMs));
+      if (!profile.sshEnabled) {
+        await runStage("dns", async () => {
+          const host = proxy ? proxyHost(proxy) : routedProfile.host;
+          if (!isIP(host)) await lookup(host);
+        });
+        const routeHost = proxy ? proxy.url.hostname : routedProfile.host;
+        const routePort = proxy
+          ? proxy.url.port ? Number(proxy.url.port) : proxy.url.protocol === "https:" ? 443 : 80
+          : routedProfile.port;
+        await runStage("tcp", () => probeSocket(() => net.connect({ host: routeHost, port: routePort }), "connect", profile.connectTimeoutMs));
+      }
       if (proxy) {
         await runStage("proxy", async () => {
-          const socket = await openProxyTunnel(proxy, profile.host, profile.port, profile.connectTimeoutMs);
+          const socket = await openProxyTunnel(proxy, routedProfile.host, routedProfile.port, profile.connectTimeoutMs);
           socket.destroy();
         });
       } else {
         stages.push({ stage: "proxy", status: "skipped", durationMs: 0, message: profile.proxyMode === "direct" ? "使用直连" : "目标地址已绕过代理" });
       }
-      const secure = profile.protocol === "wss" || profile.protocol === "https";
+      const secure = routedProfile.protocol === "wss" || routedProfile.protocol === "https";
       if (secure) {
         await runStage("tls", async () => {
-          const material = await tlsMaterial(profile, tlsClientKeyPassphrase);
-          if (proxy) await probeTlsThroughProxy(profile, proxy, material);
+          const material = await tlsMaterial(routedProfile, credentials.tlsClientKeyPassphrase);
+          if (proxy) await probeTlsThroughProxy(routedProfile, proxy, material);
           else {
             await probeSocket(() => tls.connect({
-              host: profile.host,
-              port: profile.port,
-              servername: isIP(profile.host) ? undefined : profile.host,
-              rejectUnauthorized: profile.tlsRejectUnauthorized,
+              host: routedProfile.host,
+              port: routedProfile.port,
+              servername: isIP(routeServerName(routedProfile)) ? undefined : routeServerName(routedProfile),
+              rejectUnauthorized: routedProfile.tlsRejectUnauthorized,
               ...material,
-            }), "secureConnect", profile.connectTimeoutMs);
+            }), "secureConnect", routedProfile.connectTimeoutMs);
           }
         });
       } else {
@@ -328,30 +372,28 @@ export class GremlinService {
         const queryStart = performance.now();
         await this.execute(
           profile,
-          password,
+          credentials,
           "connection-test",
           randomUUID(),
           "1",
           {},
           profile.queryTimeoutMs,
           false,
-          tlsClientKeyPassphrase,
-          proxyPassword,
         );
         const queryDuration = Math.round(performance.now() - queryStart);
-        stages.push({ stage: "authentication", status: "passed", durationMs: queryDuration, message: profile.username ? "认证通过" : "匿名访问可用" });
+        stages.push({ stage: "authentication", status: "passed", durationMs: queryDuration, message: profile.username || credentials.authentication ? "认证通过" : "匿名访问可用" });
         stages.push({ stage: "gremlin", status: "passed", durationMs: queryDuration, message: "Gremlin 请求与响应通过" });
       } catch (error) {
         const stage = isProxyError(error) ? "proxy" : isAuthenticationError(error) ? "authentication" : "gremlin";
         if (stage === "gremlin") {
-          stages.push({ stage: "authentication", status: "passed", durationMs: 0, message: profile.username ? "服务端已接受认证信息" : "匿名访问可用" });
+          stages.push({ stage: "authentication", status: "passed", durationMs: 0, message: profile.username || credentials.authentication ? "服务端已接受认证信息" : "匿名访问可用" });
         }
         stages.push({ stage, status: "failed", durationMs: 0, message: error instanceof Error ? error.message : String(error) });
         throw error;
       }
       const schemaResult = await runStage("schema", () => this.execute(
         profile,
-        password,
+        credentials,
         "connection-test",
         randomUUID(),
         `if (!this.binding.hasVariable(__janusStudioGraphBinding)) { return false }
@@ -361,8 +403,6 @@ try { return __janusStudioManagement != null } finally { __janusStudioManagement
         { __janusStudioGraphBinding: profile.graphBinding },
         profile.queryTimeoutMs,
         false,
-        tlsClientKeyPassphrase,
-        proxyPassword,
       ));
       if (schemaResult.items[0] !== true) stages[stages.length - 1] = { stage: "schema", status: "skipped", durationMs: stages.at(-1)?.durationMs ?? 0, message: `未找到 Graph Binding：${profile.graphBinding}` };
       return {
@@ -370,7 +410,7 @@ try { return __janusStudioManagement != null } finally { __janusStudioManagement
         latencyMs: Math.round(performance.now() - start),
         endpoint,
         stage: "schema",
-        message: schemaResult.items[0] === true ? "网络、TLS、认证、Gremlin 与 Schema Binding 均已通过" : "查询连接可用；Schema Binding 未在服务端暴露",
+        message: schemaResult.items[0] === true ? "网络、传输、认证、Gremlin 与 Schema Binding 均已通过" : "查询连接可用；Schema Binding 未在服务端暴露",
         stages,
       };
     } catch (error) {
@@ -383,24 +423,23 @@ try { return __janusStudioManagement != null } finally { __janusStudioManagement
         stages,
       };
     } finally {
-      await this.closeConsole(profile.id, "connection-test");
+      await this.closeConnection(profile.id);
     }
   }
 
   async execute(
     profile: ConnectionProfile,
-    password: string,
+    credentials: ConnectionRuntimeCredentials,
     consoleId: string,
     executionId: string,
     query: string,
     bindings: Record<string, unknown>,
     timeoutMs = profile.queryTimeoutMs,
     serverCancellation = false,
-    tlsClientKeyPassphrase = "",
-    proxyPassword = "",
   ): Promise<QueryExecutionResult> {
     const startedAt = performance.now();
-    const endpoint = connectionEndpoint(profile);
+    const routedProfile = await this.sshTunnels.route(profile, credentials);
+    const endpoint = connectionEndpoint(routedProfile);
     if (
       profile.clientMode === "sessioned" &&
       profile.protocol !== "ws" &&
@@ -409,10 +448,10 @@ try { return __janusStudioManagement != null } finally { __janusStudioManagement
       throw new Error("Sessioned Client 仅支持 WS/WSS 协议");
     }
     const collected =
-      profile.protocol === "ws" || profile.protocol === "wss"
+      routedProfile.protocol === "ws" || routedProfile.protocol === "wss"
         ? await this.executeWebSocket(
-            profile,
-            password,
+            routedProfile,
+            credentials,
             endpoint,
             consoleId,
             executionId,
@@ -420,20 +459,16 @@ try { return __janusStudioManagement != null } finally { __janusStudioManagement
             bindings,
             timeoutMs,
             serverCancellation,
-            tlsClientKeyPassphrase,
-            proxyPassword,
           )
         : await this.executeHttp(
-            profile,
-            password,
+            routedProfile,
+            credentials,
             endpoint,
             executionId,
             query,
             bindings,
             MAX_RESULT_ITEMS,
             timeoutMs,
-            tlsClientKeyPassphrase,
-            proxyPassword,
           );
 
     return {
@@ -448,48 +483,46 @@ try { return __janusStudioManagement != null } finally { __janusStudioManagement
 
   async exportAll(
     profile: ConnectionProfile,
-    password: string,
+    credentials: ConnectionRuntimeCredentials,
     executionId: string,
     query: string,
     bindings: Record<string, unknown>,
     writeItems: (items: unknown[]) => Promise<void>,
-    tlsClientKeyPassphrase = "",
-    proxyPassword = "",
   ): Promise<{ totalCount: number; durationMs: number }> {
     const startedAt = performance.now();
-    if (profile.protocol === "http" || profile.protocol === "https") {
-      const endpoint = connectionEndpoint(profile);
+    const routedProfile = await this.sshTunnels.route(profile, credentials);
+    if (routedProfile.protocol === "http" || routedProfile.protocol === "https") {
+      const endpoint = connectionEndpoint(routedProfile);
       const collected = await this.executeHttp(
-        profile,
-        password,
+        routedProfile,
+        credentials,
         endpoint,
         executionId,
         query,
         bindings,
         Number.MAX_SAFE_INTEGER,
-        profile.queryTimeoutMs,
-        tlsClientKeyPassphrase,
-        proxyPassword,
+        routedProfile.queryTimeoutMs,
       );
       await writeItems(collected.items.map((item) => toSerializable(item)));
       return { totalCount: collected.totalCount, durationMs: Math.round(performance.now() - startedAt) };
     }
 
-    const endpoint = connectionEndpoint(profile);
-    const material = await tlsMaterial(profile, tlsClientKeyPassphrase);
-    const proxy = await resolveConnectionProxy(profile, endpoint, proxyPassword, this.systemProxyResolver);
-    const authenticator = profile.username && password
-      ? new gremlin.driver.auth.PlainTextSaslAuthenticator(profile.username, password)
+    const endpoint = connectionEndpoint(routedProfile);
+    const material = await tlsMaterial(routedProfile, credentials.tlsClientKeyPassphrase);
+    const proxy = await resolveConnectionProxy(routedProfile, endpoint, credentials.proxyPassword, this.systemProxyResolver);
+    const basic = basicCredentials(routedProfile, credentials);
+    const authenticator = basic.username && basic.password
+      ? new gremlin.driver.auth.PlainTextSaslAuthenticator(basic.username, basic.password)
       : undefined;
     const client = new gremlin.driver.Client(endpoint, {
-      traversalSource: profile.traversalSource,
+      traversalSource: routedProfile.traversalSource,
       mimeType: GRAPHSON_V3,
       authenticator,
-      headers: customHeaders(profile),
+      headers: customHeaders(routedProfile, credentials),
       ...(proxy
-        ? { agent: createWebSocketProxyAgent(profile, proxy, { rejectUnauthorized: profile.tlsRejectUnauthorized, ...material }) }
-        : websocketTlsOptions(profile, material)),
-      enableCompression: profile.enableCompression,
+        ? { agent: createWebSocketProxyAgent(routedProfile, proxy, { rejectUnauthorized: routedProfile.tlsRejectUnauthorized, ...material }) }
+        : websocketTlsOptions(routedProfile, material)),
+      enableCompression: routedProfile.enableCompression,
     });
     const execution = {
       cancelled: false,
@@ -501,7 +534,7 @@ try { return __janusStudioManagement != null } finally { __janusStudioManagement
     this.activeExecutions.set(executionId, execution);
     try {
       const openClient = client as typeof client & { open: () => Promise<void> };
-      await withTimeout(openClient.open(), profile.connectTimeoutMs, `WebSocket 连接超时（${profile.connectTimeoutMs} ms）`);
+      await withTimeout(openClient.open(), routedProfile.connectTimeoutMs, `WebSocket 连接超时（${routedProfile.connectTimeoutMs} ms）`);
       let totalCount = 0;
       await withTimeout((async () => {
         for await (const resultSet of client.stream(query, bindings)) {
@@ -509,7 +542,7 @@ try { return __janusStudioManagement != null } finally { __janusStudioManagement
           totalCount += batch.length;
           await writeItems(batch.map((item) => toSerializable(item)));
         }
-      })(), profile.queryTimeoutMs, `Gremlin 流式导出超时（${profile.queryTimeoutMs} ms）`);
+      })(), routedProfile.queryTimeoutMs, `Gremlin 流式导出超时（${routedProfile.queryTimeoutMs} ms）`);
       return { totalCount, durationMs: Math.round(performance.now() - startedAt) };
     } catch (error) {
       if (execution.cancelled) throw new Error("查询已停止");
@@ -521,8 +554,8 @@ try { return __janusStudioManagement != null } finally { __janusStudioManagement
   }
 
   private async executeWebSocket(
-    profile: ConnectionProfile,
-    password: string,
+    profile: RoutedConnectionProfile,
+    credentials: ConnectionRuntimeCredentials,
     endpoint: string,
     consoleId: string,
     executionId: string,
@@ -530,16 +563,15 @@ try { return __janusStudioManagement != null } finally { __janusStudioManagement
     bindings: Record<string, unknown>,
     timeoutMs: number,
     serverCancellation: boolean,
-    tlsClientKeyPassphrase: string,
-    proxyPassword: string,
   ): Promise<CollectedItems> {
-    const material = await tlsMaterial(profile, tlsClientKeyPassphrase);
-    const proxy = await resolveConnectionProxy(profile, endpoint, proxyPassword, this.systemProxyResolver);
+    const material = await tlsMaterial(profile, credentials.tlsClientKeyPassphrase);
+    const proxy = await resolveConnectionProxy(profile, endpoint, credentials.proxyPassword, this.systemProxyResolver);
+    const basic = basicCredentials(profile, credentials);
     const authenticator =
-      profile.username && password
+      basic.username && basic.password
         ? new gremlin.driver.auth.PlainTextSaslAuthenticator(
-            profile.username,
-            password,
+            basic.username,
+            basic.password,
           )
         : undefined;
     const createClient = (sessioned: boolean) =>
@@ -547,7 +579,7 @@ try { return __janusStudioManagement != null } finally { __janusStudioManagement
         traversalSource: profile.traversalSource,
         mimeType: GRAPHSON_V3,
         authenticator,
-        headers: customHeaders(profile),
+        headers: customHeaders(profile, credentials),
         ...(proxy
           ? { agent: createWebSocketProxyAgent(profile, proxy, { rejectUnauthorized: profile.tlsRejectUnauthorized, ...material }) }
           : websocketTlsOptions(profile, material)),
@@ -564,7 +596,7 @@ try { return __janusStudioManagement != null } finally { __janusStudioManagement
       client = createClient(true);
     } else if (sessioned) {
       const credentialHash = createHash("sha256")
-        .update(`${profile.username}\u0000${password}`)
+        .update(JSON.stringify({ basic, authentication: credentials.authentication, sensitiveHeaders: credentials.sensitiveHeaders }))
         .digest("hex");
       const signature = [
         endpoint,
@@ -577,13 +609,13 @@ try { return __janusStudioManagement != null } finally { __janusStudioManagement
         profile.customHeaders,
         profile.proxyMode,
         profile.proxyUrl,
-        profile.proxyHost,
         String(profile.proxyPort),
         profile.proxyBypass,
         profile.proxyUsername,
         credentialHash,
-        createHash("sha256").update(tlsClientKeyPassphrase).digest("hex"),
-        createHash("sha256").update(proxyPassword).digest("hex"),
+        createHash("sha256").update(credentials.tlsClientKeyPassphrase).digest("hex"),
+        createHash("sha256").update(credentials.proxyPassword).digest("hex"),
+        profile.sshEnabled ? profile.sshHostKeyFingerprint : "",
       ].join("\u0000");
       const existing = this.sessionClients.get(sessionKey);
       if (existing && existing.signature !== signature) {
@@ -704,6 +736,8 @@ try { return __janusStudioManagement != null } finally { __janusStudioManagement
     await Promise.all(
       sessions.map(([, session]) => session.client.close().catch(() => undefined)),
     );
+    this.hmacTokens.delete(connectionId);
+    await this.sshTunnels.close(connectionId);
   }
 
   async closeAll(): Promise<void> {
@@ -712,42 +746,78 @@ try { return __janusStudioManagement != null } finally { __janusStudioManagement
     await Promise.all(
       sessions.map((session) => session.client.close().catch(() => undefined)),
     );
+    this.hmacTokens.clear();
+    await this.sshTunnels.closeAll();
+  }
+
+  private async hmacAuthorization(
+    profile: RoutedConnectionProfile,
+    credentials: ConnectionRuntimeCredentials,
+    endpoint: string,
+    dispatcher: Dispatcher | undefined,
+  ): Promise<string> {
+    const authentication = credentials.authentication;
+    if (authentication?.mode !== "janus-hmac") throw new Error("JanusGraph HMAC 认证方案无效");
+    const cached = this.hmacTokens.get(profile.id);
+    if (cached && cached.expiresAt > Date.now()) return `Token ${cached.token}`;
+    const sessionUrl = new URL(endpoint);
+    sessionUrl.pathname = "/session";
+    sessionUrl.search = "";
+    const response = await withTimeout(undiciFetch(sessionUrl, {
+      method: "GET",
+      headers: { Authorization: basicAuth(authentication.username, authentication.secret) },
+      ...(dispatcher ? { dispatcher } : {}),
+    }), profile.connectTimeoutMs, `JanusGraph HMAC Token 获取超时（${profile.connectTimeoutMs} ms）`);
+    if (!response.ok) throw new Error(`JanusGraph HMAC Token 获取失败：HTTP ${response.status}`);
+    const raw = (await response.text()).trim();
+    let token = raw;
+    try {
+      const parsed = JSON.parse(raw) as { token?: unknown; data?: unknown };
+      token = typeof parsed.token === "string" ? parsed.token : typeof parsed.data === "string" ? parsed.data : raw;
+    } catch {
+      // Official channelizer may return the token as plain text.
+    }
+    token = token.replace(/^"|"$/g, "").trim();
+    if (!token) throw new Error("JanusGraph HMAC Token 响应为空");
+    this.hmacTokens.set(profile.id, { token, expiresAt: Date.now() + 50 * 60_000 });
+    return `Token ${token}`;
   }
 
   private async executeHttp(
-    profile: ConnectionProfile,
-    password: string,
+    profile: RoutedConnectionProfile,
+    credentials: ConnectionRuntimeCredentials,
     endpoint: string,
     executionId: string,
     query: string,
     bindings: Record<string, unknown>,
     maxItems = MAX_RESULT_ITEMS,
     timeoutMs = profile.queryTimeoutMs,
-    tlsClientKeyPassphrase = "",
-    proxyPassword = "",
   ): Promise<CollectedItems> {
     const headers: Record<string, string> = {
-      ...customHeaders(profile),
+      ...customHeaders(profile, credentials),
       Accept: GRAPHSON_V3,
       "Content-Type": "application/json",
     };
-    if (profile.username && password) {
-      headers.Authorization = basicAuth(profile.username, password);
-    }
 
     const controller = new AbortController();
-    const material = await tlsMaterial(profile, tlsClientKeyPassphrase);
-    const proxy = await resolveConnectionProxy(profile, endpoint, proxyPassword, this.systemProxyResolver);
+    const material = await tlsMaterial(profile, credentials.tlsClientKeyPassphrase);
+    const proxy = await resolveConnectionProxy(profile, endpoint, credentials.proxyPassword, this.systemProxyResolver);
     const dispatcher = proxy
       ? new ProxyAgent({
           uri: proxy.url.toString(),
           ...(proxy.authorization ? { token: proxy.authorization } : {}),
           proxyTunnel: true,
-          requestTls: { rejectUnauthorized: profile.tlsRejectUnauthorized, ...material },
+          requestTls: { rejectUnauthorized: profile.tlsRejectUnauthorized, servername: routeServerName(profile), ...material },
         })
       : profile.protocol === "https"
-        ? new Agent({ connect: { rejectUnauthorized: profile.tlsRejectUnauthorized, ...material } })
+        ? new Agent({ connect: { rejectUnauthorized: profile.tlsRejectUnauthorized, servername: routeServerName(profile), ...material } })
         : undefined;
+    const basic = basicCredentials(profile, credentials);
+    if (credentials.authentication?.mode === "janus-hmac") {
+      headers.Authorization = await this.hmacAuthorization(profile, credentials, endpoint, dispatcher);
+    } else if (basic.username && basic.password) {
+      headers.Authorization = basicAuth(basic.username, basic.password);
+    }
     const execution = {
       cancelled: false,
       cancel: async () => {
@@ -757,8 +827,7 @@ try { return __janusStudioManagement != null } finally { __janusStudioManagement
     };
     this.activeExecutions.set(executionId, execution);
     try {
-      const response = await withTimeout(
-        undiciFetch(endpoint, {
+      const request = () => undiciFetch(endpoint, {
           method: "POST",
           headers,
           body: JSON.stringify({
@@ -769,10 +838,17 @@ try { return __janusStudioManagement != null } finally { __janusStudioManagement
           }),
           signal: controller.signal,
           ...(dispatcher ? { dispatcher } : {}),
-        }),
+        });
+      let response = await withTimeout(
+        request(),
         timeoutMs,
         `Gremlin HTTP 查询超时（${timeoutMs} ms）`,
       );
+      if (response.status === 401 && credentials.authentication?.mode === "janus-hmac") {
+        this.hmacTokens.delete(profile.id);
+        headers.Authorization = await this.hmacAuthorization(profile, credentials, endpoint, dispatcher);
+        response = await withTimeout(request(), timeoutMs, `Gremlin HTTP 查询超时（${timeoutMs} ms）`);
+      }
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${await response.text()}`);
       }

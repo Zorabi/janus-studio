@@ -991,6 +991,7 @@ export default function App() {
             onDelete={setDeleteConnection}
             onTest={testStoredConnection}
             onOpenDiagnostics={openDiagnostics}
+            onConnectionsChanged={() => void loadConnections()}
           />
         )}
         {view === "history" && (
