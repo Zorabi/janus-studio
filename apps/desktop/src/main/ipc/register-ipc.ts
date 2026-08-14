@@ -156,6 +156,13 @@ export function registerIpcHandlers({
   diagnosticRecordRepository,
   authenticationProfileService,
 }: RegisterIpcOptions): void {
+  const unsubscribeSshTunnel = connectionService.onSshTunnelChanged((connectionId, snapshot) => {
+    if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
+      window.webContents.send("connections:ssh-tunnel-changed", connectionId, snapshot);
+    }
+  });
+  window.once("closed", unsubscribeSshTunnel);
+
   ipcMain.handle("runtime:platform", (event) => {
     assertTrustedSender(event, window);
     return process.platform;

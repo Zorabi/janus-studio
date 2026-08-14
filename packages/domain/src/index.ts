@@ -76,8 +76,12 @@ export type ConnectionProfile = {
 };
 
 export type ConnectionSshTunnelSnapshot = {
-  status: "inactive" | "connected";
+  status: "inactive" | "connecting" | "connected" | "disconnected" | "reconnecting" | "failed";
   localPort?: number;
+  reconnectCount?: number;
+  connectedAt?: string;
+  disconnectedAt?: string;
+  lastError?: string;
 };
 
 export type ConnectionSummary = ConnectionProfile & {
@@ -610,6 +614,7 @@ export type DesktopApi = {
     save(input: SaveConnectionInput): Promise<ConnectionSummary>;
     remove(id: string): Promise<void>;
     test(input: SaveConnectionInput): Promise<ConnectionTestReport>;
+    onSshTunnelChanged(listener: (connectionId: string, snapshot: ConnectionSshTunnelSnapshot) => void): () => void;
   };
   authProfiles: {
     list(): Promise<AuthenticationProfile[]>;

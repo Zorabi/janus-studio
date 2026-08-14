@@ -31,7 +31,7 @@ export interface ConnectionsPageProps {
   onDelete: (connection: ConnectionSummary) => void;
   onTest: (connection: ConnectionSummary) => Promise<ConnectionTestReport>;
   onOpenDiagnostics: (incident: DiagnosticIncidentContext) => void;
-  onConnectionsChanged: () => void;
+  onConnectionsChanged: () => void | Promise<void>;
 }
 
 export function ConnectionsPage({
@@ -52,7 +52,10 @@ export function ConnectionsPage({
   const [showAuthenticationProfiles, setShowAuthenticationProfiles] = useState(false);
 
   useEffect(() => {
-    onConnectionsChanged();
+    void Promise.resolve(onConnectionsChanged()).catch(() => undefined);
+    return window.janusGraphDesktop?.connections.onSshTunnelChanged(() => {
+      void Promise.resolve(onConnectionsChanged()).catch(() => undefined);
+    });
   }, [onConnectionsChanged]);
 
   return (
@@ -90,6 +93,29 @@ export function ConnectionsPage({
         <div className="connection-grid">
           {connections.map((connection) => {
             const active = connection.id === activeConnectionId;
+            const tunnel = connection.sshTunnel;
+            const tunnelTitle = tunnel?.status === "connected"
+              ? `${t("本地转发端口", "Local forwarding port")}: ${tunnel.localPort ?? "-"}${tunnel.connectedAt ? ` · ${t("连接时间", "Connected")}: ${new Date(tunnel.connectedAt).toLocaleString()}` : ""}`
+              : tunnel?.status === "connecting"
+                ? t("正在建立 SSH Tunnel", "Establishing SSH Tunnel")
+                : tunnel?.status === "reconnecting"
+                  ? t("正在重新建立 SSH Tunnel", "Re-establishing SSH Tunnel")
+                  : tunnel?.status === "disconnected"
+                    ? tunnel.lastError || t("SSH Tunnel 已断开；下次使用时自动重连", "SSH Tunnel disconnected; it will reconnect on next use")
+                    : tunnel?.status === "failed"
+                      ? tunnel.lastError || t("SSH Tunnel 建立失败", "SSH Tunnel failed")
+                      : t("首次使用时按需建立", "Established on first use");
+            const tunnelLabel = tunnel?.status === "connected"
+              ? t("SSH 已连接", "SSH connected")
+              : tunnel?.status === "connecting"
+                ? t("SSH 连接中", "SSH connecting")
+                : tunnel?.status === "reconnecting"
+                  ? t("SSH 重连中", "SSH reconnecting")
+                  : tunnel?.status === "disconnected"
+                    ? t("SSH 已断开", "SSH disconnected")
+                    : tunnel?.status === "failed"
+                      ? t("SSH 失败", "SSH failed")
+                      : t("SSH 按需", "SSH on demand");
             const environmentLabel = connection.environment === "prod"
               ? t("生产", "Production")
               : connection.environment === "test"
@@ -131,13 +157,11 @@ export function ConnectionsPage({
                         {connection.sshEnabled && (
                           <span
                             className={`badge transport tunnel-${connection.sshTunnel?.status ?? "inactive"}`}
-                            title={connection.sshTunnel?.status === "connected" && connection.sshTunnel.localPort
-                              ? `${t("本地转发端口", "Local forwarding port")}: ${connection.sshTunnel.localPort}`
-                              : t("首次使用时按需建立", "Established on first use")}
+                            title={tunnelTitle}
                           >
-                            {connection.sshTunnel?.status === "connected"
-                              ? t("SSH 已连接", "SSH connected")
-                              : t("SSH 按需", "SSH on demand")}
+                            {(tunnel?.status === "connecting" || tunnel?.status === "reconnecting") && <LoaderCircle className="spin" size={12} />}
+                            {tunnelLabel}
+                            {tunnel?.reconnectCount ? <small>×{tunnel.reconnectCount}</small> : null}
                           </span>
                         )}
                         {connection.authProfileId && <span className="badge transport">{t("认证方案", "Auth profile")}</span>}

@@ -222,7 +222,7 @@
 - 连接测试失败、Schema 读取/历史失败、ConfiguredGraphFactory 能力或实例读取失败，以及任务中心失败/中断记录，统一提供“生成诊断包”入口；入口必须携带来源、连接、图、阶段、时间和异常摘要。问题诊断页展示当前故障上下文，主进程再次校验和脱敏后写入 `summary.json`，禁止仅靠 Renderer 隐藏敏感信息。
 - 问题诊断使用确定性规则引擎，不调用外部 AI 或上传诊断数据；结论必须包含严重度、置信度、证据和可执行建议。首批识别实例 ID 冲突、GraphSON 序列化、evaluationTimeout、Elasticsearch 分片上限、Schema 重名、索引生命周期、ConfiguredGraphFactory 残留和能力探测失败。ZIP 必须包含 `diagnostic-report.md`；离线复诊仅接受带 `summary.json` 的 ZIP，并限制压缩包大小、文件数量、单项和总解压体积。
 - 自动诊断和离线复诊结果通过 SQLite v12 `diagnostic_records` 持久化；同一故障刷新按来源、故障时间和结论指纹去重，不得重复累加。记录状态由用户显式在未读、已确认、已解决之间推进，支持重新打开与二次确认删除。默认保留最近 200 条且不超过 90 天，查看记录本身不得自动更改状态。
-- i18n 消息目录当前为每种语言 1190 条，并会在生成时清理已从源码移除的废弃文案。翻译服务不可用时生成脚本保留英文 fallback 并正常完成，不能因远端限流阻断本地构建。
+- i18n 消息目录当前为每种语言 1256 条，并会在生成时清理已从源码移除的废弃文案。翻译服务不可用时生成脚本保留英文 fallback 并正常完成，不能因远端限流阻断本地构建。
 
 ## 9. 开发与验证命令
 
@@ -237,7 +237,7 @@ pnpm build
 ```
 
 - `pnpm typecheck`：全部 workspace TypeScript 检查。
-- `pnpm test`：当前 182 项测试，其中 178 项本地通过，4 项真实 JanusGraph 集成测试在未配置环境时跳过。
+- `pnpm test`：当前 190 项测试，其中 186 项本地通过，4 项真实 JanusGraph 集成测试在未配置环境时跳过。
 - `pnpm build`：Electron Forge 生产打包。
 - macOS ARM64 打包输出：
   `apps/desktop/out/Janus Studio-darwin-arm64/Janus Studio.app`。
@@ -258,9 +258,9 @@ pnpm build
 
 ## 11. 当前验证状态
 
-- 当前代码基线：查询资产、诊断闭环、发布验收第二切片，以及连接代理基础设施均已实现；以仓库最新提交为准。
+- 当前代码基线：查询资产、诊断闭环、发布验收第二切片，以及企业连接基础设施均已实现；以仓库最新提交为准。
 - 最近一次 `pnpm typecheck`：通过。
-- 最近一次 `pnpm test`：185 项，181 通过，4 个真实环境测试跳过，0 失败。
+- 最近一次 `pnpm test`：190 项，186 通过，4 个真实环境测试跳过，0 失败。
 - 最近一次 `pnpm build`：macOS ARM64 生产包生成成功。
 - 最近一次打包时间：2026-08-14。
 - 多节点 Binding 传播、真实 Drop、残留实例处理和关闭后自动重开语义已由用户验收。
@@ -269,5 +269,5 @@ pnpm build
 ## 12. 后续路线
 
 - 统一长任务中心、JanusGraph 兼容层、官方 Schema JSON 路由、GraphSON 主进程编排、查询资产管理和问题诊断闭环已经完成。
-- 连接基础设施实现切片已经完成：mTLS、自定义 CA、直连/系统/专用代理、SSH Tunnel、Bearer/HMAC、敏感 Header 凭据化、认证 Profile 和分阶段连接测试均已贯通。下一步进入真实 SSH/mTLS fixture、Tunnel 生命周期与跨平台验收，不再继续堆叠认证表单字段。
+- 连接基础设施实现切片已经完成：mTLS、自定义 CA、直连/系统/专用代理、SSH Tunnel、Bearer/HMAC、敏感 Header 凭据化、认证 Profile 和分阶段连接测试均已贯通；运行时生成的本地证书 fixture 已覆盖 HTTPS、WSS、SSH Tunnel 与 HTTP CONNECT 代理下的 mTLS。Tunnel 生命周期状态、断线后的按需重建、并发建连合并和 Renderer 实时通知已完成，企业网络 fixture 已进入四平台 CI；剩余工作是对应真实基础设施的跨平台验收。
 - 详细分期、依赖和验收标准见 `docs/剩余功能迭代计划.md`。

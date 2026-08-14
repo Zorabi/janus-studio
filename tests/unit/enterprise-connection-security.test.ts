@@ -150,7 +150,9 @@ test("forwards traffic through SSH only after strict host-key verification", asy
   assert.ok(!(parsed instanceof Error) && !Array.isArray(parsed));
   const fingerprint = sshHostKeyFingerprint(parsed.getPublicSSH());
   let disconnectSsh: () => Promise<void> = async () => undefined;
+  let sshConnectionCount = 0;
   const ssh = new SshServer({ hostKeys: [privateKey] }, (client) => {
+    sshConnectionCount += 1;
     disconnectSsh = async () => {
       const closed = new Promise<void>((resolve) => client.once("close", resolve));
       client.end();
@@ -186,23 +188,37 @@ test("forwards traffic through SSH only after strict host-key verification", asy
   });
   const runtime = credentials({ sshPassword: "ssh-secret" });
   const tunnels = new SshTunnelService();
+  const observedStatuses: string[] = [];
+  const unsubscribe = tunnels.subscribe((connectionId, snapshot) => {
+    if (connectionId === connection.id) observedStatuses.push(snapshot.status);
+  });
   try {
-    const routed = await tunnels.route(connection, runtime);
+    const [routed, concurrentRoute] = await Promise.all([
+      tunnels.route(connection, runtime),
+      tunnels.route(connection, runtime),
+    ]);
+    assert.equal(concurrentRoute.port, routed.port);
+    assert.equal(sshConnectionCount, 1);
     const received = await new Promise<string>((resolve, reject) => {
       const socket = net.connect(routed.port, routed.host, () => socket.write("through-ssh"));
       socket.once("data", (data) => { resolve(data.toString()); socket.destroy(); });
       socket.once("error", reject);
     });
     assert.equal(received, "through-ssh");
-    assert.deepEqual(tunnels.snapshot(connection.id), { status: "connected", localPort: routed.port });
+    assert.equal(tunnels.snapshot(connection.id).status, "connected");
+    assert.equal(tunnels.snapshot(connection.id).localPort, routed.port);
+    assert.ok(tunnels.snapshot(connection.id).connectedAt);
 
     await disconnectSsh();
-    for (let attempt = 0; attempt < 20 && tunnels.snapshot(connection.id).status !== "inactive"; attempt += 1) {
+    for (let attempt = 0; attempt < 20 && tunnels.snapshot(connection.id).status !== "disconnected"; attempt += 1) {
       await new Promise<void>((resolve) => setImmediate(resolve));
     }
-    assert.deepEqual(tunnels.snapshot(connection.id), { status: "inactive" });
+    assert.equal(tunnels.snapshot(connection.id).status, "disconnected");
+    assert.ok(tunnels.snapshot(connection.id).disconnectedAt);
     const reconnected = await tunnels.route(connection, runtime);
     assert.equal(tunnels.snapshot(connection.id).status, "connected");
+    assert.equal(tunnels.snapshot(connection.id).reconnectCount, 1);
+    assert.equal(sshConnectionCount, 2);
 
     const heldSocket = net.connect(reconnected.port, reconnected.host);
     await once(heldSocket, "connect");
@@ -211,12 +227,19 @@ test("forwards traffic through SSH only after strict host-key verification", asy
     await tunnels.close(connection.id);
     await heldSocketClosed;
     assert.deepEqual(tunnels.snapshot(connection.id), { status: "inactive" });
+    assert.deepEqual(observedStatuses, ["connecting", "connected", "disconnected", "reconnecting", "connected", "inactive"]);
 
+    const rejectedTunnels = new SshTunnelService();
+    const rejectedConnection = { ...connection, id: "22222222-2222-4222-8222-222222222222", sshHostKeyFingerprint: `SHA256:${"A".repeat(43)}` };
     await assert.rejects(
-      new SshTunnelService().route({ ...connection, id: "22222222-2222-4222-8222-222222222222", sshHostKeyFingerprint: `SHA256:${"A".repeat(43)}` }, runtime),
+      rejectedTunnels.route(rejectedConnection, runtime),
       /主机密钥不匹配/,
     );
+    assert.equal(rejectedTunnels.snapshot(rejectedConnection.id).status, "failed");
+    assert.match(rejectedTunnels.snapshot(rejectedConnection.id).lastError ?? "", /主机密钥不匹配/);
+    await rejectedTunnels.closeAll();
   } finally {
+    unsubscribe();
     await tunnels.closeAll();
     ssh.close();
     echo.close();

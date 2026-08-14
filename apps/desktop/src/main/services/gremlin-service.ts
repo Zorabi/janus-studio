@@ -60,13 +60,18 @@ function routeServerName(profile: RoutedConnectionProfile): string {
   return profile.routeServerName || profile.host;
 }
 
+function tlsServerName(profile: RoutedConnectionProfile): string | undefined {
+  const value = routeServerName(profile);
+  return isIP(value) ? undefined : value;
+}
+
 function websocketTlsOptions(profile: RoutedConnectionProfile, material: TlsMaterial) {
   const options = { rejectUnauthorized: profile.tlsRejectUnauthorized, ...material };
   return material.key
-    ? { rejectUnauthorized: profile.tlsRejectUnauthorized, agent: new HttpsAgent(options), servername: routeServerName(profile) }
+    ? { rejectUnauthorized: profile.tlsRejectUnauthorized, agent: new HttpsAgent(options), servername: tlsServerName(profile) }
     : {
         rejectUnauthorized: profile.tlsRejectUnauthorized,
-        servername: routeServerName(profile),
+        servername: tlsServerName(profile),
         ...(material.ca ? { ca: material.ca } : {}),
         ...(material.cert ? { cert: material.cert } : {}),
       };
@@ -94,6 +99,31 @@ function isAuthenticationError(error: unknown): boolean {
 function isProxyError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return /proxy|代理|HTTP\s*407/i.test(message);
+}
+
+function isTlsError(error: unknown): boolean {
+  let current: unknown = error;
+  const visited = new Set<unknown>();
+  for (let depth = 0; current && depth < 6 && !visited.has(current); depth += 1) {
+    visited.add(current);
+    const code = current && typeof current === "object" && "code" in current
+      ? String((current as { code?: unknown }).code ?? "")
+      : "";
+    const message = current instanceof Error ? current.message : String(current);
+    if (/^ERR_(?:SSL|TLS)_/i.test(code) || /\b(?:TLS|SSL)\b|certificate required|bad certificate|self[- ]signed certificate|unable to verify|certificate has expired|key values mismatch|bad decrypt|PEM routines/i.test(message)) {
+      return true;
+    }
+    current = current && typeof current === "object" && "cause" in current
+      ? (current as { cause?: unknown }).cause
+      : undefined;
+  }
+  return false;
+}
+
+function isSecureTransportFailure(profile: ConnectionProfile, error: unknown): boolean {
+  if (profile.protocol !== "wss" && profile.protocol !== "https") return false;
+  const message = error instanceof Error ? error.message : String(error);
+  return /fetch failed|socket hang up|ECONNRESET|network socket|other side closed/i.test(message);
 }
 
 async function probeTlsThroughProxy(
@@ -290,6 +320,10 @@ export class GremlinService {
     return this.sshTunnels.snapshot(connectionId);
   }
 
+  onSshTunnelChanged(listener: (connectionId: string, snapshot: ConnectionSshTunnelSnapshot) => void): () => void {
+    return this.sshTunnels.subscribe(listener);
+  }
+
   async test(
     profile: ConnectionProfile,
     credentials: ConnectionRuntimeCredentials,
@@ -389,11 +423,23 @@ export class GremlinService {
         stages.push({ stage: "authentication", status: "passed", durationMs: queryDuration, message: profile.username || credentials.authentication ? "认证通过" : "匿名访问可用" });
         stages.push({ stage: "gremlin", status: "passed", durationMs: queryDuration, message: "Gremlin 请求与响应通过" });
       } catch (error) {
-        const stage = isProxyError(error) ? "proxy" : isAuthenticationError(error) ? "authentication" : "gremlin";
+        const stage = isProxyError(error)
+          ? "proxy"
+          : isTlsError(error) || isSecureTransportFailure(profile, error)
+            ? "tls"
+            : isAuthenticationError(error)
+              ? "authentication"
+              : "gremlin";
         if (stage === "gremlin") {
           stages.push({ stage: "authentication", status: "passed", durationMs: 0, message: profile.username || credentials.authentication ? "服务端已接受认证信息" : "匿名访问可用" });
         }
-        stages.push({ stage, status: "failed", durationMs: 0, message: error instanceof Error ? error.message : String(error) });
+        const message = error instanceof Error ? error.message : String(error);
+        const existingStage = stages.findIndex((result) => result.stage === stage);
+        if (existingStage >= 0) {
+          stages[existingStage] = { ...stages[existingStage]!, status: "failed", message };
+        } else {
+          stages.push({ stage, status: "failed", durationMs: 0, message });
+        }
         throw error;
       }
       const schemaResult = await runStage("schema", () => this.execute(
@@ -812,10 +858,10 @@ try { return __janusStudioManagement != null } finally { __janusStudioManagement
           uri: proxy.url.toString(),
           ...(proxy.authorization ? { token: proxy.authorization } : {}),
           proxyTunnel: true,
-          requestTls: { rejectUnauthorized: profile.tlsRejectUnauthorized, servername: routeServerName(profile), ...material },
+          requestTls: { rejectUnauthorized: profile.tlsRejectUnauthorized, servername: tlsServerName(profile), ...material },
         })
       : profile.protocol === "https"
-        ? new Agent({ connect: { rejectUnauthorized: profile.tlsRejectUnauthorized, servername: routeServerName(profile), ...material } })
+        ? new Agent({ connect: { rejectUnauthorized: profile.tlsRejectUnauthorized, servername: tlsServerName(profile), ...material } })
         : undefined;
     const basic = basicCredentials(profile, credentials);
     if (credentials.authentication?.mode === "janus-hmac") {

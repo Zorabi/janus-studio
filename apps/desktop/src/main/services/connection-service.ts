@@ -4,6 +4,7 @@ import {
 } from "@janusgraph/application";
 import type {
   ConnectionProfile,
+  ConnectionSshTunnelSnapshot,
   ConnectionSummary,
   ConnectionTestReport,
   RuntimeAuthentication,
@@ -74,6 +75,10 @@ export class ConnectionService {
         ? this.gremlinService.sshTunnelSnapshot(connection.id)
         : undefined,
     }));
+  }
+
+  onSshTunnelChanged(listener: (connectionId: string, snapshot: ConnectionSshTunnelSnapshot) => void): () => void {
+    return this.gremlinService.onSshTunnelChanged(listener);
   }
 
   async save(rawInput: SaveConnectionInput): Promise<ConnectionSummary> {

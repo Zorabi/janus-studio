@@ -217,6 +217,27 @@
   background: var(--surface-1);
 }
 
+.badge.transport.tunnel-connecting,
+.badge.transport.tunnel-reconnecting {
+  gap: 5px;
+  color: var(--blue);
+  border-color: color-mix(in srgb, var(--blue) 38%, var(--line));
+  background: color-mix(in srgb, var(--blue) 10%, transparent);
+}
+
+.badge.transport.tunnel-disconnected,
+.badge.transport.tunnel-failed {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 36%, var(--line));
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+}
+
+.badge.transport small {
+  color: inherit;
+  font-size: 0.72em;
+  opacity: 0.72;
+}
+
 .check-field.connection-safety {
   grid-template-columns: auto auto minmax(0, 1fr);
   align-items: center;

@@ -69,6 +69,8 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y fakeroot rpm xvfb
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Exercise enterprise TLS, proxy and SSH fixtures
+        run: pnpm exec tsx --test tests/unit/enterprise-connection-security.test.ts tests/unit/mtls-transport.test.ts tests/unit/proxy-support.test.ts
       - name: Release preflight
         run: pnpm release:preflight
       - name: Build installers

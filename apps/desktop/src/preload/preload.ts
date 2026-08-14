@@ -28,6 +28,11 @@ const desktopApi: DesktopApi = {
     save: (input) => ipcRenderer.invoke("connections:save", input),
     remove: (id) => ipcRenderer.invoke("connections:remove", id),
     test: (input) => ipcRenderer.invoke("connections:test", input),
+    onSshTunnelChanged: (listener) => {
+      const handler = (_event: IpcRendererEvent, connectionId: string, snapshot: Parameters<typeof listener>[1]) => listener(connectionId, snapshot);
+      ipcRenderer.on("connections:ssh-tunnel-changed", handler);
+      return () => ipcRenderer.removeListener("connections:ssh-tunnel-changed", handler);
+    },
   },
   authProfiles: {
     list: () => ipcRenderer.invoke("auth-profiles:list"),

@@ -27,12 +27,17 @@ function secretHash(value: string): string {
 
 export class SshTunnelService {
   private readonly tunnels = new Map<string, ActiveTunnel>();
+  private readonly openings = new Map<string, { signature: string; promise: Promise<ActiveTunnel> }>();
+  private readonly snapshots = new Map<string, ConnectionSshTunnelSnapshot>();
+  private readonly listeners = new Set<(connectionId: string, snapshot: ConnectionSshTunnelSnapshot) => void>();
 
   snapshot(connectionId: string): ConnectionSshTunnelSnapshot {
-    const tunnel = this.tunnels.get(connectionId);
-    return tunnel?.alive
-      ? { status: "connected", localPort: tunnel.localPort }
-      : { status: "inactive" };
+    return { ...(this.snapshots.get(connectionId) ?? { status: "inactive" }) };
+  }
+
+  subscribe(listener: (connectionId: string, snapshot: ConnectionSshTunnelSnapshot) => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
   }
 
   async route(profile: ConnectionProfile, credentials: ConnectionRuntimeCredentials): Promise<RoutedConnectionProfile> {
@@ -48,14 +53,18 @@ export class SshTunnelService {
   }
 
   async close(connectionId: string): Promise<void> {
-    const tunnel = this.tunnels.get(connectionId);
-    if (!tunnel) return;
-    this.tunnels.delete(connectionId);
-    await this.shutdown(tunnel);
+    const opening = this.openings.get(connectionId);
+    const tunnel = this.tunnels.get(connectionId) ?? await opening?.promise.catch(() => undefined);
+    if (tunnel) {
+      this.tunnels.delete(connectionId);
+      await this.shutdown(tunnel);
+    }
+    this.publish(connectionId, { status: "inactive" });
   }
 
   async closeAll(): Promise<void> {
-    await Promise.all([...this.tunnels.keys()].map((id) => this.close(id)));
+    const connectionIds = new Set([...this.tunnels.keys(), ...this.openings.keys(), ...this.snapshots.keys()]);
+    await Promise.all([...connectionIds].map((id) => this.close(id)));
   }
 
   private async ensure(profile: ConnectionProfile, credentials: ConnectionRuntimeCredentials): Promise<ActiveTunnel> {
@@ -74,8 +83,60 @@ export class SshTunnelService {
     ].join("\0");
     const current = this.tunnels.get(profile.id);
     if (current?.signature === signature && current.alive) return current;
-    if (current) await this.close(profile.id);
+    if (current) {
+      this.tunnels.delete(profile.id);
+      await this.shutdown(current);
+    }
+    const pending = this.openings.get(profile.id);
+    if (pending?.signature === signature) return pending.promise;
+    if (pending) {
+      await pending.promise.catch(() => undefined);
+      const opened = this.tunnels.get(profile.id);
+      if (opened) {
+        this.tunnels.delete(profile.id);
+        await this.shutdown(opened);
+      }
+    }
 
+    const previous = this.snapshots.get(profile.id);
+    const reconnecting = previous != null && previous.status !== "inactive" && previous.status !== "connecting";
+    const reconnectCount = (previous?.reconnectCount ?? 0) + (reconnecting ? 1 : 0);
+    this.publish(profile.id, {
+      status: reconnecting ? "reconnecting" : "connecting",
+      ...(reconnectCount > 0 ? { reconnectCount } : {}),
+      ...(previous?.disconnectedAt ? { disconnectedAt: previous.disconnectedAt } : {}),
+    });
+
+    const promise = this.open(profile, credentials, signature, reconnectCount);
+    this.openings.set(profile.id, { signature, promise });
+    try {
+      const tunnel = await promise;
+      this.publish(profile.id, {
+        status: "connected",
+        localPort: tunnel.localPort,
+        ...(reconnectCount > 0 ? { reconnectCount } : {}),
+        connectedAt: new Date().toISOString(),
+      });
+      return tunnel;
+    } catch (error) {
+      this.publish(profile.id, {
+        status: "failed",
+        ...(reconnectCount > 0 ? { reconnectCount } : {}),
+        disconnectedAt: new Date().toISOString(),
+        lastError: error instanceof Error ? error.message : "SSH Tunnel 建立失败",
+      });
+      throw error;
+    } finally {
+      if (this.openings.get(profile.id)?.promise === promise) this.openings.delete(profile.id);
+    }
+  }
+
+  private async open(
+    profile: ConnectionProfile,
+    credentials: ConnectionRuntimeCredentials,
+    signature: string,
+    reconnectCount: number,
+  ): Promise<ActiveTunnel> {
     const client = new Client();
     let observedFingerprint = "";
     const config: ConnectConfig = {
@@ -135,10 +196,20 @@ export class SshTunnelService {
         stream.once("error", () => socket.destroy());
       });
     });
-    await new Promise<void>((resolve, reject) => {
-      server.once("error", reject);
-      server.listen(0, "127.0.0.1", resolve);
-    });
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const fail = (error: Error) => reject(error);
+        server.once("error", fail);
+        server.listen(0, "127.0.0.1", () => {
+          server.off("error", fail);
+          resolve();
+        });
+      });
+    } catch (error) {
+      server.close();
+      client.end();
+      throw error;
+    }
     const address = server.address();
     if (!address || typeof address === "string") {
       server.close();
@@ -153,14 +224,21 @@ export class SshTunnelService {
       sockets,
       alive: true,
     };
-    const deactivate = () => {
+    const deactivate = (error?: Error) => {
       if (!tunnel.alive) return;
       tunnel.alive = false;
       if (this.tunnels.get(profile.id) === tunnel) this.tunnels.delete(profile.id);
+      this.publish(profile.id, {
+        status: "disconnected",
+        ...(reconnectCount > 0 ? { reconnectCount } : {}),
+        disconnectedAt: new Date().toISOString(),
+        lastError: error?.message || "SSH Tunnel 连接已中断；下次使用时将自动重连",
+      });
       void this.shutdown(tunnel);
     };
     client.once("error", deactivate);
-    client.once("close", deactivate);
+    client.once("close", () => deactivate());
+    server.once("error", deactivate);
     this.tunnels.set(profile.id, tunnel);
     return tunnel;
   }
@@ -176,5 +254,12 @@ export class SshTunnelService {
       await new Promise<void>((resolve) => tunnel.server.close(() => resolve()));
     })();
     return tunnel.closing;
+  }
+
+  private publish(connectionId: string, snapshot: ConnectionSshTunnelSnapshot): void {
+    const value = { ...snapshot };
+    if (value.status === "inactive") this.snapshots.delete(connectionId);
+    else this.snapshots.set(connectionId, value);
+    for (const listener of this.listeners) listener(connectionId, { ...value });
   }
 }
