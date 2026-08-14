@@ -45,6 +45,7 @@ test("loads renderer styles through ordered responsibility-based modules", async
     "task-center.css",
     "compatibility.css",
     "diagnostics.css",
+    "quality.css",
     "themes.css",
     "ide-overrides.css",
   ]);

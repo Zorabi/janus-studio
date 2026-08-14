@@ -129,7 +129,7 @@ test("persists, deduplicates and resolves diagnostic records across restarts", (
     assert.equal(restoredFirst.report.signalsScanned, 3);
     new DiagnosticRecordRepository(database).remove(first.id);
     assert.equal(new DiagnosticRecordRepository(database).list().length, 3);
-    assert.equal(database.prepare("PRAGMA user_version").get()!.user_version, 17);
+    assert.equal(database.prepare("PRAGMA user_version").get()!.user_version, 18);
   } finally {
     database.close();
     rmSync(directory, { recursive: true, force: true });
@@ -461,7 +461,7 @@ test("migrates existing connection profiles to development with write access", (
     assert.equal(migrated?.accentColor, "#c8ff55");
     assert.deepEqual(migrated?.tags, []);
     assert.equal(migrated?.lastUsedAt, "");
-    assert.equal(database.prepare("PRAGMA user_version").get()?.user_version, 17);
+    assert.equal(database.prepare("PRAGMA user_version").get()?.user_version, 18);
   } finally {
     database.close();
     rmSync(directory, { recursive: true, force: true });

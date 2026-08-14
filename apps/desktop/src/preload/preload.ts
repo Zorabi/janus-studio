@@ -108,6 +108,18 @@ const desktopApi: DesktopApi = {
     acknowledge: (id) => ipcRenderer.invoke("tasks:acknowledge", id),
     dismiss: (id) => ipcRenderer.invoke("tasks:dismiss", id),
   },
+  quality: {
+    listRuleSets: (connectionId) => ipcRenderer.invoke("quality:rule-sets:list", connectionId),
+    saveRuleSet: (input) => ipcRenderer.invoke("quality:rule-sets:save", input),
+    removeRuleSet: (id) => ipcRenderer.invoke("quality:rule-sets:remove", id),
+    start: (input) => ipcRenderer.invoke("quality:runs:start", input),
+    listRuns: (input) => ipcRenderer.invoke("quality:runs:list", input),
+    getRun: (id) => ipcRenderer.invoke("quality:runs:get", id),
+    cancel: (id) => ipcRenderer.invoke("quality:runs:cancel", id),
+    retry: (id) => ipcRenderer.invoke("quality:runs:retry", id),
+    removeRun: (id) => ipcRenderer.invoke("quality:runs:remove", id),
+    exportRun: (id) => ipcRenderer.invoke("quality:runs:export", id),
+  },
 };
 
 contextBridge.exposeInMainWorld("janusGraphDesktop", desktopApi);

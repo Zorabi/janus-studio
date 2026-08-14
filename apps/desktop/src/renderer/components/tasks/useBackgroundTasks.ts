@@ -6,7 +6,7 @@ import type { ToastState } from "../../features/query/query-workspace";
 type UseBackgroundTasksInput = {
   translate: (chinese: string, english?: string) => string;
   notify: (toast: ToastState) => void;
-  navigate: (kind: BackgroundTask["kind"]) => void;
+  navigate: (task: BackgroundTask) => void;
   navigateToDiagnostics: (incident: DiagnosticIncidentContext) => void;
 };
 
@@ -39,6 +39,8 @@ export function useBackgroundTasks({ translate, notify, navigate, navigateToDiag
         await window.janusGraphDesktop.schemaJobs.cancel(task.connectionId);
       } else if (task.kind === "transfer") {
         await window.janusGraphDesktop.dataTransfers.cancel(task.id);
+      } else if (task.kind === "quality") {
+        await window.janusGraphDesktop.quality.cancel(task.id);
       }
       await refresh();
     } catch (error) {
@@ -48,7 +50,7 @@ export function useBackgroundTasks({ translate, notify, navigate, navigateToDiag
 
   const retry = async (task: BackgroundTask) => {
     if (!window.janusGraphDesktop) return;
-    navigate(task.kind);
+    navigate(task);
     setOpen(false);
     if (task.kind === "schema") {
       void window.janusGraphDesktop.schemaJobs.retry(task.id)
@@ -56,6 +58,10 @@ export function useBackgroundTasks({ translate, notify, navigate, navigateToDiag
         .finally(() => void refresh());
     } else if (task.kind === "transfer") {
       void window.janusGraphDesktop.dataTransfers.retry(task.id)
+        .catch((error) => notify({ tone: "error", message: errorMessage(error) }))
+        .finally(() => void refresh());
+    } else if (task.kind === "quality") {
+      void window.janusGraphDesktop.quality.retry(task.id)
         .catch((error) => notify({ tone: "error", message: errorMessage(error) }))
         .finally(() => void refresh());
     }
@@ -78,7 +84,7 @@ export function useBackgroundTasks({ translate, notify, navigate, navigateToDiag
   };
 
   const openSource = (task: BackgroundTask) => {
-    navigate(task.kind);
+    navigate(task);
     setOpen(false);
   };
 

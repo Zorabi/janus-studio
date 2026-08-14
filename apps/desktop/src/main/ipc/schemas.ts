@@ -435,8 +435,8 @@ export const backgroundTaskIdSchema = z.string().uuid();
 export const backgroundTaskLimitSchema = z.number().int().min(1).max(1_000).optional();
 export const publishBackgroundTaskSchema = z.object({
   id: backgroundTaskIdSchema,
-  kind: z.enum(["transfer", "maintenance"]),
-  action: z.enum(["import", "export", "purge", "drop"]),
+  kind: z.enum(["transfer", "maintenance", "quality"]),
+  action: z.enum(["import", "export", "purge", "drop", "quality-check"]),
   title: z.string().trim().min(1).max(255),
   connectionId: connectionIdSchema,
   graphName: z.string().trim().min(1).max(255),
@@ -449,6 +449,46 @@ export const publishBackgroundTaskSchema = z.object({
   cancellable: z.boolean(),
   retriable: z.boolean(),
 });
+
+const qualityName = z.string().trim().min(1).max(160);
+const qualityRuleSchema = z.object({
+  id: z.string().uuid(), name: qualityName,
+  kind: z.enum(["isolated-vertex", "duplicate-vertex", "required-property", "property-domain", "edge-endpoint", "degree-range", "distribution"]),
+  enabled: z.boolean(), severity: z.enum(["info", "warning", "error"]),
+  vertexLabel: z.string().trim().max(160).optional(), vertexLabels: z.array(qualityName).max(100).optional(),
+  ignoredEdgeLabels: z.array(qualityName).max(100).optional(), propertyKeys: z.array(qualityName).max(20).optional(), propertyKey: qualityName.optional(),
+  ignoreMissing: z.boolean().optional(), constraint: z.enum(["not-blank", "number-range", "enum"]).optional(),
+  minimum: z.number().finite().optional(), maximum: z.number().finite().optional(), allowedValues: z.array(z.string().max(500)).max(200).optional(),
+  edgeLabel: z.string().trim().max(160).optional(), outVertexLabels: z.array(qualityName).max(100).optional(), inVertexLabels: z.array(qualityName).max(100).optional(),
+  direction: z.enum(["in", "out", "both"]).optional(), minDegree: z.number().int().min(0).optional(), maxDegree: z.number().int().min(0).optional(),
+  includeVertices: z.boolean().optional(), includeEdges: z.boolean().optional(),
+}).superRefine((rule, context) => {
+  const require = (condition: boolean, path: string, message: string) => { if (!condition) context.addIssue({ code: z.ZodIssueCode.custom, path: [path], message }); };
+  if (["duplicate-vertex", "required-property", "property-domain", "degree-range"].includes(rule.kind)) require(Boolean(rule.vertexLabel), "vertexLabel", "该规则必须选择顶点标签");
+  if (rule.kind === "duplicate-vertex") require(Boolean(rule.propertyKeys?.length && rule.propertyKeys.length <= 5), "propertyKeys", "重复候选需要选择 1 至 5 个属性");
+  if (rule.kind === "required-property") require(Boolean(rule.propertyKeys?.length), "propertyKeys", "必填属性规则至少选择一个属性");
+  if (rule.kind === "property-domain") require(Boolean(rule.propertyKey && rule.constraint), "propertyKey", "属性域规则需要属性与约束");
+  if (rule.kind === "edge-endpoint") { require(Boolean(rule.edgeLabel), "edgeLabel", "边端点规则必须选择边标签"); require(Boolean(rule.outVertexLabels?.length && rule.inVertexLabels?.length), "outVertexLabels", "边端点规则必须配置起终点标签"); }
+  if (rule.kind === "degree-range") require((rule.minDegree ?? 0) <= (rule.maxDegree ?? Number.MAX_SAFE_INTEGER), "maxDegree", "最大度数不能小于最小度数");
+});
+
+export const qualityRuleSetIdSchema = z.string().uuid();
+export const saveQualityRuleSetSchema = z.object({
+  id: qualityRuleSetIdSchema.optional(), name: qualityName, description: z.string().max(2_000), connectionId: connectionIdSchema,
+  graphName: qualityName, graphBinding: z.string().trim().min(1).max(160), graphAccess: z.enum(["binding", "configured"]),
+  rules: z.array(qualityRuleSchema).min(1).max(100),
+});
+export const startQualityRunSchema = z.object({
+  ruleSetId: qualityRuleSetIdSchema, mode: z.enum(["bounded", "full"]),
+  scanLimit: z.number().int().min(1_000).max(50_000).optional(), sampleLimit: z.number().int().min(1).max(200).optional(),
+  timeoutMs: z.number().int().min(1_000).max(86_400_000).optional(), productionConfirmed: z.boolean().optional(), confirmedGraphName: z.string().max(160).optional(),
+});
+export const qualityRunIdSchema = z.string().uuid();
+export const qualityRunListSchema = z.object({
+  connectionId: connectionIdSchema.optional(), ruleSetId: qualityRuleSetIdSchema.optional(),
+  statuses: z.array(z.enum(["running", "cancel_requested", "succeeded", "failed", "interrupted"])).max(5).optional(),
+  limit: z.number().int().min(1).max(200).optional(),
+}).optional();
 export const runSchemaJobSchema = z.object({
   connectionId: connectionIdSchema,
   indexName: z.string().trim().min(1).max(255),

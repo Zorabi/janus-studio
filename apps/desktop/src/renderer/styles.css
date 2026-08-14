@@ -13,5 +13,6 @@
 @import "./styles/task-center.css";
 @import "./styles/compatibility.css";
 @import "./styles/diagnostics.css";
+@import "./styles/quality.css";
 @import "./styles/themes.css";
 @import "./styles/ide-overrides.css";

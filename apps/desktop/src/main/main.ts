@@ -28,6 +28,8 @@ import { StructuredLogger } from "./diagnostics/structured-logger";
 import { DiagnosticRecordRepository } from "./storage/diagnostic-record-repository";
 import { AuthenticationProfileRepository } from "./storage/authentication-profile-repository";
 import { AuthenticationProfileService } from "./services/authentication-profile-service";
+import { QualityRepository } from "./storage/quality-repository";
+import { DataQualityService } from "./services/data-quality-service";
 
 declare const __UPDATE_REPOSITORY__: string;
 declare const __UPDATE_BASE_URL__: string;
@@ -263,6 +265,14 @@ app.whenReady().then(async () => {
     fileService,
     compatibilityService,
   );
+  const qualityRepository = new QualityRepository(database);
+  const dataQualityService = new DataQualityService(
+    qualityRepository,
+    backgroundTaskRepository,
+    connectionService,
+    queryService,
+    fileService,
+  );
   registerIpcHandlers({
     window: mainWindow,
     connectionService,
@@ -278,6 +288,7 @@ app.whenReady().then(async () => {
     diagnosticLogger,
     diagnosticRecordRepository,
     authenticationProfileService,
+    dataQualityService,
   });
 
   app.on("activate", () => {

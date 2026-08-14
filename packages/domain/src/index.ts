@@ -425,7 +425,7 @@ export type RunSchemaJobInput = {
   productionConfirmed?: boolean;
 };
 
-export type BackgroundTaskKind = "schema" | "transfer" | "maintenance";
+export type BackgroundTaskKind = "schema" | "transfer" | "maintenance" | "quality";
 export type BackgroundTaskStatus =
   | "running"
   | "cancel_requested"
@@ -459,7 +459,7 @@ export type PublishBackgroundTaskInput = Omit<
   BackgroundTask,
   "kind" | "connectionName" | "acknowledged" | "createdAt" | "updatedAt" | "completedAt"
 > & {
-  kind: "transfer" | "maintenance";
+  kind: "transfer" | "maintenance" | "quality";
 };
 
 export type GraphTransferAction = "import" | "export" | "purge";
@@ -480,6 +480,132 @@ export type StartGraphTransferInput = {
   disableAutomaticSchema?: boolean;
   overwrite?: boolean;
   productionConfirmed?: boolean;
+};
+
+export type QualityRunMode = "bounded" | "full";
+export type QualityGraphAccess = "binding" | "configured";
+export type QualityRuleSeverity = "info" | "warning" | "error";
+export type QualityRuleKind =
+  | "isolated-vertex"
+  | "duplicate-vertex"
+  | "required-property"
+  | "property-domain"
+  | "edge-endpoint"
+  | "degree-range"
+  | "distribution";
+
+export type QualityRule = {
+  id: string;
+  name: string;
+  kind: QualityRuleKind;
+  enabled: boolean;
+  severity: QualityRuleSeverity;
+  vertexLabel?: string;
+  vertexLabels?: string[];
+  ignoredEdgeLabels?: string[];
+  propertyKeys?: string[];
+  propertyKey?: string;
+  ignoreMissing?: boolean;
+  constraint?: "not-blank" | "number-range" | "enum";
+  minimum?: number;
+  maximum?: number;
+  allowedValues?: string[];
+  edgeLabel?: string;
+  outVertexLabels?: string[];
+  inVertexLabels?: string[];
+  direction?: "in" | "out" | "both";
+  minDegree?: number;
+  maxDegree?: number;
+  includeVertices?: boolean;
+  includeEdges?: boolean;
+};
+
+export type QualityRuleSet = {
+  id: string;
+  name: string;
+  description: string;
+  connectionId: string;
+  graphName: string;
+  graphBinding: string;
+  graphAccess: QualityGraphAccess;
+  rules: QualityRule[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SaveQualityRuleSetInput = Omit<QualityRuleSet, "id" | "createdAt" | "updatedAt"> & {
+  id?: string;
+};
+
+export type QualityRunStatus = "running" | "cancel_requested" | "succeeded" | "failed" | "interrupted";
+export type QualityRuleResultStatus = "pending" | "running" | "passed" | "issues" | "failed" | "skipped" | "interrupted";
+
+export type QualitySample = {
+  id: string;
+  label: string;
+  values: Record<string, string | number | boolean | null>;
+};
+
+export type QualityRuleResult = {
+  id: string;
+  runId: string;
+  ruleId: string;
+  ruleName: string;
+  ruleKind: QualityRuleKind;
+  severity: QualityRuleSeverity;
+  status: QualityRuleResultStatus;
+  issueCount: number;
+  checkedCount: number;
+  coverageLimit: number;
+  message: string;
+  query: string;
+  samples: QualitySample[];
+  startedAt: string;
+  completedAt: string;
+};
+
+export type QualityRun = {
+  id: string;
+  ruleSetId: string;
+  ruleSetName: string;
+  connectionId: string;
+  connectionName: string;
+  graphName: string;
+  graphBinding: string;
+  graphAccess: QualityGraphAccess;
+  mode: QualityRunMode;
+  sampleLimit: number;
+  scanLimit: number;
+  status: QualityRunStatus;
+  stage: string;
+  currentRule: number;
+  totalRules: number;
+  issueCount: number;
+  checkedCount: number;
+  message: string;
+  ruleSetSnapshot: QualityRuleSet;
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string;
+};
+
+export type QualityRunDetail = QualityRun & { results: QualityRuleResult[] };
+
+export type StartQualityRunInput = {
+  ruleSetId: string;
+  mode: QualityRunMode;
+  scanLimit?: number;
+  sampleLimit?: number;
+  timeoutMs?: number;
+  productionConfirmed?: boolean;
+  confirmedGraphName?: string;
+};
+
+export type QualityRunListInput = {
+  connectionId?: string;
+  ruleSetId?: string;
+  statuses?: QualityRunStatus[];
+  limit?: number;
 };
 
 export type DiagnosticLogLevel = "debug" | "info" | "warn" | "error";
@@ -707,5 +833,17 @@ export type DesktopApi = {
     publish(input: PublishBackgroundTaskInput): Promise<BackgroundTask>;
     acknowledge(id?: string): Promise<void>;
     dismiss(id: string): Promise<void>;
+  };
+  quality: {
+    listRuleSets(connectionId?: string): Promise<QualityRuleSet[]>;
+    saveRuleSet(input: SaveQualityRuleSetInput): Promise<QualityRuleSet>;
+    removeRuleSet(id: string): Promise<void>;
+    start(input: StartQualityRunInput): Promise<QualityRun>;
+    listRuns(input?: QualityRunListInput): Promise<QualityRun[]>;
+    getRun(id: string): Promise<QualityRunDetail>;
+    cancel(id: string): Promise<boolean>;
+    retry(id: string): Promise<QualityRun>;
+    removeRun(id: string): Promise<void>;
+    exportRun(id: string): Promise<string | null>;
   };
 };

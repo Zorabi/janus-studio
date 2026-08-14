@@ -135,6 +135,73 @@ export function openApplicationDatabase(path: string): DatabaseSync {
     CREATE INDEX IF NOT EXISTS idx_background_tasks_status_updated
       ON background_tasks(status, updated_at DESC);
 
+    CREATE TABLE IF NOT EXISTS quality_rule_sets (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      connection_id TEXT NOT NULL,
+      graph_name TEXT NOT NULL,
+      graph_binding TEXT NOT NULL,
+      graph_access TEXT NOT NULL,
+      rules_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_quality_rule_sets_connection_updated
+      ON quality_rule_sets(connection_id, updated_at DESC);
+
+    CREATE TABLE IF NOT EXISTS quality_runs (
+      id TEXT PRIMARY KEY,
+      rule_set_id TEXT NOT NULL,
+      rule_set_name TEXT NOT NULL,
+      connection_id TEXT NOT NULL,
+      connection_name TEXT NOT NULL,
+      graph_name TEXT NOT NULL,
+      graph_binding TEXT NOT NULL,
+      graph_access TEXT NOT NULL,
+      mode TEXT NOT NULL,
+      sample_limit INTEGER NOT NULL,
+      scan_limit INTEGER NOT NULL,
+      status TEXT NOT NULL,
+      stage TEXT NOT NULL,
+      current_rule INTEGER NOT NULL DEFAULT 0,
+      total_rules INTEGER NOT NULL DEFAULT 0,
+      issue_count INTEGER NOT NULL DEFAULT 0,
+      checked_count INTEGER NOT NULL DEFAULT 0,
+      message TEXT NOT NULL DEFAULT '',
+      rule_set_snapshot_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      completed_at TEXT NOT NULL DEFAULT ''
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_quality_runs_connection_created
+      ON quality_runs(connection_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_quality_runs_ruleset_created
+      ON quality_runs(rule_set_id, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS quality_rule_results (
+      id TEXT PRIMARY KEY,
+      run_id TEXT NOT NULL REFERENCES quality_runs(id) ON DELETE CASCADE,
+      rule_id TEXT NOT NULL,
+      rule_name TEXT NOT NULL,
+      rule_kind TEXT NOT NULL,
+      severity TEXT NOT NULL,
+      status TEXT NOT NULL,
+      issue_count INTEGER NOT NULL DEFAULT 0,
+      checked_count INTEGER NOT NULL DEFAULT 0,
+      coverage_limit INTEGER NOT NULL DEFAULT 0,
+      message TEXT NOT NULL DEFAULT '',
+      query_text TEXT NOT NULL DEFAULT '',
+      samples_json TEXT NOT NULL DEFAULT '[]',
+      started_at TEXT NOT NULL DEFAULT '',
+      completed_at TEXT NOT NULL DEFAULT ''
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_quality_rule_results_run
+      ON quality_rule_results(run_id);
+
     CREATE TABLE IF NOT EXISTS graph_transfer_runs (
       task_id TEXT PRIMARY KEY,
       input_json TEXT NOT NULL,
@@ -366,7 +433,7 @@ export function openApplicationDatabase(path: string): DatabaseSync {
     WHERE datetime(updated_at) < datetime('now', '-90 days')
        OR id NOT IN (SELECT id FROM diagnostic_records ORDER BY updated_at DESC LIMIT 200);
   `);
-  database.exec("PRAGMA user_version = 17;");
+  database.exec("PRAGMA user_version = 18;");
 
   return database;
 }

@@ -13,6 +13,7 @@ import { GraphTransferService } from "../services/graph-transfer-service";
 import { QueryAssetRepository } from "../storage/query-asset-repository";
 import { DiagnosticRecordRepository } from "../storage/diagnostic-record-repository";
 import { AuthenticationProfileService } from "../services/authentication-profile-service";
+import { DataQualityService } from "../services/data-quality-service";
 import { StructuredLogger } from "../diagnostics/structured-logger";
 import { redactDiagnosticValue } from "../diagnostics/redactor";
 import type { DiagnosticIncidentContext, DiagnosticLogListInput, SaveDiagnosticRecordInput } from "@janusgraph/domain";
@@ -68,6 +69,11 @@ import {
   diagnosticRecordLimitSchema,
   diagnosticRecordStatusSchema,
   saveDiagnosticRecordSchema,
+  qualityRuleSetIdSchema,
+  qualityRunIdSchema,
+  qualityRunListSchema,
+  saveQualityRuleSetSchema,
+  startQualityRunSchema,
 } from "./schemas";
 
 type RegisterIpcOptions = {
@@ -85,6 +91,7 @@ type RegisterIpcOptions = {
   diagnosticLogger: StructuredLogger;
   diagnosticRecordRepository: DiagnosticRecordRepository;
   authenticationProfileService: AuthenticationProfileService;
+  dataQualityService: DataQualityService;
 };
 
 function assertTrustedSender(event: IpcMainInvokeEvent, window: BrowserWindow): void {
@@ -156,6 +163,7 @@ export function registerIpcHandlers({
   diagnosticLogger,
   diagnosticRecordRepository,
   authenticationProfileService,
+  dataQualityService,
 }: RegisterIpcOptions): void {
   const unsubscribeSshTunnel = connectionService.onSshTunnelChanged((connectionId, snapshot) => {
     if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
@@ -546,5 +554,47 @@ export function registerIpcHandlers({
   ipcMain.handle("tasks:dismiss", (event, rawId: unknown) => {
     assertTrustedSender(event, window);
     backgroundTaskService.dismiss(backgroundTaskIdSchema.parse(rawId));
+  });
+
+  ipcMain.handle("quality:rule-sets:list", (event, rawConnectionId: unknown) => {
+    assertTrustedSender(event, window);
+    const connectionId = rawConnectionId == null ? undefined : connectionIdSchema.parse(rawConnectionId);
+    return dataQualityService.listRuleSets(connectionId);
+  });
+  ipcMain.handle("quality:rule-sets:save", (event, rawInput: unknown) => {
+    assertTrustedSender(event, window);
+    return dataQualityService.saveRuleSet(saveQualityRuleSetSchema.parse(rawInput));
+  });
+  ipcMain.handle("quality:rule-sets:remove", (event, rawId: unknown) => {
+    assertTrustedSender(event, window);
+    dataQualityService.removeRuleSet(qualityRuleSetIdSchema.parse(rawId));
+  });
+  ipcMain.handle("quality:runs:start", (event, rawInput: unknown) => {
+    assertTrustedSender(event, window);
+    return dataQualityService.start(startQualityRunSchema.parse(rawInput));
+  });
+  ipcMain.handle("quality:runs:list", (event, rawInput: unknown) => {
+    assertTrustedSender(event, window);
+    return dataQualityService.listRuns(qualityRunListSchema.parse(rawInput));
+  });
+  ipcMain.handle("quality:runs:get", (event, rawId: unknown) => {
+    assertTrustedSender(event, window);
+    return dataQualityService.getRun(qualityRunIdSchema.parse(rawId));
+  });
+  ipcMain.handle("quality:runs:cancel", async (event, rawId: unknown) => {
+    assertTrustedSender(event, window);
+    return dataQualityService.cancel(qualityRunIdSchema.parse(rawId));
+  });
+  ipcMain.handle("quality:runs:retry", (event, rawId: unknown) => {
+    assertTrustedSender(event, window);
+    return dataQualityService.retry(qualityRunIdSchema.parse(rawId));
+  });
+  ipcMain.handle("quality:runs:remove", (event, rawId: unknown) => {
+    assertTrustedSender(event, window);
+    dataQualityService.removeRun(qualityRunIdSchema.parse(rawId));
+  });
+  ipcMain.handle("quality:runs:export", async (event, rawId: unknown) => {
+    assertTrustedSender(event, window);
+    return dataQualityService.exportRun(qualityRunIdSchema.parse(rawId));
   });
 }

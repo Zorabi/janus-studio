@@ -14,6 +14,7 @@ import {
   PanelLeftOpen,
   Plus,
   Settings2,
+  ScanSearch,
   Stethoscope,
   TerminalSquare,
   Waypoints,
@@ -48,6 +49,7 @@ import {
 import { SchemaPage } from "./features/schema/SchemaPage";
 import { SettingsPage } from "./features/settings/SettingsPage";
 import { TransferPage } from "./features/transfer/TransferPage";
+import { QualityPage } from "./features/quality/QualityPage";
 import { LocaleProvider, translate } from "./lib/i18n";
 import {
   connectionWithGraphContext,
@@ -59,13 +61,8 @@ import {
 import { matchesShortcut, shortcutLabel } from "./lib/keyboard";
 import { errorMessage } from "./lib/presentation";
 import { buildGraphModel } from "./lib/result-model";
-import {
-  applySettings,
-  loadSettings,
-  saveSettings,
-  type AppSettings,
-} from "./lib/settings";
-type ViewId = "query" | "connections" | "history" | "graphFactory" | "schema" | "transfer" | "diagnostics" | "settings";
+import { applySettings, loadSettings, saveSettings, type AppSettings } from "./lib/settings";
+type ViewId = "query" | "connections" | "history" | "graphFactory" | "schema" | "quality" | "transfer" | "diagnostics" | "settings";
 const NAV_ITEMS: Array<{
   id: ViewId;
   label: string;
@@ -104,6 +101,7 @@ const NAV_ITEMS: Array<{
     description: "整图归档与结果导出",
     icon: <FileUp size={19} />,
   },
+  { id: "quality", label: "数据质量", description: "只读规则与质量审计", icon: <ScanSearch size={19} /> },
   {
     id: "diagnostics",
     label: "问题诊断",
@@ -121,6 +119,7 @@ const NAV_ITEMS: Array<{
 
 export default function App() {
   const [view, setView] = useState<ViewId>("query");
+  const [qualityRunRequest, setQualityRunRequest] = useState<{ id: string; nonce: number }>();
   const [diagnosticIncident, setDiagnosticIncident] = useState<DiagnosticIncidentContext>();
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
   const [connections, setConnections] = useState<ConnectionSummary[]>([]);
@@ -388,9 +387,11 @@ export default function App() {
   const backgroundTaskCenter = useBackgroundTasks({
     translate: tx,
     notify,
-    navigate: (kind) => setView(
-      kind === "schema" ? "schema" : kind === "maintenance" ? "graphFactory" : "transfer",
-    ),
+    navigate: (task) => {
+      if (task.connectionId) { setActiveConnectionId(task.connectionId); localStorage.setItem("janusgraph.activeConnection", task.connectionId); }
+      if (task.kind === "quality") setQualityRunRequest({ id: task.id, nonce: Date.now() });
+      setView(task.kind === "schema" ? "schema" : task.kind === "maintenance" ? "graphFactory" : task.kind === "quality" ? "quality" : "transfer");
+    },
     navigateToDiagnostics: (incident) => { setDiagnosticIncident(incident); setView("diagnostics"); },
   });
 
@@ -1067,6 +1068,7 @@ export default function App() {
             notify={notify}
           />
         )}
+        {view === "quality" && <QualityPage activeConnection={activeConnection} onOpenQuery={addQueryTab} requestedRun={qualityRunRequest} />}
         {view === "diagnostics" && <DiagnosticsPage incident={diagnosticIncident} />}
         {view === "settings" && (
           <SettingsPage

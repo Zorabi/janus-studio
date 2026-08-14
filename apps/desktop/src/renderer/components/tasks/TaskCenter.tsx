@@ -69,6 +69,21 @@ function formatProgress(task: BackgroundTask, t: ReturnType<typeof useTranslate>
   return t("等待进度", "Waiting for progress");
 }
 
+function formatStage(task: BackgroundTask, t: ReturnType<typeof useTranslate>): string {
+  if (task.kind !== "quality") return task.stage;
+  const stages: Record<string, string> = {
+    preflight: t("准备检查", "Preflight"),
+    "validating-schema": t("验证目标与规则", "Validating target and rules"),
+    "running-rule": t("执行规则", "Running rule"),
+    "collecting-samples": t("整理样本", "Collecting samples"),
+    finalizing: t("汇总结果", "Finalizing"),
+    cancelling: t("停止中", "Stopping"),
+    completed: t("已完成", "Completed"),
+    interrupted: t("已中断", "Interrupted"),
+  };
+  return stages[task.stage] ?? task.stage;
+}
+
 export function TaskCenter({
   tasks,
   onClose,
@@ -93,6 +108,8 @@ export function TaskCenter({
       ? t("Schema 操作", "Schema operation")
       : task.kind === "maintenance"
         ? t("永久删除动态图", "Drop dynamic graph")
+      : task.kind === "quality"
+        ? t("数据质量检查", "Data quality audit")
       : task.action === "import"
         ? t("整图导入", "Graph import")
         : task.action === "export"
@@ -115,7 +132,7 @@ export function TaskCenter({
           <div className="task-center-context">
             <span>{task.connectionName || t("未知连接", "Unknown connection")}</span>
             {task.graphName && <code>{task.graphName}</code>}
-            <span>{task.stage}</span>
+            <span>{formatStage(task, t)}</span>
           </div>
           {(task.status === "running" || task.status === "cancel_requested" || task.progressCurrent > 0) && (
             <div className="task-center-progress">
@@ -131,6 +148,8 @@ export function TaskCenter({
                 ? t("查看 Schema", "View Schema")
                 : task.kind === "maintenance"
                   ? t("查看动态图", "View dynamic graph")
+                  : task.kind === "quality"
+                    ? t("查看质量结果", "View quality results")
                   : t("查看迁移", "View transfer")}
             </button>
             {task.cancellable && (
@@ -174,7 +193,7 @@ export function TaskCenter({
           <div>
             <span className="eyebrow">TASK CENTER</span>
             <h2>{t("任务中心", "Task Center")}</h2>
-            <p>{t("集中查看 Schema 与整图迁移任务", "Monitor Schema and graph transfer tasks in one place")}</p>
+            <p>{t("集中查看 Schema、整图迁移与质量检查任务", "Monitor Schema, graph transfer, and quality tasks in one place")}</p>
           </div>
           <div>
             <button type="button" title={t("刷新", "Refresh")} onClick={() => void onRefresh()}><RefreshCw size={17} /></button>
@@ -193,7 +212,7 @@ export function TaskCenter({
             <div className="task-center-empty">
               <Check size={24} />
               <strong>{t("暂无后台任务", "No background tasks")}</strong>
-              <span>{t("Schema 和整图迁移任务会显示在这里", "Schema and graph transfer tasks will appear here")}</span>
+              <span>{t("Schema、整图迁移与质量检查任务会显示在这里", "Schema, graph transfer, and quality tasks will appear here")}</span>
             </div>
           ) : (
             <>
