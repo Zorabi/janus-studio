@@ -24,6 +24,9 @@ const profile: ConnectionProfile = {
   connectTimeoutMs: 5_000,
   queryTimeoutMs: 30_000,
   tlsRejectUnauthorized: true,
+  tlsCaPath: "",
+  tlsClientCertPath: "",
+  tlsClientKeyPath: "",
   enableCompression: false,
   customHeaders: "{}",
   createdAt: "2026-08-10T00:00:00.000Z",
@@ -40,6 +43,7 @@ function serviceFor(
     {
       profile: () => connectionProfile,
       passwordFor: async () => "",
+      tlsClientKeyPassphraseFor: async () => "",
     } as unknown as ConnectionService,
     { execute } as unknown as GremlinService,
     {

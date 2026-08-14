@@ -18,6 +18,7 @@ import { useState } from "react";
 import { EmptyState, IconButton, PageHeader } from "../../components/ui";
 import { useTranslate } from "../../lib/i18n";
 import { CompatibilityDialog } from "./CompatibilityDialog";
+import { ConnectionTestStages } from "./ConnectionTestStages";
 
 export interface ConnectionsPageProps {
   connections: ConnectionSummary[];
@@ -42,7 +43,7 @@ export function ConnectionsPage({
 }: ConnectionsPageProps) {
   const t = useTranslate();
   const [testingId, setTestingId] = useState("");
-  const [testFailures, setTestFailures] = useState<Record<string, ConnectionTestReport>>({});
+  const [testReports, setTestReports] = useState<Record<string, ConnectionTestReport>>({});
   const [compatibilityConnection, setCompatibilityConnection] = useState<ConnectionSummary | null>(null);
 
   return (
@@ -106,6 +107,12 @@ export function ConnectionsPage({
                             <LockKeyhole size={12} />
                             {t("只读", "Read-only")}
                           </span>
+                        )}
+                        {connection.tlsCaPath && (
+                          <span className="badge transport">{t("自定义 CA", "Custom CA")}</span>
+                        )}
+                        {connection.tlsClientCertPath && connection.tlsClientKeyPath && (
+                          <span className="badge transport">mTLS</span>
                         )}
                         {active && (
                           <span className="badge success">{t("当前连接")}</span>
@@ -178,18 +185,22 @@ export function ConnectionsPage({
                       setTestingId(connection.id);
                       try {
                         const report = await onTest(connection);
-                        setTestFailures((current) => report.success
-                          ? Object.fromEntries(Object.entries(current).filter(([id]) => id !== connection.id))
-                          : { ...current, [connection.id]: report });
+                        setTestReports((current) => ({ ...current, [connection.id]: report }));
                       } catch (error) {
-                        setTestFailures((current) => ({
+                        setTestReports((current) => ({
                           ...current,
                           [connection.id]: {
                             success: false,
                             latencyMs: 0,
                             endpoint: connectionEndpoint(connection),
-                            stage: "network",
+                            stage: "tcp",
                             message: error instanceof Error ? error.message : t("连接测试失败", "Connection test failed"),
+                            stages: [{
+                              stage: "tcp",
+                              status: "failed",
+                              durationMs: 0,
+                              message: error instanceof Error ? error.message : t("连接测试失败", "Connection test failed"),
+                            }],
                           },
                         }));
                       } finally {
@@ -228,21 +239,32 @@ export function ConnectionsPage({
                     <Trash2 size={17} />
                   </IconButton>
                 </footer>
-                {testFailures[connection.id] && (
-                  <div className="connection-test-failure" role="alert">
-                    <AlertTriangle size={16} />
-                    <span><strong>{t("连接测试失败", "Connection test failed")}</strong><small>{testFailures[connection.id]!.message}</small></span>
-                    <button type="button" className="button text" onClick={() => onOpenDiagnostics({
-                      source: "connection",
-                      title: t("连接测试失败", "Connection test failed"),
-                      connectionName: connection.name,
-                      stage: testFailures[connection.id]!.stage,
-                      message: testFailures[connection.id]!.message,
-                      occurredAt: new Date().toISOString(),
-                    })}>
-                      <Stethoscope size={15} />{t("生成诊断包", "Create diagnostic bundle")}
-                    </button>
-                  </div>
+                {(testingId === connection.id || testReports[connection.id]) && (
+                  <section className={`connection-test-report ${testReports[connection.id]?.success === false ? "is-failed" : ""}`}>
+                    <header>
+                      <span>
+                        {testReports[connection.id]?.success === false ? <AlertTriangle size={16} /> : <Activity size={16} />}
+                        <strong>{testingId === connection.id ? t("正在分阶段探测", "Running staged diagnostics") : testReports[connection.id]?.success ? t("连接诊断通过", "Connection diagnostics passed") : t("连接诊断未通过", "Connection diagnostics failed")}</strong>
+                      </span>
+                      {testReports[connection.id] && <small>{testReports[connection.id]!.latencyMs} ms</small>}
+                    </header>
+                    <ConnectionTestStages loading={testingId === connection.id} report={testReports[connection.id]} />
+                    {testReports[connection.id]?.success === false && (
+                      <footer>
+                        <span>{testReports[connection.id]!.message}</span>
+                        <button type="button" className="button text" onClick={() => onOpenDiagnostics({
+                          source: "connection",
+                          title: t("连接测试失败", "Connection test failed"),
+                          connectionName: connection.name,
+                          stage: testReports[connection.id]!.stage,
+                          message: testReports[connection.id]!.message,
+                          occurredAt: new Date().toISOString(),
+                        })}>
+                          <Stethoscope size={15} />{t("生成诊断包", "Create diagnostic bundle")}
+                        </button>
+                      </footer>
+                    )}
+                  </section>
                 )}
               </article>
             );

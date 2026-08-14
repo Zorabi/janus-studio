@@ -50,6 +50,7 @@ export class QueryService {
       throw new Error("生产环境写操作尚未确认，查询已被安全阻止");
     }
     const password = await this.connections.passwordFor(request.connectionId);
+    const tlsClientKeyPassphrase = await this.connections.tlsClientKeyPassphraseFor(request.connectionId);
     const startedAt = performance.now();
     const normalizedQuery = normalizeManagementConsoleText(
       normalizeTraversalConsoleText(request.query),
@@ -66,6 +67,7 @@ export class QueryService {
         request.bindings ?? {},
         request.timeoutMs,
         request.serverCancellation,
+        tlsClientKeyPassphrase,
       );
       if (request.recordHistory !== false) {
         this.history.add(
@@ -135,6 +137,7 @@ export class QueryService {
       ? { ...storedProfile, traversalSource: request.traversalSource }
       : storedProfile;
     const password = await this.connections.passwordFor(request.connectionId);
+    const tlsClientKeyPassphrase = await this.connections.tlsClientKeyPassphraseFor(request.connectionId);
     return this.files.streamQueryResult(
       request.suggestedName,
       request.format,
@@ -145,6 +148,7 @@ export class QueryService {
         request.query,
         request.bindings ?? {},
         writeItems,
+        tlsClientKeyPassphrase,
       ),
     );
   }

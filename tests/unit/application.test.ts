@@ -27,6 +27,9 @@ test("normalizes connection profiles without changing security choices", () => {
     connectTimeoutMs: 5_000,
     queryTimeoutMs: 30_000,
     tlsRejectUnauthorized: false,
+    tlsCaPath: " /certs/ca.pem ",
+    tlsClientCertPath: " /certs/client.pem ",
+    tlsClientKeyPath: " /certs/client.key ",
     enableCompression: true,
     customHeaders: "  {\"X-Test\":\"1\"}  ",
   });
@@ -40,6 +43,9 @@ test("normalizes connection profiles without changing security choices", () => {
   assert.equal(normalized.traversalSource, "g");
   assert.equal(normalized.graphBinding, "graph");
   assert.equal(normalized.tlsRejectUnauthorized, false);
+  assert.equal(normalized.tlsCaPath, "/certs/ca.pem");
+  assert.equal(normalized.tlsClientCertPath, "/certs/client.pem");
+  assert.equal(normalized.tlsClientKeyPath, "/certs/client.key");
   assert.equal(normalized.enableCompression, true);
   assert.equal(normalized.customHeaders, "{\"X-Test\":\"1\"}");
 });

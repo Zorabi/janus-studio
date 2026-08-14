@@ -15,8 +15,9 @@ import { ConnectionRepository } from "../storage/connection-repository";
 
 function transientProfile(input: SaveConnectionInput): ConnectionProfile {
   const timestamp = new Date().toISOString();
+  const { password: _password, tlsClientKeyPassphrase: _tlsClientKeyPassphrase, ...profile } = input;
   return {
-    ...input,
+    ...profile,
     id: input.id ?? randomUUID(),
     createdAt: timestamp,
     updatedAt: timestamp,
@@ -25,6 +26,7 @@ function transientProfile(input: SaveConnectionInput): ConnectionProfile {
 
 export class ConnectionService {
   private readonly passwordCache = new Map<string, string>();
+  private readonly tlsPassphraseCache = new Map<string, string>();
 
   constructor(
     private readonly repository: ConnectionRepository,
@@ -45,19 +47,30 @@ export class ConnectionService {
         : input.password
           ? await this.credentialVault.encrypt(input.password)
           : null;
+    const tlsClientKeyPassphraseCipher =
+      input.tlsClientKeyPassphrase === undefined
+        ? undefined
+        : input.tlsClientKeyPassphrase
+          ? await this.credentialVault.encrypt(input.tlsClientKeyPassphrase)
+          : null;
 
     if (input.password !== undefined) {
       if (input.password) this.passwordCache.set(id, input.password);
       else this.passwordCache.delete(id);
     }
+    if (input.tlsClientKeyPassphrase !== undefined) {
+      if (input.tlsClientKeyPassphrase) this.tlsPassphraseCache.set(id, input.tlsClientKeyPassphrase);
+      else this.tlsPassphraseCache.delete(id);
+    }
 
     await this.gremlinService.closeConnection(id);
-    return this.repository.save(id, input, passwordCipher);
+    return this.repository.save(id, input, passwordCipher, tlsClientKeyPassphraseCipher);
   }
 
   async remove(id: string): Promise<void> {
     await this.gremlinService.closeConnection(id);
     this.passwordCache.delete(id);
+    this.tlsPassphraseCache.delete(id);
     this.repository.remove(id);
   }
 
@@ -65,12 +78,17 @@ export class ConnectionService {
     const input = normalizeConnectionInput(rawInput);
     const profile = transientProfile(input);
     const password = await this.resolvePassword(input.id, input.password);
-    const report = await this.gremlinService.test(profile, password);
+    const tlsClientKeyPassphrase = await this.resolveTlsPassphrase(input.id, input.tlsClientKeyPassphrase);
+    const report = await this.gremlinService.test(profile, password, tlsClientKeyPassphrase);
     return { ...report, endpoint: connectionEndpoint(profile) };
   }
 
   async passwordFor(id: string): Promise<string> {
     return this.resolvePassword(id);
+  }
+
+  async tlsClientKeyPassphraseFor(id: string): Promise<string> {
+    return this.resolveTlsPassphrase(id);
   }
 
   profile(id: string): ConnectionProfile {
@@ -90,5 +108,17 @@ export class ConnectionService {
     const password = await this.credentialVault.decrypt(stored.passwordCipher);
     this.passwordCache.set(id, password);
     return password;
+  }
+
+  private async resolveTlsPassphrase(id?: string, inputPassphrase?: string): Promise<string> {
+    if (inputPassphrase !== undefined) return inputPassphrase;
+    if (!id) return "";
+    const stored = this.repository.find(id);
+    if (!stored?.tlsClientKeyPassphraseCipher) return "";
+    const cached = this.tlsPassphraseCache.get(id);
+    if (cached !== undefined) return cached;
+    const passphrase = await this.credentialVault.decrypt(stored.tlsClientKeyPassphraseCipher);
+    this.tlsPassphraseCache.set(id, passphrase);
+    return passphrase;
   }
 }

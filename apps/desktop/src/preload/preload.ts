@@ -60,6 +60,7 @@ const desktopApi: DesktopApi = {
     saveHistoryMetadataBatch: (inputs) => ipcRenderer.invoke("query-assets:history:save-batch", inputs),
   },
   files: {
+    pickTlsFile: (kind) => ipcRenderer.invoke("files:pick-tls", kind),
     pickDataFile: () => ipcRenderer.invoke("files:pick-data"),
     saveDataFile: (input) => ipcRenderer.invoke("files:save-data", input),
     saveResultFile: (input) => ipcRenderer.invoke("files:save-result", input),

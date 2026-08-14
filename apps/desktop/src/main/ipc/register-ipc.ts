@@ -56,6 +56,7 @@ import {
   runSchemaJobSchema,
   schemaJobIdSchema,
   startGraphTransferSchema,
+  tlsFileKindSchema,
   diagnosticLogListSchema,
   diagnosticPreviewSchema,
   diagnosticBundleSchema,
@@ -370,6 +371,11 @@ export function registerIpcHandlers({
   ipcMain.handle("files:pick-data", async (event) => {
     assertTrustedSender(event, window);
     return fileService.pickDataFile();
+  });
+
+  ipcMain.handle("files:pick-tls", async (event, rawKind: unknown) => {
+    assertTrustedSender(event, window);
+    return fileService.pickTlsFile(tlsFileKindSchema.parse(rawKind));
   });
 
   ipcMain.handle("files:save-data", async (event, rawInput: unknown) => {

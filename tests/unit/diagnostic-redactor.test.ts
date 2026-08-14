@@ -16,6 +16,7 @@ test("detects normalized credential and authentication field names without hidin
     "api_key",
     "customHeaders",
     "clientPrivateKey",
+    "tlsClientKeyPath",
   ]) {
     assert.equal(isSensitiveDiagnosticKey(key), true, key);
   }

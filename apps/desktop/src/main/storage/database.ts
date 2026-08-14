@@ -26,9 +26,13 @@ export function openApplicationDatabase(path: string): DatabaseSync {
       connect_timeout_ms INTEGER NOT NULL,
       query_timeout_ms INTEGER NOT NULL,
       tls_reject_unauthorized INTEGER NOT NULL DEFAULT 1,
+      tls_ca_path TEXT NOT NULL DEFAULT '',
+      tls_client_cert_path TEXT NOT NULL DEFAULT '',
+      tls_client_key_path TEXT NOT NULL DEFAULT '',
       enable_compression INTEGER NOT NULL DEFAULT 0,
       custom_headers TEXT NOT NULL DEFAULT '{}',
       password_cipher BLOB,
+      tls_client_key_passphrase_cipher BLOB,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -211,6 +215,18 @@ export function openApplicationDatabase(path: string): DatabaseSync {
   if (!connectionColumns.some((column) => column.name === "enable_compression")) {
     database.exec("ALTER TABLE connection_profiles ADD COLUMN enable_compression INTEGER NOT NULL DEFAULT 0");
   }
+  if (!connectionColumns.some((column) => column.name === "tls_ca_path")) {
+    database.exec("ALTER TABLE connection_profiles ADD COLUMN tls_ca_path TEXT NOT NULL DEFAULT ''");
+  }
+  if (!connectionColumns.some((column) => column.name === "tls_client_cert_path")) {
+    database.exec("ALTER TABLE connection_profiles ADD COLUMN tls_client_cert_path TEXT NOT NULL DEFAULT ''");
+  }
+  if (!connectionColumns.some((column) => column.name === "tls_client_key_path")) {
+    database.exec("ALTER TABLE connection_profiles ADD COLUMN tls_client_key_path TEXT NOT NULL DEFAULT ''");
+  }
+  if (!connectionColumns.some((column) => column.name === "tls_client_key_passphrase_cipher")) {
+    database.exec("ALTER TABLE connection_profiles ADD COLUMN tls_client_key_passphrase_cipher BLOB");
+  }
   if (!connectionColumns.some((column) => column.name === "custom_headers")) {
     database.exec("ALTER TABLE connection_profiles ADD COLUMN custom_headers TEXT NOT NULL DEFAULT '{}'");
   }
@@ -252,7 +268,7 @@ export function openApplicationDatabase(path: string): DatabaseSync {
     WHERE datetime(updated_at) < datetime('now', '-90 days')
        OR id NOT IN (SELECT id FROM diagnostic_records ORDER BY updated_at DESC LIMIT 200);
   `);
-  database.exec("PRAGMA user_version = 12;");
+  database.exec("PRAGMA user_version = 13;");
 
   return database;
 }

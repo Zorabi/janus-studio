@@ -1,4 +1,4 @@
-import type { ConnectionSummary, SaveConnectionInput } from "@janusgraph/domain";
+import type { ConnectionSummary, ConnectionTestReport, SaveConnectionInput } from "@janusgraph/domain";
 import {
   Activity,
   AlertTriangle,
@@ -6,16 +6,19 @@ import {
   ChevronDown,
   Eye,
   EyeOff,
+  FolderOpen,
   LoaderCircle,
   LockKeyhole,
   Save,
   SlidersHorizontal,
+  X,
 } from "lucide-react";
 import { type FormEvent, useRef, useState } from "react";
 import { SelectControl } from "../../components/SelectControl";
 import { IconButton, Modal } from "../../components/ui";
 import { useTranslate } from "../../lib/i18n";
 import { errorMessage } from "../../lib/presentation";
+import { ConnectionTestStages } from "./ConnectionTestStages";
 
 const EMPTY_CONNECTION: Omit<SaveConnectionInput, "id"> = {
   name: "",
@@ -33,6 +36,10 @@ const EMPTY_CONNECTION: Omit<SaveConnectionInput, "id"> = {
   connectTimeoutMs: 10_000,
   queryTimeoutMs: 60_000,
   tlsRejectUnauthorized: true,
+  tlsCaPath: "",
+  tlsClientCertPath: "",
+  tlsClientKeyPath: "",
+  tlsClientKeyPassphrase: "",
   enableCompression: false,
   customHeaders: "{}",
 };
@@ -43,6 +50,8 @@ function connectionFromForm(
 ): SaveConnectionInput {
   const data = new FormData(form);
   const password = String(data.get("password") ?? "");
+  const tlsClientKeyPath = String(data.get("tlsClientKeyPath") ?? "").trim();
+  const tlsClientKeyPassphrase = String(data.get("tlsClientKeyPassphrase") ?? "");
   return {
     id: editing?.id,
     name: String(data.get("name") ?? "").trim(),
@@ -64,6 +73,14 @@ function connectionFromForm(
     connectTimeoutMs: Number(data.get("connectTimeoutMs")),
     queryTimeoutMs: Number(data.get("queryTimeoutMs")),
     tlsRejectUnauthorized: data.get("tlsRejectUnauthorized") === "on",
+    tlsCaPath: String(data.get("tlsCaPath") ?? "").trim(),
+    tlsClientCertPath: String(data.get("tlsClientCertPath") ?? "").trim(),
+    tlsClientKeyPath,
+    tlsClientKeyPassphrase: !tlsClientKeyPath
+      ? ""
+      : editing?.hasTlsClientKeyPassphrase && tlsClientKeyPassphrase === ""
+        ? undefined
+        : tlsClientKeyPassphrase,
     enableCompression: data.get("enableCompression") === "on",
     customHeaders: String(data.get("customHeaders") ?? "{}").trim() || "{}",
   };
@@ -89,6 +106,19 @@ export function ConnectionDialog({
   } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const defaults = editing ?? EMPTY_CONNECTION;
+  const [tlsCaPath, setTlsCaPath] = useState(defaults.tlsCaPath);
+  const [tlsClientCertPath, setTlsClientCertPath] = useState(defaults.tlsClientCertPath);
+  const [tlsClientKeyPath, setTlsClientKeyPath] = useState(defaults.tlsClientKeyPath);
+  const [showTlsPassphrase, setShowTlsPassphrase] = useState(false);
+  const [testReport, setTestReport] = useState<ConnectionTestReport | null>(null);
+
+  const pickTlsFile = async (
+    kind: "ca" | "certificate" | "private-key",
+    setPath: (path: string) => void,
+  ) => {
+    const path = await window.janusGraphDesktop?.files.pickTlsFile(kind);
+    if (path) setPath(path);
+  };
 
   const readInput = (): SaveConnectionInput | null => {
     const form = formRef.current;
@@ -101,8 +131,10 @@ export function ConnectionDialog({
     if (!input || !window.janusGraphDesktop) return;
     setBusy("test");
     setMessage(null);
+    setTestReport(null);
     try {
       const report = await window.janusGraphDesktop.connections.test(input);
+      setTestReport(report);
       setMessage({
         tone: report.success ? "success" : "error",
         text: report.success
@@ -348,6 +380,48 @@ export function ConnectionDialog({
                   <small>{t("启用 per-message deflate，适合大型响应", "Enable per-message deflate for larger responses")}</small>
                 </span>
               </label>
+              <div className="field field-span-2">
+                <span>{t("自定义 CA 证书", "Custom CA certificate")}</span>
+                <div className="tls-file-field">
+                  <input name="tlsCaPath" value={tlsCaPath} readOnly placeholder={t("使用系统信任链", "Use system trust store")} />
+                  {tlsCaPath && <IconButton label={t("清除 CA 证书", "Clear CA certificate")} onClick={() => setTlsCaPath("")}><X size={16} /></IconButton>}
+                  <button type="button" className="button secondary" onClick={() => void pickTlsFile("ca", setTlsCaPath)}><FolderOpen size={16} />{t("选择", "Choose")}</button>
+                </div>
+                <small>{t("用于验证自签名或企业内部 CA 签发的服务端证书。", "Trust a server certificate issued by a private or self-managed CA.")}</small>
+              </div>
+              <div className="field field-span-2">
+                <span>{t("mTLS 客户端证书", "mTLS client certificate")}</span>
+                <div className="tls-file-field">
+                  <input name="tlsClientCertPath" value={tlsClientCertPath} readOnly placeholder={t("未配置", "Not configured")} />
+                  {tlsClientCertPath && <IconButton label={t("清除客户端证书", "Clear client certificate")} onClick={() => setTlsClientCertPath("")}><X size={16} /></IconButton>}
+                  <button type="button" className="button secondary" onClick={() => void pickTlsFile("certificate", setTlsClientCertPath)}><FolderOpen size={16} />{t("选择", "Choose")}</button>
+                </div>
+              </div>
+              <div className="field field-span-2">
+                <span>{t("mTLS 客户端私钥", "mTLS client private key")}</span>
+                <div className="tls-file-field">
+                  <input name="tlsClientKeyPath" value={tlsClientKeyPath} readOnly placeholder={t("未配置", "Not configured")} />
+                  {tlsClientKeyPath && <IconButton label={t("清除客户端私钥", "Clear client private key")} onClick={() => setTlsClientKeyPath("")}><X size={16} /></IconButton>}
+                  <button type="button" className="button secondary" onClick={() => void pickTlsFile("private-key", setTlsClientKeyPath)}><FolderOpen size={16} />{t("选择", "Choose")}</button>
+                </div>
+                <small>{t("客户端证书和私钥必须同时配置；文件路径保存在本机，文件内容不会复制。", "Client certificate and key are required together. Only their local paths are stored.")}</small>
+              </div>
+              <label className="field field-span-2">
+                <span>{t("客户端私钥口令", "Client private-key passphrase")}</span>
+                <div className="password-field">
+                  <input
+                    name="tlsClientKeyPassphrase"
+                    type={showTlsPassphrase ? "text" : "password"}
+                    disabled={!tlsClientKeyPath}
+                    placeholder={editing?.hasTlsClientKeyPassphrase ? t("留空以保留已加密口令", "Leave blank to keep the encrypted passphrase") : t("仅加密私钥需要填写", "Only required for encrypted keys")}
+                    autoComplete="off"
+                  />
+                  <IconButton label={showTlsPassphrase ? t("隐藏私钥口令", "Hide key passphrase") : t("显示私钥口令", "Show key passphrase")} onClick={() => setShowTlsPassphrase((current) => !current)} disabled={!tlsClientKeyPath}>
+                    {showTlsPassphrase ? <EyeOff size={17} /> : <Eye size={17} />}
+                  </IconButton>
+                </div>
+                <small>{t("口令使用与连接密码相同的本地加密凭据库保存。", "The passphrase is stored in the same encrypted local vault as connection passwords.")}</small>
+              </label>
               <label className="field field-span-2">
                 <span>{t("自定义请求头（JSON）", "Custom headers (JSON)")}</span>
                 <textarea
@@ -361,6 +435,7 @@ export function ConnectionDialog({
             </div>
           </details>
         </div>
+        {(busy === "test" || testReport) && <ConnectionTestStages loading={busy === "test"} report={testReport} />}
         {message && (
           <div className={`inline-message ${message.tone}`} role="status">
             {message.tone === "success" ? (

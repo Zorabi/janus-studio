@@ -199,6 +199,12 @@
   color: var(--bone-soft);
 }
 
+.badge.transport {
+  color: var(--blue);
+  border-color: color-mix(in srgb, var(--blue) 32%, var(--line));
+  background: color-mix(in srgb, var(--blue) 7%, transparent);
+}
+
 .check-field.connection-safety {
   grid-template-columns: auto auto minmax(0, 1fr);
   align-items: center;

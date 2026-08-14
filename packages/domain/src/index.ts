@@ -18,6 +18,9 @@ export type ConnectionProfile = {
   connectTimeoutMs: number;
   queryTimeoutMs: number;
   tlsRejectUnauthorized: boolean;
+  tlsCaPath: string;
+  tlsClientCertPath: string;
+  tlsClientKeyPath: string;
   enableCompression: boolean;
   customHeaders: string;
   createdAt: string;
@@ -26,6 +29,7 @@ export type ConnectionProfile = {
 
 export type ConnectionSummary = ConnectionProfile & {
   hasPassword: boolean;
+  hasTlsClientKeyPassphrase: boolean;
 };
 
 export type SaveConnectionInput = Omit<
@@ -34,14 +38,24 @@ export type SaveConnectionInput = Omit<
 > & {
   id?: string;
   password?: string;
+  tlsClientKeyPassphrase?: string;
+};
+
+export type ConnectionTestStage = "dns" | "tcp" | "tls" | "authentication" | "gremlin" | "schema";
+export type ConnectionTestStageResult = {
+  stage: ConnectionTestStage;
+  status: "passed" | "failed" | "skipped";
+  durationMs: number;
+  message: string;
 };
 
 export type ConnectionTestReport = {
   success: boolean;
   latencyMs: number;
   endpoint: string;
-  stage: "validation" | "network" | "authentication" | "query";
+  stage: ConnectionTestStage;
   message: string;
+  stages: ConnectionTestStageResult[];
 };
 
 export type CompatibilityCapability =
@@ -566,6 +580,7 @@ export type DesktopApi = {
     saveHistoryMetadataBatch(inputs: SaveQueryHistoryAssetInput[]): Promise<QueryHistoryAssetMetadata[]>;
   };
   files: {
+    pickTlsFile(kind: "ca" | "certificate" | "private-key"): Promise<string | null>;
     pickDataFile(): Promise<PickedDataFile | null>;
     saveDataFile(input: SaveDataFileInput): Promise<string | null>;
     saveResultFile(input: SaveResultFileInput): Promise<string | null>;

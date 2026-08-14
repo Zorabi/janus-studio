@@ -635,6 +635,36 @@
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 
+.tls-file-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  min-width: 0;
+}
+
+.tls-file-field input {
+  min-width: 0;
+  height: 44px;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  color: var(--bone-soft);
+  font-family: var(--font-code);
+  font-size: var(--text-xs);
+}
+
+.tls-file-field .icon-button,
+.tls-file-field .button {
+  height: 44px;
+  border-left: 0;
+  border-radius: 0;
+}
+
+.tls-file-field .button:last-child {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.connection-form > .connection-test-stages {
+  margin: 0 22px 12px;
+}
+
 .inline-message {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);

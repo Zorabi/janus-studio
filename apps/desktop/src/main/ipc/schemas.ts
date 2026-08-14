@@ -18,6 +18,10 @@ export const connectionInputSchema = z
     connectTimeoutMs: z.number().int().min(500).max(120_000),
     queryTimeoutMs: z.number().int().min(500).max(86_400_000),
     tlsRejectUnauthorized: z.boolean().default(true),
+    tlsCaPath: z.string().trim().max(4096).default(""),
+    tlsClientCertPath: z.string().trim().max(4096).default(""),
+    tlsClientKeyPath: z.string().trim().max(4096).default(""),
+    tlsClientKeyPassphrase: z.string().max(4096).optional(),
     enableCompression: z.boolean().default(false),
     customHeaders: z.string().max(32_768).default("{}"),
   })
@@ -31,6 +35,20 @@ export const connectionInputSchema = z
         code: "custom",
         path: ["clientMode"],
         message: "Sessioned Client 仅支持 WS/WSS 协议",
+      });
+    }
+    if (Boolean(input.tlsClientCertPath) !== Boolean(input.tlsClientKeyPath)) {
+      context.addIssue({
+        code: "custom",
+        path: [input.tlsClientCertPath ? "tlsClientKeyPath" : "tlsClientCertPath"],
+        message: "mTLS 客户端证书和私钥必须同时配置",
+      });
+    }
+    if (input.tlsClientKeyPassphrase && !input.tlsClientKeyPath) {
+      context.addIssue({
+        code: "custom",
+        path: ["tlsClientKeyPassphrase"],
+        message: "配置客户端私钥后才能保存私钥口令",
       });
     }
     try {
@@ -47,6 +65,7 @@ export const connectionInputSchema = z
   });
 
 export const connectionIdSchema = z.string().uuid();
+export const tlsFileKindSchema = z.enum(["ca", "certificate", "private-key"]);
 export const compatibilityRequestSchema = z.object({
   connectionId: connectionIdSchema,
   refresh: z.boolean().optional().default(false),

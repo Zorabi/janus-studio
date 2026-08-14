@@ -45,6 +45,17 @@ export class FileService {
 
   constructor(private readonly window: BrowserWindow) {}
 
+  async pickTlsFile(kind: "ca" | "certificate" | "private-key"): Promise<string | null> {
+    const title = kind === "ca" ? "选择 CA 证书" : kind === "certificate" ? "选择客户端证书" : "选择客户端私钥";
+    const extensions = kind === "private-key" ? ["key", "pem"] : ["pem", "crt", "cer"];
+    const result = await dialog.showOpenDialog(this.window, {
+      title,
+      properties: ["openFile"],
+      filters: [{ name: title, extensions }, { name: "所有文件", extensions: ["*"] }],
+    });
+    return result.canceled ? null : result.filePaths[0] ?? null;
+  }
+
   private resolveDockerCommand(): Promise<string> {
     if (!this.dockerCommandPromise) {
       this.dockerCommandPromise = (async () => {

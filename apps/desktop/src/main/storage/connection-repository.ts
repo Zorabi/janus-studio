@@ -21,9 +21,13 @@ type ConnectionRow = {
   connect_timeout_ms: number;
   query_timeout_ms: number;
   tls_reject_unauthorized: number;
+  tls_ca_path: string;
+  tls_client_cert_path: string;
+  tls_client_key_path: string;
   enable_compression: number;
   custom_headers: string;
   password_cipher: Uint8Array | null;
+  tls_client_key_passphrase_cipher: Uint8Array | null;
   created_at: string;
   updated_at: string;
 };
@@ -45,6 +49,9 @@ function toProfile(row: ConnectionRow): ConnectionProfile {
     connectTimeoutMs: row.connect_timeout_ms,
     queryTimeoutMs: row.query_timeout_ms,
     tlsRejectUnauthorized: row.tls_reject_unauthorized !== 0,
+    tlsCaPath: row.tls_ca_path || "",
+    tlsClientCertPath: row.tls_client_cert_path || "",
+    tlsClientKeyPath: row.tls_client_key_path || "",
     enableCompression: row.enable_compression !== 0,
     customHeaders: row.custom_headers || "{}",
     createdAt: row.created_at,
@@ -63,10 +70,11 @@ export class ConnectionRepository {
     return rows.map((row) => ({
       ...toProfile(row),
       hasPassword: row.password_cipher !== null,
+      hasTlsClientKeyPassphrase: row.tls_client_key_passphrase_cipher !== null,
     }));
   }
 
-  find(id: string): { profile: ConnectionProfile; passwordCipher: Uint8Array | null } | null {
+  find(id: string): { profile: ConnectionProfile; passwordCipher: Uint8Array | null; tlsClientKeyPassphraseCipher: Uint8Array | null } | null {
     const row = this.database
       .prepare("SELECT * FROM connection_profiles WHERE id = ?")
       .get(id) as ConnectionRow | undefined;
@@ -76,27 +84,31 @@ export class ConnectionRepository {
     return {
       profile: toProfile(row),
       passwordCipher: row.password_cipher,
+      tlsClientKeyPassphraseCipher: row.tls_client_key_passphrase_cipher,
     };
   }
 
   save(
     id: string,
     input: SaveConnectionInput,
-    passwordCipher: Uint8Array | null | undefined,
+    passwordCipher: Uint8Array | null | undefined = undefined,
+    tlsClientKeyPassphraseCipher: Uint8Array | null | undefined = undefined,
   ): ConnectionSummary {
     const existing = this.find(id);
     const now = new Date().toISOString();
     const createdAt = existing?.profile.createdAt ?? now;
     const cipher = passwordCipher === undefined ? existing?.passwordCipher ?? null : passwordCipher;
+    const tlsPassphraseCipher = tlsClientKeyPassphraseCipher === undefined ? existing?.tlsClientKeyPassphraseCipher ?? null : tlsClientKeyPassphraseCipher;
 
     this.database
       .prepare(`
         INSERT INTO connection_profiles (
           id, name, protocol, host, port, path, username, environment, connection_read_only,
           client_mode, traversal_source, graph_binding, connect_timeout_ms, query_timeout_ms,
-          tls_reject_unauthorized, enable_compression, custom_headers,
-          password_cipher, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          tls_reject_unauthorized, tls_ca_path, tls_client_cert_path, tls_client_key_path,
+          enable_compression, custom_headers, password_cipher, tls_client_key_passphrase_cipher,
+          created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           name = excluded.name,
           protocol = excluded.protocol,
@@ -112,9 +124,13 @@ export class ConnectionRepository {
           connect_timeout_ms = excluded.connect_timeout_ms,
           query_timeout_ms = excluded.query_timeout_ms,
           tls_reject_unauthorized = excluded.tls_reject_unauthorized,
+          tls_ca_path = excluded.tls_ca_path,
+          tls_client_cert_path = excluded.tls_client_cert_path,
+          tls_client_key_path = excluded.tls_client_key_path,
           enable_compression = excluded.enable_compression,
           custom_headers = excluded.custom_headers,
           password_cipher = excluded.password_cipher,
+          tls_client_key_passphrase_cipher = excluded.tls_client_key_passphrase_cipher,
           updated_at = excluded.updated_at
       `)
       .run(
@@ -133,9 +149,13 @@ export class ConnectionRepository {
         input.connectTimeoutMs,
         input.queryTimeoutMs,
         input.tlsRejectUnauthorized ? 1 : 0,
+        input.tlsCaPath ?? "",
+        input.tlsClientCertPath ?? "",
+        input.tlsClientKeyPath ?? "",
         input.enableCompression ? 1 : 0,
         input.customHeaders,
         cipher,
+        tlsPassphraseCipher,
         createdAt,
         now,
       );
@@ -146,6 +166,7 @@ export class ConnectionRepository {
     return {
       ...saved.profile,
       hasPassword: saved.passwordCipher !== null,
+      hasTlsClientKeyPassphrase: saved.tlsClientKeyPassphraseCipher !== null,
     };
   }
 

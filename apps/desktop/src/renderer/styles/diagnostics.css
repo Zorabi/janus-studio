@@ -144,6 +144,28 @@
 .connection-test-failure strong { color: var(--bone); font-size: var(--text-xs); }
 .connection-test-failure small { overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
 .connection-test-failure .button { white-space: nowrap; }
+.connection-test-report { display: grid; gap: 11px; padding: 13px; border: 1px solid color-mix(in srgb, var(--acid) 24%, var(--line)); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--acid) 4%, var(--surface-2)); }
+.connection-test-report.is-failed { border-color: color-mix(in srgb, var(--danger) 34%, var(--line)); background: color-mix(in srgb, var(--danger) 5%, var(--surface-2)); }
+.connection-test-report > header, .connection-test-report > header > span, .connection-test-report > footer { display: flex; align-items: center; }
+.connection-test-report > header { justify-content: space-between; gap: 10px; }
+.connection-test-report > header > span { gap: 8px; color: var(--acid); }
+.connection-test-report.is-failed > header > span { color: var(--danger); }
+.connection-test-report > header strong { color: var(--bone-soft); font-size: var(--text-xs); }
+.connection-test-report > header small { color: var(--muted-2); font-family: var(--font-code); font-size: 10px; }
+.connection-test-stages { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.connection-test-stage { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; min-width: 0; padding: 9px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-1); }
+.connection-test-stage-icon { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 8px; color: var(--muted); background: var(--surface-2); }
+.connection-test-stage > span:nth-child(2) { display: grid; min-width: 0; gap: 2px; }
+.connection-test-stage strong { color: var(--bone-soft); font-size: 11px; }
+.connection-test-stage small { overflow: hidden; color: var(--muted-2); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.connection-test-stage-status { display: grid; color: var(--muted-2); }
+.connection-test-stage.is-passed .connection-test-stage-status { color: var(--acid); }
+.connection-test-stage.is-failed { border-color: color-mix(in srgb, var(--danger) 28%, var(--line)); }
+.connection-test-stage.is-failed .connection-test-stage-status { color: var(--danger); }
+.connection-test-stage.is-loading .connection-test-stage-status, .connection-test-stage.is-loading .connection-test-stage-icon { color: var(--acid); }
+.connection-test-report > footer { justify-content: space-between; gap: 10px; min-width: 0; color: var(--danger); font-size: var(--text-xs); }
+.connection-test-report > footer > span { overflow: hidden; min-width: 0; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 900px) { .connection-test-stages { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .empty-state-actions,
 .schema-job-detail-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .schema-job-detail-actions { justify-content: flex-end; }

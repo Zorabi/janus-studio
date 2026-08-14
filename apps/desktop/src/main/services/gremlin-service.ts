@@ -6,6 +6,12 @@ import type {
 } from "@janusgraph/domain";
 import gremlin from "gremlin";
 import { createHash, randomUUID } from "node:crypto";
+import { lookup } from "node:dns/promises";
+import { readFile } from "node:fs/promises";
+import { isIP } from "node:net";
+import net from "node:net";
+import tls from "node:tls";
+import { Agent as HttpsAgent } from "node:https";
 import { Agent } from "undici";
 
 const GRAPHSON_V3 = "application/vnd.gremlin-v3.0+json";
@@ -16,6 +22,57 @@ type CollectedItems = {
   totalCount: number;
   truncated: boolean;
 };
+
+type TlsMaterial = { ca?: Buffer; cert?: Buffer; key?: Buffer; passphrase?: string };
+
+async function readTlsFile(path: string, label: string): Promise<Buffer | undefined> {
+  if (!path) return undefined;
+  try {
+    return await readFile(path);
+  } catch {
+    throw new Error(`${label}不可读取，请重新选择文件`);
+  }
+}
+
+async function tlsMaterial(profile: ConnectionProfile, passphrase = ""): Promise<TlsMaterial> {
+  if (profile.protocol !== "wss" && profile.protocol !== "https") return {};
+  const [ca, cert, key] = await Promise.all([
+    readTlsFile(profile.tlsCaPath, "自定义 CA 证书"),
+    readTlsFile(profile.tlsClientCertPath, "客户端证书"),
+    readTlsFile(profile.tlsClientKeyPath, "客户端私钥"),
+  ]);
+  return { ...(ca ? { ca } : {}), ...(cert ? { cert } : {}), ...(key ? { key } : {}), ...(passphrase ? { passphrase } : {}) };
+}
+
+function websocketTlsOptions(profile: ConnectionProfile, material: TlsMaterial) {
+  const options = { rejectUnauthorized: profile.tlsRejectUnauthorized, ...material };
+  return material.key
+    ? { rejectUnauthorized: profile.tlsRejectUnauthorized, agent: new HttpsAgent(options) }
+    : {
+        rejectUnauthorized: profile.tlsRejectUnauthorized,
+        ...(material.ca ? { ca: material.ca } : {}),
+        ...(material.cert ? { cert: material.cert } : {}),
+      };
+}
+
+function probeSocket(factory: () => net.Socket, readyEvent: "connect" | "secureConnect", timeoutMs: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const socket = factory();
+    const done = (error?: Error) => {
+      socket.removeAllListeners();
+      socket.destroy();
+      error ? reject(error) : resolve();
+    };
+    socket.setTimeout(timeoutMs, () => done(new Error(`连接超时（${timeoutMs} ms）`)));
+    socket.once(readyEvent, () => done());
+    socket.once("error", done);
+  });
+}
+
+function isAuthenticationError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /authentication|unauthorized|forbidden|sasl|status(?:code)?\D*(?:401|407)|http\s+(?:401|403)/i.test(message);
+}
 
 function graphsonRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -163,33 +220,98 @@ export class GremlinService {
   async test(
     profile: ConnectionProfile,
     password: string,
+    tlsClientKeyPassphrase = "",
   ): Promise<ConnectionTestReport> {
     const start = performance.now();
     const endpoint = connectionEndpoint(profile);
-
+    const stages: ConnectionTestReport["stages"] = [];
+    const runStage = async <T>(stage: ConnectionTestReport["stage"], operation: () => Promise<T>): Promise<T> => {
+      const stageStart = performance.now();
+      try {
+        const result = await operation();
+        stages.push({ stage, status: "passed", durationMs: Math.round(performance.now() - stageStart), message: "通过" });
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        stages.push({ stage, status: "failed", durationMs: Math.round(performance.now() - stageStart), message });
+        throw error;
+      }
+    };
     try {
-      await this.execute(
+      await runStage("dns", async () => {
+        if (!isIP(profile.host)) await lookup(profile.host);
+      });
+      await runStage("tcp", () => probeSocket(() => net.connect({ host: profile.host, port: profile.port }), "connect", profile.connectTimeoutMs));
+      const secure = profile.protocol === "wss" || profile.protocol === "https";
+      if (secure) {
+        await runStage("tls", async () => {
+          const material = await tlsMaterial(profile, tlsClientKeyPassphrase);
+          await probeSocket(() => tls.connect({
+            host: profile.host,
+            port: profile.port,
+            servername: isIP(profile.host) ? undefined : profile.host,
+            rejectUnauthorized: profile.tlsRejectUnauthorized,
+            ...material,
+          }), "secureConnect", profile.connectTimeoutMs);
+        });
+      } else {
+        stages.push({ stage: "tls", status: "skipped", durationMs: 0, message: "当前协议未使用 TLS" });
+      }
+      try {
+        const queryStart = performance.now();
+        await this.execute(
+          profile,
+          password,
+          "connection-test",
+          randomUUID(),
+          "1",
+          {},
+          profile.queryTimeoutMs,
+          false,
+          tlsClientKeyPassphrase,
+        );
+        const queryDuration = Math.round(performance.now() - queryStart);
+        stages.push({ stage: "authentication", status: "passed", durationMs: queryDuration, message: profile.username ? "认证通过" : "匿名访问可用" });
+        stages.push({ stage: "gremlin", status: "passed", durationMs: queryDuration, message: "Gremlin 请求与响应通过" });
+      } catch (error) {
+        const stage = isAuthenticationError(error) ? "authentication" : "gremlin";
+        if (stage === "gremlin") {
+          stages.push({ stage: "authentication", status: "passed", durationMs: 0, message: profile.username ? "服务端已接受认证信息" : "匿名访问可用" });
+        }
+        stages.push({ stage, status: "failed", durationMs: 0, message: error instanceof Error ? error.message : String(error) });
+        throw error;
+      }
+      const schemaResult = await runStage("schema", () => this.execute(
         profile,
         password,
         "connection-test",
         randomUUID(),
-        "g.V().limit(1).count()",
-        {},
-      );
+        `if (!this.binding.hasVariable(__janusStudioGraphBinding)) { return false }
+def __janusStudioGraph = this.binding.getVariable(__janusStudioGraphBinding)
+def __janusStudioManagement = __janusStudioGraph.openManagement()
+try { return __janusStudioManagement != null } finally { __janusStudioManagement.rollback() }`,
+        { __janusStudioGraphBinding: profile.graphBinding },
+        profile.queryTimeoutMs,
+        false,
+        tlsClientKeyPassphrase,
+      ));
+      if (schemaResult.items[0] !== true) stages[stages.length - 1] = { stage: "schema", status: "skipped", durationMs: stages.at(-1)?.durationMs ?? 0, message: `未找到 Graph Binding：${profile.graphBinding}` };
       return {
         success: true,
         latencyMs: Math.round(performance.now() - start),
         endpoint,
-        stage: "query",
-        message: "连接、认证与轻量查询均已通过",
+        stage: "schema",
+        message: schemaResult.items[0] === true ? "网络、TLS、认证、Gremlin 与 Schema Binding 均已通过" : "查询连接可用；Schema Binding 未在服务端暴露",
+        stages,
       };
     } catch (error) {
       return {
         success: false,
         latencyMs: Math.round(performance.now() - start),
         endpoint,
-        stage: "network",
+        stage: stages.find((stage) => stage.status === "failed")?.stage ?? "tcp",
         message: error instanceof Error ? error.message : "无法连接到 JanusGraph Server",
+        stages,
       };
     } finally {
       await this.closeConsole(profile.id, "connection-test");
@@ -205,6 +327,7 @@ export class GremlinService {
     bindings: Record<string, unknown>,
     timeoutMs = profile.queryTimeoutMs,
     serverCancellation = false,
+    tlsClientKeyPassphrase = "",
   ): Promise<QueryExecutionResult> {
     const startedAt = performance.now();
     const endpoint = connectionEndpoint(profile);
@@ -227,6 +350,7 @@ export class GremlinService {
             bindings,
             timeoutMs,
             serverCancellation,
+            tlsClientKeyPassphrase,
           )
         : await this.executeHttp(
             profile,
@@ -237,6 +361,7 @@ export class GremlinService {
             bindings,
             MAX_RESULT_ITEMS,
             timeoutMs,
+            tlsClientKeyPassphrase,
           );
 
     return {
@@ -256,6 +381,7 @@ export class GremlinService {
     query: string,
     bindings: Record<string, unknown>,
     writeItems: (items: unknown[]) => Promise<void>,
+    tlsClientKeyPassphrase = "",
   ): Promise<{ totalCount: number; durationMs: number }> {
     const startedAt = performance.now();
     if (profile.protocol === "http" || profile.protocol === "https") {
@@ -268,12 +394,15 @@ export class GremlinService {
         query,
         bindings,
         Number.MAX_SAFE_INTEGER,
+        profile.queryTimeoutMs,
+        tlsClientKeyPassphrase,
       );
       await writeItems(collected.items.map((item) => toSerializable(item)));
       return { totalCount: collected.totalCount, durationMs: Math.round(performance.now() - startedAt) };
     }
 
     const endpoint = connectionEndpoint(profile);
+    const material = await tlsMaterial(profile, tlsClientKeyPassphrase);
     const authenticator = profile.username && password
       ? new gremlin.driver.auth.PlainTextSaslAuthenticator(profile.username, password)
       : undefined;
@@ -282,7 +411,7 @@ export class GremlinService {
       mimeType: GRAPHSON_V3,
       authenticator,
       headers: customHeaders(profile),
-      rejectUnauthorized: profile.tlsRejectUnauthorized,
+      ...websocketTlsOptions(profile, material),
       enableCompression: profile.enableCompression,
     });
     const execution = {
@@ -324,7 +453,9 @@ export class GremlinService {
     bindings: Record<string, unknown>,
     timeoutMs: number,
     serverCancellation: boolean,
+    tlsClientKeyPassphrase: string,
   ): Promise<CollectedItems> {
+    const material = await tlsMaterial(profile, tlsClientKeyPassphrase);
     const authenticator =
       profile.username && password
         ? new gremlin.driver.auth.PlainTextSaslAuthenticator(
@@ -338,7 +469,7 @@ export class GremlinService {
         mimeType: GRAPHSON_V3,
         authenticator,
         headers: customHeaders(profile),
-        rejectUnauthorized: profile.tlsRejectUnauthorized,
+        ...websocketTlsOptions(profile, material),
         enableCompression: profile.enableCompression,
         ...(sessioned
           ? { processor: "session", session: randomUUID() }
@@ -358,9 +489,13 @@ export class GremlinService {
         endpoint,
         profile.traversalSource,
         String(profile.tlsRejectUnauthorized),
+        profile.tlsCaPath,
+        profile.tlsClientCertPath,
+        profile.tlsClientKeyPath,
         String(profile.enableCompression),
         profile.customHeaders,
         credentialHash,
+        createHash("sha256").update(tlsClientKeyPassphrase).digest("hex"),
       ].join("\u0000");
       const existing = this.sessionClients.get(sessionKey);
       if (existing && existing.signature !== signature) {
@@ -500,6 +635,7 @@ export class GremlinService {
     bindings: Record<string, unknown>,
     maxItems = MAX_RESULT_ITEMS,
     timeoutMs = profile.queryTimeoutMs,
+    tlsClientKeyPassphrase = "",
   ): Promise<CollectedItems> {
     const headers: Record<string, string> = {
       ...customHeaders(profile),
@@ -511,8 +647,9 @@ export class GremlinService {
     }
 
     const controller = new AbortController();
+    const material = await tlsMaterial(profile, tlsClientKeyPassphrase);
     const dispatcher = profile.protocol === "https"
-      ? new Agent({ connect: { rejectUnauthorized: profile.tlsRejectUnauthorized } })
+      ? new Agent({ connect: { rejectUnauthorized: profile.tlsRejectUnauthorized, ...material } })
       : undefined;
     const execution = {
       cancelled: false,

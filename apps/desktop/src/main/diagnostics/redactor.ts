@@ -1,7 +1,7 @@
 const REDACTED = "[REDACTED]";
 const MAX_DEPTH = 12;
 
-const sensitiveKeyPattern = /(?:password|passwd|passphrase|secret|token|authorization|proxyauthorization|cookie|setcookie|privatekey|clientkey|apikey|accesskey|credential|passwordcipher|headers|customheaders)$/i;
+const sensitiveKeyPattern = /(?:password|passwd|passphrase|secret|token|authorization|proxyauthorization|cookie|setcookie|privatekey|clientkey|privatekeypath|clientkeypath|apikey|accesskey|credential|passwordcipher|headers|customheaders)$/i;
 
 function normalizedKey(key: string): string {
   return key.replace(/[^a-z0-9]/gi, "").toLowerCase();

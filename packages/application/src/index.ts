@@ -79,6 +79,9 @@ export function normalizeConnectionInput(
     traversalSource: input.traversalSource.trim() || "g",
     graphBinding: input.graphBinding.trim() || "graph",
     tlsRejectUnauthorized: input.tlsRejectUnauthorized ?? true,
+    tlsCaPath: input.tlsCaPath?.trim() || "",
+    tlsClientCertPath: input.tlsClientCertPath?.trim() || "",
+    tlsClientKeyPath: input.tlsClientKeyPath?.trim() || "",
     enableCompression: input.enableCompression ?? false,
     customHeaders: input.customHeaders?.trim() || "{}",
   };

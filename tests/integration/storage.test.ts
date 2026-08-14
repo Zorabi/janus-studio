@@ -33,14 +33,21 @@ test("persists connection profiles, advanced transport settings and history", ()
       connectTimeoutMs: 5_000,
       queryTimeoutMs: 30_000,
       tlsRejectUnauthorized: false,
+      tlsCaPath: "/certs/company-ca.pem",
+      tlsClientCertPath: "/certs/client.pem",
+      tlsClientKeyPath: "/certs/client.key",
       enableCompression: true,
       customHeaders: "{\"X-QA\":\"1\"}",
-    }, new Uint8Array([1, 2, 3]));
+    }, new Uint8Array([1, 2, 3]), new Uint8Array([4, 5, 6]));
     assert.equal(saved.hasPassword, true);
     assert.equal(saved.tlsRejectUnauthorized, false);
     assert.equal(saved.enableCompression, true);
     assert.equal(saved.environment, "test");
     assert.equal(saved.connectionReadOnly, true);
+    assert.equal(saved.hasTlsClientKeyPassphrase, true);
+    assert.equal(saved.tlsCaPath, "/certs/company-ca.pem");
+    assert.equal(saved.tlsClientCertPath, "/certs/client.pem");
+    assert.equal(saved.tlsClientKeyPath, "/certs/client.key");
     assert.equal(connections.find(saved.id)?.profile.customHeaders, "{\"X-QA\":\"1\"}");
 
     const history = new HistoryRepository(database);
@@ -94,7 +101,7 @@ test("persists, deduplicates and resolves diagnostic records across restarts", (
     assert.equal(restoredFirst.report.signalsScanned, 3);
     new DiagnosticRecordRepository(database).remove(first.id);
     assert.equal(new DiagnosticRecordRepository(database).list().length, 3);
-    assert.equal(database.prepare("PRAGMA user_version").get()!.user_version, 12);
+    assert.equal(database.prepare("PRAGMA user_version").get()!.user_version, 13);
   } finally {
     database.close();
     rmSync(directory, { recursive: true, force: true });
@@ -422,7 +429,7 @@ test("migrates existing connection profiles to development with write access", (
     const migrated = new ConnectionRepository(database).find("legacy")?.profile;
     assert.equal(migrated?.environment, "dev");
     assert.equal(migrated?.connectionReadOnly, false);
-    assert.equal(database.prepare("PRAGMA user_version").get()?.user_version, 12);
+    assert.equal(database.prepare("PRAGMA user_version").get()?.user_version, 13);
   } finally {
     database.close();
     rmSync(directory, { recursive: true, force: true });
