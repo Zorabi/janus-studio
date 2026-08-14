@@ -237,7 +237,7 @@ pnpm build
 ```
 
 - `pnpm typecheck`：全部 workspace TypeScript 检查。
-- `pnpm test`：当前 181 项测试，其中 177 项本地通过，4 项真实 JanusGraph 集成测试在未配置环境时跳过。
+- `pnpm test`：当前 182 项测试，其中 178 项本地通过，4 项真实 JanusGraph 集成测试在未配置环境时跳过。
 - `pnpm build`：Electron Forge 生产打包。
 - macOS ARM64 打包输出：
   `apps/desktop/out/Janus Studio-darwin-arm64/Janus Studio.app`。
@@ -260,7 +260,7 @@ pnpm build
 
 - 当前代码基线：查询资产、诊断闭环、发布验收第二切片，以及连接代理基础设施均已实现；以仓库最新提交为准。
 - 最近一次 `pnpm typecheck`：通过。
-- 最近一次 `pnpm test`：181 项，177 通过，4 个真实环境测试跳过，0 失败。
+- 最近一次 `pnpm test`：182 项，178 通过，4 个真实环境测试跳过，0 失败。
 - 最近一次 `pnpm build`：macOS ARM64 生产包生成成功。
 - 最近一次打包时间：2026-08-14。
 - 多节点 Binding 传播、真实 Drop、残留实例处理和关闭后自动重开语义已由用户验收。

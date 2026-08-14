@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import http from "node:http";
 import net from "node:net";
 import { once } from "node:events";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import type { ConnectionProfile } from "@janusgraph/domain";
 import {
@@ -56,6 +57,12 @@ test("forces the Gremlin driver onto the ws transport that honors Node connectio
     if (original) Object.defineProperty(globalThis, "WebSocket", original);
     else Reflect.deleteProperty(globalThis, "WebSocket");
   }
+});
+
+test("keeps optional ws native accelerators out of the packaged main-process bundle", async () => {
+  const config = await readFile("apps/desktop/vite.main.config.ts", "utf8");
+  assert.match(config, /process\.env\.WS_NO_BUFFER_UTIL/);
+  assert.match(config, /process\.env\.WS_NO_UTF_8_VALIDATE/);
 });
 
 test("resolves direct, manual and system proxy routes without exposing credentials in the URL", async () => {
