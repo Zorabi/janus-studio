@@ -5,11 +5,12 @@
 }
 
 .connection-profile {
+  --connection-accent: #c8ff55;
   display: grid;
   gap: 18px;
   min-width: 0;
   padding: 20px;
-  border: 1px solid var(--line);
+  border: 1px solid color-mix(in srgb, var(--connection-accent) 18%, var(--line));
   border-radius: var(--radius-md);
   background: rgba(13, 16, 14, 0.96);
 }
@@ -17,7 +18,7 @@
 .connection-profile.is-active {
   border-color: transparent;
   background:
-    radial-gradient(circle at 88% 12%, rgba(200, 255, 85, 0.12), transparent 34%),
+    radial-gradient(circle at 88% 12%, color-mix(in srgb, var(--connection-accent) 13%, transparent), transparent 34%),
     var(--surface-1);
   box-shadow:
     0 18px 48px rgba(0, 0, 0, 0.18),
@@ -51,8 +52,8 @@
   place-items: center;
   border: 1px solid var(--line);
   border-radius: 50%;
-  color: var(--acid);
-  background: rgba(200, 255, 85, 0.045);
+  color: var(--connection-accent);
+  background: color-mix(in srgb, var(--connection-accent) 7%, transparent);
 }
 
 .connection-profile header > div:last-child {

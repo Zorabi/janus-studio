@@ -99,6 +99,12 @@ export function normalizeConnectionInput(
     sshHostKeyFingerprint: input.sshHostKeyFingerprint?.trim() || "",
     enableCompression: input.enableCompression ?? false,
     customHeaders: input.customHeaders?.trim() || "{}",
+    groupName: input.groupName?.trim() || "",
+    accentColor: input.accentColor || "#c8ff55",
+    tags: [...new Map((input.tags ?? [])
+      .map((tag) => tag.trim())
+      .filter(Boolean)
+      .map((tag) => [tag.toLocaleLowerCase(), tag])).values()],
   };
 }
 

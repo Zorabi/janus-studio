@@ -41,6 +41,10 @@ type ConnectionRow = {
   ssh_host_key_fingerprint: string;
   enable_compression: number;
   custom_headers: string;
+  group_name: string;
+  accent_color: string;
+  tags_json: string;
+  last_used_at: string;
   password_cipher: Uint8Array | null;
   tls_client_key_passphrase_cipher: Uint8Array | null;
   proxy_password_cipher: Uint8Array | null;
@@ -50,6 +54,15 @@ type ConnectionRow = {
   created_at: string;
   updated_at: string;
 };
+
+function parseTags(value: string): string[] {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed) ? parsed.filter((tag): tag is string => typeof tag === "string") : [];
+  } catch {
+    return [];
+  }
+}
 
 function toProfile(row: ConnectionRow): ConnectionProfile {
   return {
@@ -88,6 +101,10 @@ function toProfile(row: ConnectionRow): ConnectionProfile {
     sshHostKeyFingerprint: row.ssh_host_key_fingerprint || "",
     enableCompression: row.enable_compression !== 0,
     customHeaders: row.custom_headers || "{}",
+    groupName: row.group_name || "",
+    accentColor: row.accent_color || "#c8ff55",
+    tags: parseTags(row.tags_json || "[]"),
+    lastUsedAt: row.last_used_at || "",
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -98,7 +115,7 @@ export class ConnectionRepository {
 
   list(): ConnectionSummary[] {
     const rows = this.database
-      .prepare("SELECT * FROM connection_profiles ORDER BY updated_at DESC")
+      .prepare("SELECT * FROM connection_profiles ORDER BY CASE WHEN last_used_at = '' THEN 1 ELSE 0 END, last_used_at DESC, updated_at DESC")
       .all() as ConnectionRow[];
 
     return rows.map((row) => ({
@@ -161,8 +178,9 @@ export class ConnectionRepository {
           ssh_enabled, ssh_host, ssh_port, ssh_username, ssh_auth_mode, ssh_private_key_path, ssh_agent_path, ssh_host_key_fingerprint,
           ssh_password_cipher, ssh_private_key_passphrase_cipher,
           enable_compression, custom_headers, password_cipher, tls_client_key_passphrase_cipher, proxy_password_cipher,
+          group_name, accent_color, tags_json, last_used_at,
           created_at, updated_at
-        ) VALUES (${Array.from({ length: 43 }, () => "?").join(", ")})
+        ) VALUES (${Array.from({ length: 47 }, () => "?").join(", ")})
         ON CONFLICT(id) DO UPDATE SET
           name = excluded.name,
           protocol = excluded.protocol,
@@ -204,6 +222,9 @@ export class ConnectionRepository {
           password_cipher = excluded.password_cipher,
           tls_client_key_passphrase_cipher = excluded.tls_client_key_passphrase_cipher,
           proxy_password_cipher = excluded.proxy_password_cipher,
+          group_name = excluded.group_name,
+          accent_color = excluded.accent_color,
+          tags_json = excluded.tags_json,
           updated_at = excluded.updated_at
       `)
       .run(
@@ -248,6 +269,10 @@ export class ConnectionRepository {
         cipher,
         tlsPassphraseCipher,
         proxyCipher,
+        input.groupName ?? "",
+        input.accentColor ?? "#c8ff55",
+        JSON.stringify(input.tags ?? []),
+        existing?.profile.lastUsedAt ?? "",
         createdAt,
         now,
       );
@@ -268,5 +293,9 @@ export class ConnectionRepository {
 
   remove(id: string): void {
     this.database.prepare("DELETE FROM connection_profiles WHERE id = ?").run(id);
+  }
+
+  markUsed(id: string): void {
+    this.database.prepare("UPDATE connection_profiles SET last_used_at = ? WHERE id = ?").run(new Date().toISOString(), id);
   }
 }

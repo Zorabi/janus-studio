@@ -10,12 +10,16 @@ import {
   Stethoscope,
   LoaderCircle,
   KeyRound,
+  Layers3,
   LockKeyhole,
   Plus,
+  Search,
   Server,
+  Tags,
   Trash2,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { SelectControl } from "../../components/SelectControl";
 import { EmptyState, IconButton, PageHeader } from "../../components/ui";
 import { useTranslate } from "../../lib/i18n";
 import { CompatibilityDialog } from "./CompatibilityDialog";
@@ -50,6 +54,30 @@ export function ConnectionsPage({
   const [testReports, setTestReports] = useState<Record<string, ConnectionTestReport>>({});
   const [compatibilityConnection, setCompatibilityConnection] = useState<ConnectionSummary | null>(null);
   const [showAuthenticationProfiles, setShowAuthenticationProfiles] = useState(false);
+  const [search, setSearch] = useState("");
+  const [groupFilter, setGroupFilter] = useState("");
+
+  const groups = useMemo(() => [...new Set(connections
+    .map((connection) => connection.groupName?.trim() || "")
+    .filter(Boolean))].sort((left, right) => left.localeCompare(right, undefined, { numeric: true })), [connections]);
+  const visibleConnections = useMemo(() => {
+    const needle = search.trim().toLocaleLowerCase();
+    return connections.filter((connection) => {
+      if (groupFilter && (connection.groupName ?? "") !== groupFilter) return false;
+      if (!needle) return true;
+      return [
+        connection.name,
+        connection.host,
+        String(connection.port),
+        connection.protocol,
+        connection.graphBinding,
+        connection.traversalSource,
+        connection.groupName ?? "",
+        ...(connection.tags ?? []),
+      ]
+        .some((value) => value.toLocaleLowerCase().includes(needle));
+    });
+  }, [connections, groupFilter, search]);
 
   useEffect(() => {
     void Promise.resolve(onConnectionsChanged()).catch(() => undefined);
@@ -57,6 +85,10 @@ export function ConnectionsPage({
       void Promise.resolve(onConnectionsChanged()).catch(() => undefined);
     });
   }, [onConnectionsChanged]);
+
+  useEffect(() => {
+    if (groupFilter && !groups.includes(groupFilter)) setGroupFilter("");
+  }, [groupFilter, groups]);
 
   return (
     <div className="page-scroll">
@@ -74,6 +106,33 @@ export function ConnectionsPage({
           </>
         }
       />
+      {connections.length > 0 && (
+        <section className="connection-organizer" aria-label={t("整理连接", "Organize connections")}>
+          <label className="connection-search">
+            <Search size={17} />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={t("搜索名称、地址、分组或标签", "Search name, host, group or tag")}
+            />
+          </label>
+          <SelectControl
+            value={groupFilter}
+            onValueChange={setGroupFilter}
+            ariaLabel={t("按连接分组筛选", "Filter by connection group")}
+            className="connection-group-filter"
+            options={[
+              { value: "", label: t("全部分组", "All groups"), description: `${connections.length} ${t("个连接", "connections")}` },
+              ...groups.map((group) => ({
+                value: group,
+                label: group,
+                description: `${connections.filter((connection) => connection.groupName === group).length} ${t("个连接", "connections")}`,
+              })),
+            ]}
+          />
+          <span className="connection-result-count">{visibleConnections.length} / {connections.length}</span>
+        </section>
+      )}
       {connections.length === 0 ? (
         <EmptyState
           icon={<Database size={32} />}
@@ -89,9 +148,16 @@ export function ConnectionsPage({
             </button>
           }
         />
+      ) : visibleConnections.length === 0 ? (
+        <EmptyState
+          icon={<Search size={30} />}
+          title={t("没有匹配的连接", "No matching connections")}
+          description={t("调整搜索词或分组筛选后重试。", "Change the search term or group filter and try again.")}
+          action={<button type="button" className="button secondary" onClick={() => { setSearch(""); setGroupFilter(""); }}>{t("清除筛选", "Clear filters")}</button>}
+        />
       ) : (
         <div className="connection-grid">
-          {connections.map((connection) => {
+          {visibleConnections.map((connection) => {
             const active = connection.id === activeConnectionId;
             const tunnel = connection.sshTunnel;
             const tunnelTitle = tunnel?.status === "connected"
@@ -125,6 +191,7 @@ export function ConnectionsPage({
               <article
                 className={`connection-profile environment-${connection.environment} ${active ? "is-active" : ""}`}
                 key={connection.id}
+                style={{ "--connection-accent": connection.accentColor ?? "#c8ff55" } as CSSProperties}
               >
                 <header>
                   <div className="connection-symbol">
@@ -172,6 +239,12 @@ export function ConnectionsPage({
                       </div>
                     </div>
                     <code>{connectionEndpoint(connection)}</code>
+                    <div className="connection-context-row">
+                      <span className="connection-group-label"><Layers3 size={12} />{connection.groupName || t("未分组", "Ungrouped")}</span>
+                      {(connection.tags ?? []).slice(0, 3).map((tag) => <span className="connection-tag" key={tag}><Tags size={11} />{tag}</span>)}
+                      {(connection.tags?.length ?? 0) > 3 && <span className="connection-tag">+{(connection.tags?.length ?? 3) - 3}</span>}
+                      {connection.lastUsedAt && <time dateTime={connection.lastUsedAt} title={new Date(connection.lastUsedAt).toLocaleString()}>{t("最近使用", "Recently used")}</time>}
+                    </div>
                   </div>
                 </header>
                 <dl className="connection-meta">

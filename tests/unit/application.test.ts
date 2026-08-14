@@ -38,6 +38,9 @@ test("normalizes connection profiles without changing security choices", () => {
     proxyUsername: " proxy-user ",
     enableCompression: true,
     customHeaders: "  {\"X-Test\":\"1\"}  ",
+    groupName: " Shared QA ",
+    accentColor: "#83bcff",
+    tags: [" remote ", "Team-A", "team-a", ""],
   });
 
   assert.equal(normalized.name, "Local");
@@ -57,6 +60,9 @@ test("normalizes connection profiles without changing security choices", () => {
   assert.equal(normalized.proxyUsername, "proxy-user");
   assert.equal(normalized.enableCompression, true);
   assert.equal(normalized.customHeaders, "{\"X-Test\":\"1\"}");
+  assert.equal(normalized.groupName, "Shared QA");
+  assert.equal(normalized.accentColor, "#83bcff");
+  assert.deepEqual(normalized.tags, ["remote", "team-a"]);
 });
 
 test("renders endpoints and identifies secure protocols", () => {

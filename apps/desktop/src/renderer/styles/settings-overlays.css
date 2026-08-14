@@ -545,6 +545,36 @@
   border-bottom: 18px solid transparent;
 }
 
+.connection-accent-field {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+}
+
+.connection-color-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.connection-color-picker button {
+  width: 30px;
+  height: 30px;
+  border: 3px solid var(--surface-1);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--line);
+  transition: transform 120ms var(--ease), box-shadow 120ms var(--ease);
+}
+
+.connection-color-picker button:hover {
+  transform: translateY(-1px);
+}
+
+.connection-color-picker button.is-active {
+  box-shadow: 0 0 0 2px var(--bone);
+}
+
 .field-span-2 {
   grid-column: span 2;
 }

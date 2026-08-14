@@ -52,3 +52,16 @@ test("validates manual proxy settings without allowing plaintext URL credentials
     proxyUrl: "http://proxy-user:proxy-secret@proxy.example.test:3128",
   }).success, false);
 });
+
+test("validates bounded connection organization metadata", () => {
+  const parsed = connectionInputSchema.parse({
+    ...base,
+    groupName: "Shared QA",
+    accentColor: "#83bcff",
+    tags: ["remote", "team-a"],
+  });
+  assert.equal(parsed.groupName, "Shared QA");
+  assert.deepEqual(parsed.tags, ["remote", "team-a"]);
+  assert.equal(connectionInputSchema.safeParse({ ...base, accentColor: "#ffffff" }).success, false);
+  assert.equal(connectionInputSchema.safeParse({ ...base, tags: Array.from({ length: 13 }, (_, index) => `tag-${index}`) }).success, false);
+});

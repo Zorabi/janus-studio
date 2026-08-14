@@ -71,6 +71,10 @@ export type ConnectionProfile = {
   sshHostKeyFingerprint: string;
   enableCompression: boolean;
   customHeaders: string;
+  groupName?: string;
+  accentColor?: string;
+  tags?: string[];
+  lastUsedAt?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -96,7 +100,7 @@ export type ConnectionSummary = ConnectionProfile & {
 
 export type SaveConnectionInput = Omit<
   ConnectionProfile,
-  "id" | "createdAt" | "updatedAt"
+  "id" | "createdAt" | "updatedAt" | "lastUsedAt"
 > & {
   id?: string;
   password?: string;

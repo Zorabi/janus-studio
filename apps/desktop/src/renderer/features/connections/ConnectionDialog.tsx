@@ -63,7 +63,20 @@ const EMPTY_CONNECTION: Omit<SaveConnectionInput, "id"> = {
   sshPrivateKeyPassphrase: "",
   enableCompression: false,
   customHeaders: "{}",
+  groupName: "",
+  accentColor: "#c8ff55",
+  tags: [],
 };
+
+const connectionColors = ["#c8ff55", "#83bcff", "#efb45e", "#ff746a", "#b8a3ff", "#69dfb0"];
+
+function parseConnectionTags(value: string): string[] {
+  return [...new Map(value
+    .split(/[,，;；]/)
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+    .map((tag) => [tag.toLocaleLowerCase(), tag])).values()].slice(0, 12);
+}
 
 function connectionFromForm(
   form: HTMLFormElement,
@@ -127,6 +140,9 @@ function connectionFromForm(
     sshPrivateKeyPassphrase: editing?.hasSshPrivateKeyPassphrase && sshPrivateKeyPassphrase === "" ? undefined : sshPrivateKeyPassphrase,
     enableCompression: data.get("enableCompression") === "on",
     customHeaders: String(data.get("customHeaders") ?? "{}").trim() || "{}",
+    groupName: String(data.get("groupName") ?? "").trim(),
+    accentColor: String(data.get("accentColor") ?? "#c8ff55"),
+    tags: parseConnectionTags(String(data.get("tags") ?? "")),
   };
 }
 
@@ -163,6 +179,7 @@ export function ConnectionDialog({
   const [sshAuthMode, setSshAuthMode] = useState(defaults.sshAuthMode);
   const [sshPrivateKeyPath, setSshPrivateKeyPath] = useState(defaults.sshPrivateKeyPath);
   const [showSshSecret, setShowSshSecret] = useState(false);
+  const [accentColor, setAccentColor] = useState(defaults.accentColor ?? "#c8ff55");
 
   useEffect(() => {
     void window.janusGraphDesktop?.authProfiles.list().then(setAuthProfiles).catch((error) => {
@@ -263,6 +280,40 @@ export function ConnectionDialog({
               ]}
             />
           </label>
+          <label className="field">
+            <span>{t("连接分组", "Connection group")}</span>
+            <input
+              name="groupName"
+              defaultValue={defaults.groupName ?? ""}
+              maxLength={80}
+              placeholder={t("例如：本地、测试集群", "For example: Local or Shared cluster")}
+            />
+          </label>
+          <label className="field">
+            <span>{t("连接标签", "Connection tags")}</span>
+            <input
+              name="tags"
+              defaultValue={(defaults.tags ?? []).join(", ")}
+              placeholder={t("使用逗号分隔，最多 12 个", "Comma-separated, up to 12")}
+            />
+          </label>
+          <div className="field field-span-2 connection-accent-field">
+            <span>{t("识别颜色", "Identification color")}</span>
+            <input type="hidden" name="accentColor" value={accentColor} />
+            <div className="connection-color-picker">
+              {connectionColors.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  className={accentColor === color ? "is-active" : ""}
+                  style={{ background: color }}
+                  onClick={() => setAccentColor(color)}
+                  aria-label={`${t("选择颜色", "Select color")} ${color}`}
+                />
+              ))}
+            </div>
+            <small>{t("颜色只用于快速识别连接，不改变环境安全级别。", "Color helps identify a connection and does not change its environment safety level.")}</small>
+          </div>
           <label className="field">
             <span>{t("协议", "Protocol")}</span>
             <SelectControl

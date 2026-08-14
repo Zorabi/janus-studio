@@ -175,6 +175,7 @@ export class ConnectionService {
   }
 
   async credentialsFor(id: string): Promise<ConnectionRuntimeCredentials> {
+    this.repository.markUsed(id);
     return this.credentials(id);
   }
 

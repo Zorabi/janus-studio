@@ -50,6 +50,10 @@ export function openApplicationDatabase(path: string): DatabaseSync {
       ssh_private_key_passphrase_cipher BLOB,
       enable_compression INTEGER NOT NULL DEFAULT 0,
       custom_headers TEXT NOT NULL DEFAULT '{}',
+      group_name TEXT NOT NULL DEFAULT '',
+      accent_color TEXT NOT NULL DEFAULT '#c8ff55',
+      tags_json TEXT NOT NULL DEFAULT '[]',
+      last_used_at TEXT NOT NULL DEFAULT '',
       password_cipher BLOB,
       tls_client_key_passphrase_cipher BLOB,
       created_at TEXT NOT NULL,
@@ -309,6 +313,19 @@ export function openApplicationDatabase(path: string): DatabaseSync {
   if (!connectionColumns.some((column) => column.name === "connection_read_only")) {
     database.exec("ALTER TABLE connection_profiles ADD COLUMN connection_read_only INTEGER NOT NULL DEFAULT 0");
   }
+  const connectionOrganizationColumns: Array<[string, string]> = [
+    ["group_name", "TEXT NOT NULL DEFAULT ''"],
+    ["accent_color", "TEXT NOT NULL DEFAULT '#c8ff55'"],
+    ["tags_json", "TEXT NOT NULL DEFAULT '[]'"],
+    ["last_used_at", "TEXT NOT NULL DEFAULT ''"],
+  ];
+  for (const [column, definition] of connectionOrganizationColumns) {
+    if (!connectionColumns.some((entry) => entry.name === column)) {
+      database.exec(`ALTER TABLE connection_profiles ADD COLUMN ${column} ${definition}`);
+    }
+  }
+  database.exec("CREATE INDEX IF NOT EXISTS idx_connection_profiles_group_name ON connection_profiles(group_name COLLATE NOCASE, name COLLATE NOCASE)");
+  database.exec("CREATE INDEX IF NOT EXISTS idx_connection_profiles_last_used ON connection_profiles(last_used_at DESC)");
   const snippetColumns = database.prepare("PRAGMA table_info(query_snippets)").all() as Array<{ name: string }>;
   if (!snippetColumns.some((column) => column.name === "traversal_source")) {
     database.exec("ALTER TABLE query_snippets ADD COLUMN traversal_source TEXT NOT NULL DEFAULT ''");
@@ -341,7 +358,7 @@ export function openApplicationDatabase(path: string): DatabaseSync {
     WHERE datetime(updated_at) < datetime('now', '-90 days')
        OR id NOT IN (SELECT id FROM diagnostic_records ORDER BY updated_at DESC LIMIT 200);
   `);
-  database.exec("PRAGMA user_version = 15;");
+  database.exec("PRAGMA user_version = 16;");
 
   return database;
 }

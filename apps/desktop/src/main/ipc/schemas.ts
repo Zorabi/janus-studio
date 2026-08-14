@@ -85,6 +85,9 @@ export const connectionInputSchema = z
     sshPrivateKeyPassphrase: z.string().max(4096).optional(),
     enableCompression: z.boolean().default(false),
     customHeaders: z.string().max(32_768).default("{}"),
+    groupName: z.string().trim().max(80).default(""),
+    accentColor: z.enum(["#c8ff55", "#83bcff", "#efb45e", "#ff746a", "#b8a3ff", "#69dfb0"]).default("#c8ff55"),
+    tags: z.array(z.string().trim().min(1).max(40)).max(12).default([]),
   })
   .superRefine((input, context) => {
     if (

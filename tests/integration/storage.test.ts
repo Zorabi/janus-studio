@@ -44,6 +44,9 @@ test("persists connection profiles, advanced transport settings and history", ()
       proxyUsername: "proxy-user",
       enableCompression: true,
       customHeaders: "{\"X-QA\":\"1\"}",
+      groupName: "Shared QA",
+      accentColor: "#83bcff",
+      tags: ["remote", "team-a"],
     }, new Uint8Array([1, 2, 3]), new Uint8Array([4, 5, 6]), new Uint8Array([7, 8, 9]));
     assert.equal(saved.hasPassword, true);
     assert.equal(saved.tlsRejectUnauthorized, false);
@@ -59,6 +62,14 @@ test("persists connection profiles, advanced transport settings and history", ()
     assert.equal(saved.tlsClientCertPath, "/certs/client.pem");
     assert.equal(saved.tlsClientKeyPath, "/certs/client.key");
     assert.equal(connections.find(saved.id)?.profile.customHeaders, "{\"X-QA\":\"1\"}");
+    assert.equal(saved.groupName, "Shared QA");
+    assert.equal(saved.accentColor, "#83bcff");
+    assert.deepEqual(saved.tags, ["remote", "team-a"]);
+    assert.equal(saved.lastUsedAt, "");
+    connections.save("connection-2", { ...saved, name: "Idle", groupName: "Local", tags: [] });
+    connections.markUsed(saved.id);
+    assert.ok(connections.find(saved.id)?.profile.lastUsedAt);
+    assert.equal(connections.list()[0]?.id, saved.id);
 
     const history = new HistoryRepository(database);
     const entry = history.add(saved.id, saved.name, "g.V().count()", "success", 12, 1);
@@ -111,7 +122,7 @@ test("persists, deduplicates and resolves diagnostic records across restarts", (
     assert.equal(restoredFirst.report.signalsScanned, 3);
     new DiagnosticRecordRepository(database).remove(first.id);
     assert.equal(new DiagnosticRecordRepository(database).list().length, 3);
-    assert.equal(database.prepare("PRAGMA user_version").get()!.user_version, 15);
+    assert.equal(database.prepare("PRAGMA user_version").get()!.user_version, 16);
   } finally {
     database.close();
     rmSync(directory, { recursive: true, force: true });
@@ -439,7 +450,11 @@ test("migrates existing connection profiles to development with write access", (
     const migrated = new ConnectionRepository(database).find("legacy")?.profile;
     assert.equal(migrated?.environment, "dev");
     assert.equal(migrated?.connectionReadOnly, false);
-    assert.equal(database.prepare("PRAGMA user_version").get()?.user_version, 15);
+    assert.equal(migrated?.groupName, "");
+    assert.equal(migrated?.accentColor, "#c8ff55");
+    assert.deepEqual(migrated?.tags, []);
+    assert.equal(migrated?.lastUsedAt, "");
+    assert.equal(database.prepare("PRAGMA user_version").get()?.user_version, 16);
   } finally {
     database.close();
     rmSync(directory, { recursive: true, force: true });
