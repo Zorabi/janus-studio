@@ -15,7 +15,7 @@ import {
   Server,
   Trash2,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { EmptyState, IconButton, PageHeader } from "../../components/ui";
 import { useTranslate } from "../../lib/i18n";
 import { CompatibilityDialog } from "./CompatibilityDialog";
@@ -50,6 +50,10 @@ export function ConnectionsPage({
   const [testReports, setTestReports] = useState<Record<string, ConnectionTestReport>>({});
   const [compatibilityConnection, setCompatibilityConnection] = useState<ConnectionSummary | null>(null);
   const [showAuthenticationProfiles, setShowAuthenticationProfiles] = useState(false);
+
+  useEffect(() => {
+    onConnectionsChanged();
+  }, [onConnectionsChanged]);
 
   return (
     <div className="page-scroll">
@@ -124,7 +128,18 @@ export function ConnectionsPage({
                             {connection.proxyMode === "system" ? t("系统代理", "System proxy") : t("手动代理", "Manual proxy")}
                           </span>
                         )}
-                        {connection.sshEnabled && <span className="badge transport">SSH Tunnel</span>}
+                        {connection.sshEnabled && (
+                          <span
+                            className={`badge transport tunnel-${connection.sshTunnel?.status ?? "inactive"}`}
+                            title={connection.sshTunnel?.status === "connected" && connection.sshTunnel.localPort
+                              ? `${t("本地转发端口", "Local forwarding port")}: ${connection.sshTunnel.localPort}`
+                              : t("首次使用时按需建立", "Established on first use")}
+                          >
+                            {connection.sshTunnel?.status === "connected"
+                              ? t("SSH 已连接", "SSH connected")
+                              : t("SSH 按需", "SSH on demand")}
+                          </span>
+                        )}
                         {connection.authProfileId && <span className="badge transport">{t("认证方案", "Auth profile")}</span>}
                         {connection.hasSensitiveHeaders && <span className="badge transport">{t("加密 Header", "Encrypted headers")}</span>}
                         {active && (

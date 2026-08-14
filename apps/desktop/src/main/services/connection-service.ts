@@ -68,7 +68,12 @@ export class ConnectionService {
   ) {}
 
   list(): ConnectionSummary[] {
-    return this.repository.list();
+    return this.repository.list().map((connection) => ({
+      ...connection,
+      sshTunnel: connection.sshEnabled
+        ? this.gremlinService.sshTunnelSnapshot(connection.id)
+        : undefined,
+    }));
   }
 
   async save(rawInput: SaveConnectionInput): Promise<ConnectionSummary> {

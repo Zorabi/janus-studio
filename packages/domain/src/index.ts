@@ -75,6 +75,11 @@ export type ConnectionProfile = {
   updatedAt: string;
 };
 
+export type ConnectionSshTunnelSnapshot = {
+  status: "inactive" | "connected";
+  localPort?: number;
+};
+
 export type ConnectionSummary = ConnectionProfile & {
   hasPassword: boolean;
   hasTlsClientKeyPassphrase: boolean;
@@ -82,6 +87,7 @@ export type ConnectionSummary = ConnectionProfile & {
   hasSensitiveHeaders: boolean;
   hasSshPassword: boolean;
   hasSshPrivateKeyPassphrase: boolean;
+  sshTunnel?: ConnectionSshTunnelSnapshot;
 };
 
 export type SaveConnectionInput = Omit<

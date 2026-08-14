@@ -1,6 +1,7 @@
 import { connectionEndpoint } from "@janusgraph/application";
 import type {
   ConnectionProfile,
+  ConnectionSshTunnelSnapshot,
   ConnectionTestReport,
   QueryExecutionResult,
   RuntimeAuthentication,
@@ -283,6 +284,10 @@ export class GremlinService {
     if (!Reflect.deleteProperty(globalThis, "WebSocket") && "WebSocket" in globalThis) {
       throw new Error("无法初始化支持代理与 TLS 的 Gremlin WebSocket 传输");
     }
+  }
+
+  sshTunnelSnapshot(connectionId: string): ConnectionSshTunnelSnapshot {
+    return this.sshTunnels.snapshot(connectionId);
   }
 
   async test(

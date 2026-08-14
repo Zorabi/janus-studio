@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { generateKeyPairSync } from "node:crypto";
+import { once } from "node:events";
 import { mkdtempSync, rmSync } from "node:fs";
 import net, { createServer as createTcpServer } from "node:net";
 import { tmpdir } from "node:os";
@@ -148,7 +149,13 @@ test("forwards traffic through SSH only after strict host-key verification", asy
   const parsed = utils.parseKey(privateKey);
   assert.ok(!(parsed instanceof Error) && !Array.isArray(parsed));
   const fingerprint = sshHostKeyFingerprint(parsed.getPublicSSH());
+  let disconnectSsh: () => Promise<void> = async () => undefined;
   const ssh = new SshServer({ hostKeys: [privateKey] }, (client) => {
+    disconnectSsh = async () => {
+      const closed = new Promise<void>((resolve) => client.once("close", resolve));
+      client.end();
+      await closed;
+    };
     client.on("error", () => undefined);
     client.on("authentication", (context) => {
       if (context.method === "password" && context.username === "studio" && context.password === "ssh-secret") context.accept();
@@ -187,6 +194,24 @@ test("forwards traffic through SSH only after strict host-key verification", asy
       socket.once("error", reject);
     });
     assert.equal(received, "through-ssh");
+    assert.deepEqual(tunnels.snapshot(connection.id), { status: "connected", localPort: routed.port });
+
+    await disconnectSsh();
+    for (let attempt = 0; attempt < 20 && tunnels.snapshot(connection.id).status !== "inactive"; attempt += 1) {
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
+    assert.deepEqual(tunnels.snapshot(connection.id), { status: "inactive" });
+    const reconnected = await tunnels.route(connection, runtime);
+    assert.equal(tunnels.snapshot(connection.id).status, "connected");
+
+    const heldSocket = net.connect(reconnected.port, reconnected.host);
+    await once(heldSocket, "connect");
+    heldSocket.on("error", () => undefined);
+    const heldSocketClosed = new Promise<void>((resolve) => heldSocket.once("close", resolve));
+    await tunnels.close(connection.id);
+    await heldSocketClosed;
+    assert.deepEqual(tunnels.snapshot(connection.id), { status: "inactive" });
+
     await assert.rejects(
       new SshTunnelService().route({ ...connection, id: "22222222-2222-4222-8222-222222222222", sshHostKeyFingerprint: `SHA256:${"A".repeat(43)}` }, runtime),
       /主机密钥不匹配/,

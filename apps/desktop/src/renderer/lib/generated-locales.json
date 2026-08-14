@@ -1242,7 +1242,11 @@
     "VERTICES + EDGES": "VERTICES + EDGES",
     "WebSocket 压缩": "WebSocket 壓縮",
     "WS/WSS 使用 SASL PLAIN，HTTP/HTTPS 使用 Basic。JanusGraph 标准认证可直接使用。": "Uses SASL PLAIN for WS/WSS and Basic for HTTP/HTTPS. Works with standard JanusGraph authentication.",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS 預設開啟；僅在受控測試環境中關閉"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS 預設開啟；僅在受控測試環境中關閉",
+    "本地转发端口": "Local forwarding port",
+    "首次使用时按需建立": "Established on first use",
+    "SSH 按需": "SSH on demand",
+    "SSH 已连接": "SSH connected"
   },
   "ja-JP": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "「現在欠落している」とは、定義がベースラインには存在するが、この読み取り結果には表示されないことのみを意味します。 Janus Studio がそのようなスキーマ定義の削除をサポートするという意味ではありません。",
@@ -2487,7 +2491,11 @@
     "VERTICES + EDGES": "頂点 + エッジ",
     "WebSocket 压缩": "WebSocket圧縮",
     "WS/WSS 使用 SASL PLAIN，HTTP/HTTPS 使用 Basic。JanusGraph 标准认证可直接使用。": "Uses SASL PLAIN for WS/WSS and Basic for HTTP/HTTPS. Works with standard JanusGraph authentication.",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS はデフォルトでオンになっています。管理されたテスト環境でのみオフになります"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS はデフォルトでオンになっています。管理されたテスト環境でのみオフになります",
+    "本地转发端口": "Local forwarding port",
+    "首次使用时按需建立": "Established on first use",
+    "SSH 按需": "SSH on demand",
+    "SSH 已连接": "SSH connected"
   },
   "ko-KR": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "\"현재 누락됨\"은 정의가 기준선에 존재하지만 이 읽기 결과에는 나타나지 않음을 의미합니다. 이는 Janus Studio가 그러한 스키마 정의 삭제를 지원한다는 의미는 아닙니다.",
@@ -3732,7 +3740,11 @@
     "VERTICES + EDGES": "정점 + 가장자리",
     "WebSocket 压缩": "WebSocket 압축",
     "WS/WSS 使用 SASL PLAIN，HTTP/HTTPS 使用 Basic。JanusGraph 标准认证可直接使用。": "Uses SASL PLAIN for WS/WSS and Basic for HTTP/HTTPS. Works with standard JanusGraph authentication.",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS는 기본적으로 켜져 있습니다. 통제된 테스트 환경에서만 꺼짐"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS는 기본적으로 켜져 있습니다. 통제된 테스트 환경에서만 꺼짐",
+    "本地转发端口": "Local forwarding port",
+    "首次使用时按需建立": "Established on first use",
+    "SSH 按需": "SSH on demand",
+    "SSH 已连接": "SSH connected"
   },
   "de-DE": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "„Derzeit fehlt“ bedeutet nur, dass die Definition in der Baseline vorhanden ist, aber in diesem Leseergebnis nicht erscheint; Dies bedeutet nicht, dass Janus Studio das Löschen solcher Schemadefinitionen unterstützt.",
@@ -4977,7 +4989,11 @@
     "VERTICES + EDGES": "Scheitelpunkte + Kanten",
     "WebSocket 压缩": "WebSocket-Komprimierung",
     "WS/WSS 使用 SASL PLAIN，HTTP/HTTPS 使用 Basic。JanusGraph 标准认证可直接使用。": "Uses SASL PLAIN for WS/WSS and Basic for HTTP/HTTPS. Works with standard JanusGraph authentication.",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS ist standardmäßig aktiviert; nur in kontrollierten Testumgebungen ausgeschaltet"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS ist standardmäßig aktiviert; nur in kontrollierten Testumgebungen ausgeschaltet",
+    "本地转发端口": "Local forwarding port",
+    "首次使用时按需建立": "Established on first use",
+    "SSH 按需": "SSH on demand",
+    "SSH 已连接": "SSH connected"
   },
   "fr-FR": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "« Actuellement manquant » signifie uniquement que la définition existe dans la ligne de base mais n'apparaît pas dans ce résultat de lecture ; cela ne signifie pas que Janus Studio prend en charge la suppression de telles définitions de schéma.",
@@ -6222,7 +6238,11 @@
     "VERTICES + EDGES": "SOMMETS + BORDS",
     "WebSocket 压缩": "Compression WebSocket",
     "WS/WSS 使用 SASL PLAIN，HTTP/HTTPS 使用 Basic。JanusGraph 标准认证可直接使用。": "Uses SASL PLAIN for WS/WSS and Basic for HTTP/HTTPS. Works with standard JanusGraph authentication.",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS est activé par défaut ; uniquement désactivé dans des environnements de test contrôlés"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS est activé par défaut ; uniquement désactivé dans des environnements de test contrôlés",
+    "本地转发端口": "Local forwarding port",
+    "首次使用时按需建立": "Established on first use",
+    "SSH 按需": "SSH on demand",
+    "SSH 已连接": "SSH connected"
   },
   "es-ES": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "\"Actualmente faltante\" solo significa que la definición existe en la línea base pero no aparece en este resultado de lectura; Esto no significa que Janus Studio admita la eliminación de dichas definiciones de esquema.",
@@ -7467,7 +7487,11 @@
     "VERTICES + EDGES": "VERTICES + ARISTAS",
     "WebSocket 压缩": "Compresión WebSocket",
     "WS/WSS 使用 SASL PLAIN，HTTP/HTTPS 使用 Basic。JanusGraph 标准认证可直接使用。": "Uses SASL PLAIN for WS/WSS and Basic for HTTP/HTTPS. Works with standard JanusGraph authentication.",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS está activado de forma predeterminada; sólo apagado en entornos de prueba controlados"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS está activado de forma predeterminada; sólo apagado en entornos de prueba controlados",
+    "本地转发端口": "Local forwarding port",
+    "首次使用时按需建立": "Established on first use",
+    "SSH 按需": "SSH on demand",
+    "SSH 已连接": "SSH connected"
   },
   "pt-BR": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "\"Atualmente ausente\" significa apenas que a definição existe na linha de base, mas não aparece neste resultado de leitura; isso não significa que o Janus Studio suporta a exclusão de tais definições de esquema.",
@@ -8712,7 +8736,11 @@
     "VERTICES + EDGES": "VÉRTICES + BORDAS",
     "WebSocket 压缩": "Compressão WebSocket",
     "WS/WSS 使用 SASL PLAIN，HTTP/HTTPS 使用 Basic。JanusGraph 标准认证可直接使用。": "Uses SASL PLAIN for WS/WSS and Basic for HTTP/HTTPS. Works with standard JanusGraph authentication.",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS está ativado por padrão; somente desativado em ambientes de teste controlados"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS está ativado por padrão; somente desativado em ambientes de teste controlados",
+    "本地转发端口": "Local forwarding port",
+    "首次使用时按需建立": "Established on first use",
+    "SSH 按需": "SSH on demand",
+    "SSH 已连接": "SSH connected"
   },
   "it-IT": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "\"Attualmente mancante\" significa solo che la definizione esiste nella linea di base ma non appare in questo risultato di lettura; ciò non significa che Janus Studio supporti l'eliminazione di tali definizioni di schema.",
@@ -9957,7 +9985,11 @@
     "VERTICES + EDGES": "VERTICI + BORDI",
     "WebSocket 压缩": "Compressione WebSocket",
     "WS/WSS 使用 SASL PLAIN，HTTP/HTTPS 使用 Basic。JanusGraph 标准认证可直接使用。": "Uses SASL PLAIN for WS/WSS and Basic for HTTP/HTTPS. Works with standard JanusGraph authentication.",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS è attivo per impostazione predefinita; disattivato solo in ambienti di test controllati"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS è attivo per impostazione predefinita; disattivato solo in ambienti di test controllati",
+    "本地转发端口": "Local forwarding port",
+    "首次使用时按需建立": "Established on first use",
+    "SSH 按需": "SSH on demand",
+    "SSH 已连接": "SSH connected"
   },
   "ru-RU": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "«В настоящее время отсутствует» означает только то, что определение существует в базовой версии, но не отображается в этом результате чтения; это не означает, что Janus Studio поддерживает удаление таких определений схемы.",
@@ -11202,7 +11234,11 @@
     "VERTICES + EDGES": "ВЕРШИНЫ + КРАЯ",
     "WebSocket 压缩": "Сжатие веб-сокетов",
     "WS/WSS 使用 SASL PLAIN，HTTP/HTTPS 使用 Basic。JanusGraph 标准认证可直接使用。": "Uses SASL PLAIN for WS/WSS and Basic for HTTP/HTTPS. Works with standard JanusGraph authentication.",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS включен по умолчанию; отключено только в контролируемых средах тестирования"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS включен по умолчанию; отключено только в контролируемых средах тестирования",
+    "本地转发端口": "Local forwarding port",
+    "首次使用时按需建立": "Established on first use",
+    "SSH 按需": "SSH on demand",
+    "SSH 已连接": "SSH connected"
   },
   "pl-PL": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "„Obecnie brak” oznacza jedynie, że definicja istnieje w wersji podstawowej, ale nie pojawia się w tym wyniku odczytu; nie oznacza to, że Janus Studio obsługuje usuwanie takich definicji schematów.",
@@ -12447,7 +12483,11 @@
     "VERTICES + EDGES": "Wierzchołki + Krawędzie",
     "WebSocket 压缩": "Kompresja WebSocket",
     "WS/WSS 使用 SASL PLAIN，HTTP/HTTPS 使用 Basic。JanusGraph 标准认证可直接使用。": "Uses SASL PLAIN for WS/WSS and Basic for HTTP/HTTPS. Works with standard JanusGraph authentication.",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS jest domyślnie włączony; wyłączone tylko w kontrolowanych środowiskach testowych"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS jest domyślnie włączony; wyłączone tylko w kontrolowanych środowiskach testowych",
+    "本地转发端口": "Local forwarding port",
+    "首次使用时按需建立": "Established on first use",
+    "SSH 按需": "SSH on demand",
+    "SSH 已连接": "SSH connected"
   },
   "tr-TR": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "\"Şu anda eksik\" yalnızca tanımın taban çizgisinde mevcut olduğu ancak bu okuma sonucunda görünmediği anlamına gelir; bu, Janus Studio'nun bu tür Şema tanımlarının silinmesini desteklediği anlamına gelmez.",
@@ -13692,7 +13732,11 @@
     "VERTICES + EDGES": "KÖŞELER + KENARLAR",
     "WebSocket 压缩": "WebSocket sıkıştırması",
     "WS/WSS 使用 SASL PLAIN，HTTP/HTTPS 使用 Basic。JanusGraph 标准认证可直接使用。": "Uses SASL PLAIN for WS/WSS and Basic for HTTP/HTTPS. Works with standard JanusGraph authentication.",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS varsayılan olarak açıktır; yalnızca kontrollü test ortamlarında kapalı"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS varsayılan olarak açıktır; yalnızca kontrollü test ortamlarında kapalı",
+    "本地转发端口": "Local forwarding port",
+    "首次使用时按需建立": "Established on first use",
+    "SSH 按需": "SSH on demand",
+    "SSH 已连接": "SSH connected"
   },
   "vi-VN": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "\"Hiện bị thiếu\" chỉ có nghĩa là định nghĩa tồn tại trong đường cơ sở nhưng không xuất hiện trong kết quả đọc này; điều đó không có nghĩa là Janus Studio hỗ trợ xóa các định nghĩa Schema như vậy.",
@@ -14937,6 +14981,10 @@
     "VERTICES + EDGES": "ĐỈNH + CẠNH",
     "WebSocket 压缩": "Nén WebSocket",
     "WS/WSS 使用 SASL PLAIN，HTTP/HTTPS 使用 Basic。JanusGraph 标准认证可直接使用。": "Uses SASL PLAIN for WS/WSS and Basic for HTTP/HTTPS. Works with standard JanusGraph authentication.",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS được bật theo mặc định; chỉ tắt trong môi trường thử nghiệm được kiểm soát"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS được bật theo mặc định; chỉ tắt trong môi trường thử nghiệm được kiểm soát",
+    "本地转发端口": "Local forwarding port",
+    "首次使用时按需建立": "Established on first use",
+    "SSH 按需": "SSH on demand",
+    "SSH 已连接": "SSH connected"
   }
 }
