@@ -176,6 +176,10 @@ export const connectionInputSchema = z
   });
 
 export const connectionIdSchema = z.string().uuid();
+export const saveConnectionArchiveSchema = z.object({
+  suggestedName: z.string().trim().min(1).max(255),
+  content: z.string().max(2 * 1024 * 1024),
+});
 export const tlsFileKindSchema = z.enum(["ca", "certificate", "private-key"]);
 export const compatibilityRequestSchema = z.object({
   connectionId: connectionIdSchema,

@@ -7,6 +7,8 @@ import {
   Cpu,
   Database,
   Edit3,
+  FileDown,
+  FileUp,
   Stethoscope,
   LoaderCircle,
   KeyRound,
@@ -25,6 +27,14 @@ import { useTranslate } from "../../lib/i18n";
 import { CompatibilityDialog } from "./CompatibilityDialog";
 import { ConnectionTestStages } from "./ConnectionTestStages";
 import { AuthenticationProfilesDialog } from "./AuthenticationProfilesDialog";
+import { ConnectionWorkspaceImportDialog } from "./ConnectionWorkspaceImportDialog";
+import {
+  createConnectionWorkspaceArchive,
+  parseConnectionWorkspaceArchive,
+  planConnectionWorkspaceImport,
+  type ConnectionImportPlanRow,
+} from "../../lib/connection-workspace";
+import { errorMessage } from "../../lib/presentation";
 
 export interface ConnectionsPageProps {
   connections: ConnectionSummary[];
@@ -56,6 +66,9 @@ export function ConnectionsPage({
   const [showAuthenticationProfiles, setShowAuthenticationProfiles] = useState(false);
   const [search, setSearch] = useState("");
   const [groupFilter, setGroupFilter] = useState("");
+  const [workspaceBusy, setWorkspaceBusy] = useState<"import" | "export" | "">("");
+  const [workspaceMessage, setWorkspaceMessage] = useState("");
+  const [importReview, setImportReview] = useState<{ sourceName: string; rows: ConnectionImportPlanRow[] } | null>(null);
 
   const groups = useMemo(() => [...new Set(connections
     .map((connection) => connection.groupName?.trim() || "")
@@ -90,6 +103,39 @@ export function ConnectionsPage({
     if (groupFilter && !groups.includes(groupFilter)) setGroupFilter("");
   }, [groupFilter, groups]);
 
+  const exportWorkspace = async () => {
+    setWorkspaceBusy("export");
+    setWorkspaceMessage("");
+    try {
+      const date = new Date();
+      const suffix = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}${String(date.getDate()).padStart(2, "0")}`;
+      const path = await window.janusGraphDesktop!.files.saveConnectionArchive({
+        suggestedName: `janus-studio-connections-${suffix}.json`,
+        content: `${JSON.stringify(createConnectionWorkspaceArchive(connections), null, 2)}\n`,
+      });
+      if (path) setWorkspaceMessage(t("连接工作区已安全导出，归档不包含任何凭据。", "Connection workspace exported safely without credentials."));
+    } catch (error) {
+      setWorkspaceMessage(errorMessage(error));
+    } finally {
+      setWorkspaceBusy("");
+    }
+  };
+
+  const inspectWorkspace = async () => {
+    setWorkspaceBusy("import");
+    setWorkspaceMessage("");
+    try {
+      const picked = await window.janusGraphDesktop!.files.pickConnectionArchive();
+      if (!picked) return;
+      const archive = parseConnectionWorkspaceArchive(picked.content);
+      setImportReview({ sourceName: picked.name, rows: planConnectionWorkspaceImport(archive, connections) });
+    } catch (error) {
+      setWorkspaceMessage(errorMessage(error));
+    } finally {
+      setWorkspaceBusy("");
+    }
+  };
+
   return (
     <div className="page-scroll">
       <PageHeader
@@ -101,11 +147,18 @@ export function ConnectionsPage({
         )}
         actions={
           <>
+            <button type="button" className="button secondary" onClick={() => void inspectWorkspace()} disabled={Boolean(workspaceBusy)}>
+              {workspaceBusy === "import" ? <LoaderCircle className="spin" size={17} /> : <FileUp size={17} />}{t("导入配置", "Import")}
+            </button>
+            <button type="button" className="button secondary" onClick={() => void exportWorkspace()} disabled={Boolean(workspaceBusy) || connections.length === 0}>
+              {workspaceBusy === "export" ? <LoaderCircle className="spin" size={17} /> : <FileDown size={17} />}{t("导出配置", "Export")}
+            </button>
             <button type="button" className="button secondary" onClick={() => setShowAuthenticationProfiles(true)}><KeyRound size={17} />{t("认证方案", "Authentication Profiles")}</button>
             <button type="button" className="button primary" onClick={onAdd}><Plus size={17} />{t("添加连接", "Add Connection")}</button>
           </>
         }
       />
+      {workspaceMessage && <div className="connection-workspace-message" role="status">{workspaceMessage}</div>}
       {connections.length > 0 && (
         <section className="connection-organizer" aria-label={t("整理连接", "Organize connections")}>
           <label className="connection-search">
@@ -406,6 +459,17 @@ export function ConnectionsPage({
         />
       )}
       {showAuthenticationProfiles && <AuthenticationProfilesDialog onClose={() => setShowAuthenticationProfiles(false)} onConnectionsChanged={onConnectionsChanged} />}
+      {importReview && (
+        <ConnectionWorkspaceImportDialog
+          sourceName={importReview.sourceName}
+          rows={importReview.rows}
+          onClose={() => setImportReview(null)}
+          onImported={async () => {
+            await onConnectionsChanged();
+            setWorkspaceMessage(t("连接工作区导入完成。请为标记的连接补充本机凭据后再测试。", "Connection workspace imported. Add local credentials to marked connections before testing."));
+          }}
+        />
+      )}
     </div>
   );
 }

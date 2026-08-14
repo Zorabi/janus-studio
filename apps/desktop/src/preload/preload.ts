@@ -79,6 +79,8 @@ const desktopApi: DesktopApi = {
     saveQueryFile: (input) => ipcRenderer.invoke("files:save-query", input),
     pickSchemaFile: () => ipcRenderer.invoke("files:pick-schema"),
     saveSchemaFile: (input) => ipcRenderer.invoke("files:save-schema", input),
+    pickConnectionArchive: () => ipcRenderer.invoke("files:pick-connection-archive"),
+    saveConnectionArchive: (input) => ipcRenderer.invoke("files:save-connection-archive", input),
   },
   dataTransfers: {
     dockerStatus: () => ipcRenderer.invoke("data-transfers:docker-status"),

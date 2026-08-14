@@ -4,11 +4,13 @@ import type {
   PickedDataFile,
   PickedQueryFile,
   PickedSchemaFile,
+  PickedConnectionArchive,
   SaveDataFileInput,
   SaveGraphFileInput,
   SaveResultFileInput,
   SaveQueryFileInput,
   SaveSchemaFileInput,
+  SaveConnectionArchiveInput,
   DiagnosticBundleResult,
   DiagnosticBundleInspectionResult,
 } from "@janusgraph/domain";
@@ -414,6 +416,35 @@ export class FileService {
         ? input.suggestedName
         : `${input.suggestedName}.json`,
       filters: [{ name: "Janus Studio Schema", extensions: ["json"] }],
+    });
+    if (result.canceled || !result.filePath) return null;
+    await writeFile(result.filePath, input.content, "utf8");
+    return result.filePath;
+  }
+
+  async pickConnectionArchive(): Promise<PickedConnectionArchive | null> {
+    const result = await dialog.showOpenDialog(this.window, {
+      title: "导入连接工作区",
+      properties: ["openFile"],
+      filters: [{ name: "Janus Studio 连接工作区", extensions: ["json"] }],
+    });
+    const path = result.filePaths[0];
+    if (result.canceled || !path) return null;
+    const file = await stat(path);
+    if (!file.isFile() || file.size > 2 * 1024 * 1024) {
+      throw new Error("连接工作区文件不是普通文件或超过 2 MB 安全限制");
+    }
+    return {
+      name: path.split(/[\\/]/).at(-1) ?? "connections.json",
+      content: await readFile(path, "utf8"),
+    };
+  }
+
+  async saveConnectionArchive(input: SaveConnectionArchiveInput): Promise<string | null> {
+    const result = await dialog.showSaveDialog(this.window, {
+      title: "导出连接工作区",
+      defaultPath: input.suggestedName.endsWith(".json") ? input.suggestedName : `${input.suggestedName}.json`,
+      filters: [{ name: "Janus Studio 连接工作区", extensions: ["json"] }],
     });
     if (result.canceled || !result.filePath) return null;
     await writeFile(result.filePath, input.content, "utf8");

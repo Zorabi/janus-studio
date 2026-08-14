@@ -368,6 +368,16 @@ export type SaveSchemaFileInput = {
   content: string;
 };
 
+export type PickedConnectionArchive = {
+  name: string;
+  content: string;
+};
+
+export type SaveConnectionArchiveInput = {
+  suggestedName: string;
+  content: string;
+};
+
 export type SaveQueryFileInput = {
   suggestedName: string;
   content: string;
@@ -665,6 +675,8 @@ export type DesktopApi = {
     saveQueryFile(input: SaveQueryFileInput): Promise<string | null>;
     pickSchemaFile(): Promise<PickedSchemaFile | null>;
     saveSchemaFile(input: SaveSchemaFileInput): Promise<string | null>;
+    pickConnectionArchive(): Promise<PickedConnectionArchive | null>;
+    saveConnectionArchive(input: SaveConnectionArchiveInput): Promise<string | null>;
   };
   dataTransfers: {
     dockerStatus(): Promise<DockerRuntimeStatus>;

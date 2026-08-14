@@ -56,6 +56,7 @@ import {
   saveResultFileSchema,
   saveQueryFileSchema,
   saveSchemaFileSchema,
+  saveConnectionArchiveSchema,
   runSchemaJobSchema,
   schemaJobIdSchema,
   startGraphTransferSchema,
@@ -438,6 +439,16 @@ export function registerIpcHandlers({
   ipcMain.handle("files:save-schema", async (event, rawInput: unknown) => {
     assertTrustedSender(event, window);
     return fileService.saveSchemaFile(saveSchemaFileSchema.parse(rawInput));
+  });
+
+  ipcMain.handle("files:pick-connection-archive", async (event) => {
+    assertTrustedSender(event, window);
+    return fileService.pickConnectionArchive();
+  });
+
+  ipcMain.handle("files:save-connection-archive", async (event, rawInput: unknown) => {
+    assertTrustedSender(event, window);
+    return fileService.saveConnectionArchive(saveConnectionArchiveSchema.parse(rawInput));
   });
 
   ipcMain.handle("data-transfers:docker-status", async (event) => {
