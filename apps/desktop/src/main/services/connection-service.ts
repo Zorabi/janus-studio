@@ -159,6 +159,9 @@ export class ConnectionService {
     const profile = transientProfile(input);
     const credentials = await this.credentials(input.id, input);
     const report = await this.gremlinService.test(profile, credentials);
+    if (input.id && this.repository.find(input.id)) {
+      this.repository.markTested(input.id, report);
+    }
     return { ...report, endpoint: connectionEndpoint(profile) };
   }
 

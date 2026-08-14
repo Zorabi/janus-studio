@@ -45,6 +45,10 @@ type ConnectionRow = {
   accent_color: string;
   tags_json: string;
   last_used_at: string;
+  last_tested_at: string;
+  last_test_status: string;
+  last_test_latency_ms: number;
+  last_test_stage: string;
   password_cipher: Uint8Array | null;
   tls_client_key_passphrase_cipher: Uint8Array | null;
   proxy_password_cipher: Uint8Array | null;
@@ -105,6 +109,10 @@ function toProfile(row: ConnectionRow): ConnectionProfile {
     accentColor: row.accent_color || "#c8ff55",
     tags: parseTags(row.tags_json || "[]"),
     lastUsedAt: row.last_used_at || "",
+    lastTestedAt: row.last_tested_at || "",
+    lastTestStatus: row.last_test_status === "passed" || row.last_test_status === "failed" ? row.last_test_status : undefined,
+    lastTestLatencyMs: row.last_tested_at ? row.last_test_latency_ms : undefined,
+    lastTestStage: (["dns", "tcp", "ssh", "proxy", "tls", "authentication", "gremlin", "schema"] as const).find((stage) => stage === row.last_test_stage),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -179,8 +187,9 @@ export class ConnectionRepository {
           ssh_password_cipher, ssh_private_key_passphrase_cipher,
           enable_compression, custom_headers, password_cipher, tls_client_key_passphrase_cipher, proxy_password_cipher,
           group_name, accent_color, tags_json, last_used_at,
+          last_tested_at, last_test_status, last_test_latency_ms, last_test_stage,
           created_at, updated_at
-        ) VALUES (${Array.from({ length: 47 }, () => "?").join(", ")})
+        ) VALUES (${Array.from({ length: 51 }, () => "?").join(", ")})
         ON CONFLICT(id) DO UPDATE SET
           name = excluded.name,
           protocol = excluded.protocol,
@@ -273,6 +282,10 @@ export class ConnectionRepository {
         input.accentColor ?? "#c8ff55",
         JSON.stringify(input.tags ?? []),
         existing?.profile.lastUsedAt ?? "",
+        existing?.profile.lastTestedAt ?? "",
+        existing?.profile.lastTestStatus ?? "",
+        existing?.profile.lastTestLatencyMs ?? 0,
+        existing?.profile.lastTestStage ?? "",
         createdAt,
         now,
       );
@@ -297,5 +310,13 @@ export class ConnectionRepository {
 
   markUsed(id: string): void {
     this.database.prepare("UPDATE connection_profiles SET last_used_at = ? WHERE id = ?").run(new Date().toISOString(), id);
+  }
+
+  markTested(id: string, result: { success: boolean; latencyMs: number; stage: string }): void {
+    this.database.prepare(`
+      UPDATE connection_profiles
+      SET last_tested_at = ?, last_test_status = ?, last_test_latency_ms = ?, last_test_stage = ?
+      WHERE id = ?
+    `).run(new Date().toISOString(), result.success ? "passed" : "failed", Math.max(0, Math.round(result.latencyMs)), result.stage, id);
   }
 }

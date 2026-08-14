@@ -1,6 +1,6 @@
 .connection-organizer {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) minmax(240px, 320px) auto;
+  grid-template-columns: minmax(240px, 1fr) minmax(210px, 300px) auto auto;
   align-items: center;
   gap: 10px;
   margin-bottom: 16px;
@@ -50,6 +50,11 @@
   text-align: center;
 }
 
+.connection-bulk-test {
+  min-height: 46px;
+  white-space: nowrap;
+}
+
 .connection-context-row {
   display: flex;
   min-width: 0;
@@ -89,6 +94,31 @@
   color: var(--muted-2);
   font-size: var(--text-xs);
   white-space: nowrap;
+}
+
+.connection-health {
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-height: 22px;
+  align-items: center;
+  gap: 5px;
+  padding: 0 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--surface-1);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.connection-health.is-passed {
+  color: var(--acid);
+  border-color: color-mix(in srgb, var(--acid) 32%, var(--line));
+}
+
+.connection-health.is-failed {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 38%, var(--line));
 }
 
 .connection-workspace-message {

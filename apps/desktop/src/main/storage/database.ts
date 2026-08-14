@@ -54,6 +54,10 @@ export function openApplicationDatabase(path: string): DatabaseSync {
       accent_color TEXT NOT NULL DEFAULT '#c8ff55',
       tags_json TEXT NOT NULL DEFAULT '[]',
       last_used_at TEXT NOT NULL DEFAULT '',
+      last_tested_at TEXT NOT NULL DEFAULT '',
+      last_test_status TEXT NOT NULL DEFAULT '',
+      last_test_latency_ms INTEGER NOT NULL DEFAULT 0,
+      last_test_stage TEXT NOT NULL DEFAULT '',
       password_cipher BLOB,
       tls_client_key_passphrase_cipher BLOB,
       created_at TEXT NOT NULL,
@@ -318,6 +322,10 @@ export function openApplicationDatabase(path: string): DatabaseSync {
     ["accent_color", "TEXT NOT NULL DEFAULT '#c8ff55'"],
     ["tags_json", "TEXT NOT NULL DEFAULT '[]'"],
     ["last_used_at", "TEXT NOT NULL DEFAULT ''"],
+    ["last_tested_at", "TEXT NOT NULL DEFAULT ''"],
+    ["last_test_status", "TEXT NOT NULL DEFAULT ''"],
+    ["last_test_latency_ms", "INTEGER NOT NULL DEFAULT 0"],
+    ["last_test_stage", "TEXT NOT NULL DEFAULT ''"],
   ];
   for (const [column, definition] of connectionOrganizationColumns) {
     if (!connectionColumns.some((entry) => entry.name === column)) {
@@ -358,7 +366,7 @@ export function openApplicationDatabase(path: string): DatabaseSync {
     WHERE datetime(updated_at) < datetime('now', '-90 days')
        OR id NOT IN (SELECT id FROM diagnostic_records ORDER BY updated_at DESC LIMIT 200);
   `);
-  database.exec("PRAGMA user_version = 16;");
+  database.exec("PRAGMA user_version = 17;");
 
   return database;
 }

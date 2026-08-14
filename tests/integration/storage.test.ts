@@ -66,10 +66,17 @@ test("persists connection profiles, advanced transport settings and history", ()
     assert.equal(saved.accentColor, "#83bcff");
     assert.deepEqual(saved.tags, ["remote", "team-a"]);
     assert.equal(saved.lastUsedAt, "");
+    assert.equal(saved.lastTestedAt, "");
     connections.save("connection-2", { ...saved, name: "Idle", groupName: "Local", tags: [] });
     connections.markUsed(saved.id);
     assert.ok(connections.find(saved.id)?.profile.lastUsedAt);
     assert.equal(connections.list()[0]?.id, saved.id);
+    connections.markTested(saved.id, { success: false, latencyMs: 321.4, stage: "authentication" });
+    const tested = connections.find(saved.id)!.profile;
+    assert.ok(tested.lastTestedAt);
+    assert.equal(tested.lastTestStatus, "failed");
+    assert.equal(tested.lastTestLatencyMs, 321);
+    assert.equal(tested.lastTestStage, "authentication");
 
     const history = new HistoryRepository(database);
     const entry = history.add(saved.id, saved.name, "g.V().count()", "success", 12, 1);
@@ -122,7 +129,7 @@ test("persists, deduplicates and resolves diagnostic records across restarts", (
     assert.equal(restoredFirst.report.signalsScanned, 3);
     new DiagnosticRecordRepository(database).remove(first.id);
     assert.equal(new DiagnosticRecordRepository(database).list().length, 3);
-    assert.equal(database.prepare("PRAGMA user_version").get()!.user_version, 16);
+    assert.equal(database.prepare("PRAGMA user_version").get()!.user_version, 17);
   } finally {
     database.close();
     rmSync(directory, { recursive: true, force: true });
@@ -454,7 +461,7 @@ test("migrates existing connection profiles to development with write access", (
     assert.equal(migrated?.accentColor, "#c8ff55");
     assert.deepEqual(migrated?.tags, []);
     assert.equal(migrated?.lastUsedAt, "");
-    assert.equal(database.prepare("PRAGMA user_version").get()?.user_version, 16);
+    assert.equal(database.prepare("PRAGMA user_version").get()?.user_version, 17);
   } finally {
     database.close();
     rmSync(directory, { recursive: true, force: true });

@@ -4,6 +4,7 @@ import {
   Activity,
   AlertTriangle,
   Check,
+  CheckCircle2,
   Cpu,
   Database,
   Edit3,
@@ -19,6 +20,7 @@ import {
   Server,
   Tags,
   Trash2,
+  XCircle,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { SelectControl } from "../../components/SelectControl";
@@ -43,7 +45,7 @@ export interface ConnectionsPageProps {
   onAdd: () => void;
   onEdit: (connection: ConnectionSummary) => void;
   onDelete: (connection: ConnectionSummary) => void;
-  onTest: (connection: ConnectionSummary) => Promise<ConnectionTestReport>;
+  onTest: (connection: ConnectionSummary, silent?: boolean) => Promise<ConnectionTestReport>;
   onOpenDiagnostics: (incident: DiagnosticIncidentContext) => void;
   onConnectionsChanged: () => void | Promise<void>;
 }
@@ -69,6 +71,7 @@ export function ConnectionsPage({
   const [workspaceBusy, setWorkspaceBusy] = useState<"import" | "export" | "">("");
   const [workspaceMessage, setWorkspaceMessage] = useState("");
   const [importReview, setImportReview] = useState<{ sourceName: string; rows: ConnectionImportPlanRow[] } | null>(null);
+  const [bulkTesting, setBulkTesting] = useState(false);
 
   const groups = useMemo(() => [...new Set(connections
     .map((connection) => connection.groupName?.trim() || "")
@@ -136,6 +139,50 @@ export function ConnectionsPage({
     }
   };
 
+  const runConnectionTest = async (connection: ConnectionSummary, silent = false): Promise<boolean> => {
+    setTestingId(connection.id);
+    try {
+      const report = await onTest(connection, silent);
+      setTestReports((current) => ({ ...current, [connection.id]: report }));
+      return report.success;
+    } catch (error) {
+      setTestReports((current) => ({
+        ...current,
+        [connection.id]: {
+          success: false,
+          latencyMs: 0,
+          endpoint: connectionEndpoint(connection),
+          stage: "tcp",
+          message: error instanceof Error ? error.message : t("连接测试失败", "Connection test failed"),
+          stages: [{
+            stage: "tcp",
+            status: "failed",
+            durationMs: 0,
+            message: error instanceof Error ? error.message : t("连接测试失败", "Connection test failed"),
+          }],
+        },
+      }));
+      return false;
+    } finally {
+      setTestingId("");
+    }
+  };
+
+  const testVisibleConnections = async () => {
+    setBulkTesting(true);
+    setWorkspaceMessage("");
+    let passed = 0;
+    try {
+      for (const connection of visibleConnections) {
+        if (await runConnectionTest(connection, true)) passed += 1;
+      }
+      await onConnectionsChanged();
+      setWorkspaceMessage(`${t("批量探测完成", "Batch diagnostics complete")}：${passed} / ${visibleConnections.length} ${t("通过", "passed")}`);
+    } finally {
+      setBulkTesting(false);
+    }
+  };
+
   return (
     <div className="page-scroll">
       <PageHeader
@@ -183,6 +230,10 @@ export function ConnectionsPage({
               })),
             ]}
           />
+          <button type="button" className="button secondary connection-bulk-test" disabled={bulkTesting || visibleConnections.length === 0} onClick={() => void testVisibleConnections()}>
+            {bulkTesting ? <LoaderCircle className="spin" size={16} /> : <Activity size={16} />}
+            {t("探测当前结果", "Test visible")}
+          </button>
           <span className="connection-result-count">{visibleConnections.length} / {connections.length}</span>
         </section>
       )}
@@ -296,6 +347,15 @@ export function ConnectionsPage({
                       <span className="connection-group-label"><Layers3 size={12} />{connection.groupName || t("未分组", "Ungrouped")}</span>
                       {(connection.tags ?? []).slice(0, 3).map((tag) => <span className="connection-tag" key={tag}><Tags size={11} />{tag}</span>)}
                       {(connection.tags?.length ?? 0) > 3 && <span className="connection-tag">+{(connection.tags?.length ?? 3) - 3}</span>}
+                      {connection.lastTestStatus && connection.lastTestedAt && (
+                        <span
+                          className={`connection-health is-${connection.lastTestStatus}`}
+                          title={`${new Date(connection.lastTestedAt).toLocaleString()} · ${connection.lastTestStage ?? ""}`}
+                        >
+                          {connection.lastTestStatus === "passed" ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
+                          {t("上次探测", "Last test")} · {connection.lastTestLatencyMs ?? 0} ms
+                        </span>
+                      )}
                       {connection.lastUsedAt && <time dateTime={connection.lastUsedAt} title={new Date(connection.lastUsedAt).toLocaleString()}>{t("最近使用", "Recently used")}</time>}
                     </div>
                   </div>
@@ -360,32 +420,10 @@ export function ConnectionsPage({
                   <button
                     type="button"
                     className="button secondary"
-                    disabled={testingId === connection.id}
+                    disabled={bulkTesting || testingId === connection.id}
                     onClick={async () => {
-                      setTestingId(connection.id);
-                      try {
-                        const report = await onTest(connection);
-                        setTestReports((current) => ({ ...current, [connection.id]: report }));
-                      } catch (error) {
-                        setTestReports((current) => ({
-                          ...current,
-                          [connection.id]: {
-                            success: false,
-                            latencyMs: 0,
-                            endpoint: connectionEndpoint(connection),
-                            stage: "tcp",
-                            message: error instanceof Error ? error.message : t("连接测试失败", "Connection test failed"),
-                            stages: [{
-                              stage: "tcp",
-                              status: "failed",
-                              durationMs: 0,
-                              message: error instanceof Error ? error.message : t("连接测试失败", "Connection test failed"),
-                            }],
-                          },
-                        }));
-                      } finally {
-                        setTestingId("");
-                      }
+                      await runConnectionTest(connection);
+                      await onConnectionsChanged();
                     }}
                   >
                     {testingId === connection.id ? (

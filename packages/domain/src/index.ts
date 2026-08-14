@@ -75,6 +75,10 @@ export type ConnectionProfile = {
   accentColor?: string;
   tags?: string[];
   lastUsedAt?: string;
+  lastTestedAt?: string;
+  lastTestStatus?: "passed" | "failed";
+  lastTestLatencyMs?: number;
+  lastTestStage?: ConnectionTestStage;
   createdAt: string;
   updatedAt: string;
 };
@@ -100,7 +104,7 @@ export type ConnectionSummary = ConnectionProfile & {
 
 export type SaveConnectionInput = Omit<
   ConnectionProfile,
-  "id" | "createdAt" | "updatedAt" | "lastUsedAt"
+  "id" | "createdAt" | "updatedAt" | "lastUsedAt" | "lastTestedAt" | "lastTestStatus" | "lastTestLatencyMs" | "lastTestStage"
 > & {
   id?: string;
   password?: string;

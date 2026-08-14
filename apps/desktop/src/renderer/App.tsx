@@ -743,7 +743,7 @@ export default function App() {
     [],
   );
 
-  const testStoredConnection = async (connection: ConnectionSummary): Promise<ConnectionTestReport> => {
+  const testStoredConnection = async (connection: ConnectionSummary, silent = false): Promise<ConnectionTestReport> => {
     if (!window.janusGraphDesktop) throw new Error("Desktop API unavailable");
     try {
       const input: SaveConnectionInput = {
@@ -752,15 +752,17 @@ export default function App() {
       };
       const report: ConnectionTestReport =
         await window.janusGraphDesktop.connections.test(input);
-      notify({
-        tone: report.success ? "success" : "error",
-        message: report.success
-          ? `${connection.name} 连接正常，${report.latencyMs} ms`
-          : report.message,
-      });
+      if (!silent) {
+        notify({
+          tone: report.success ? "success" : "error",
+          message: report.success
+            ? `${connection.name} 连接正常，${report.latencyMs} ms`
+            : report.message,
+        });
+      }
       return report;
     } catch (error) {
-      notify({ tone: "error", message: errorMessage(error) });
+      if (!silent) notify({ tone: "error", message: errorMessage(error) });
       throw error;
     }
   };
