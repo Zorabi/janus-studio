@@ -61,6 +61,18 @@ test("loads renderer styles through ordered responsibility-based modules", async
   }
 });
 
+test("gives every native text field a theme-aware fallback surface", async () => {
+  const foundation = await readFile(`${rendererRoot}/styles/foundation.css`, "utf8");
+
+  assert.match(foundation, /:root\s*\{[^}]*color-scheme:\s*dark/s);
+  assert.match(foundation, /:root\[data-theme="light"\]\s*\{[^}]*color-scheme:\s*light/s);
+  assert.match(
+    foundation,
+    /:where\([\s\S]*?input\[type="text"\][\s\S]*?textarea,[\s\S]*?select[\s\S]*?\)\s*\{[\s\S]*?background-color:\s*var\(--surface-0\)/,
+  );
+  assert.match(foundation, /-webkit-text-fill-color:\s*var\(--bone\)/);
+});
+
 test("keeps dynamic graph capability probing stable across parent renders", async () => {
   const page = await readFile(
     `${rendererRoot}/features/graph-factory/GraphFactoryPage.tsx`,

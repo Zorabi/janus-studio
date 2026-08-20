@@ -1193,6 +1193,7 @@
     "在新标签页打开": "Open in new tab",
     "载入": "載入",
     "暂停物理布局": "暫停物理佈局",
+    "暂无规则集": "暫無規則集",
     "暂无后台任务": "暫無後台任務",
     "暂无记录": "暫無紀錄",
     "摘要仅展示 cp1、cp2；完整属性可在详情或查询中查看。": "摘要僅展示 cp1、cp2；完整屬性可在詳情或查詢中查看。",
@@ -1455,8 +1456,7 @@
     "VERTICES + EDGES": "VERTICES + EDGES",
     "WebSocket 压缩": "WebSocket 壓縮",
     "WS/WSS 使用 SASL PLAIN，HTTP/HTTPS 使用 Basic。JanusGraph 标准认证可直接使用。": "Uses SASL PLAIN for WS/WSS and Basic for HTTP/HTTPS. Works with standard JanusGraph authentication.",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS 預設開啟；僅在受控測試環境中關閉",
-    "暂无规则集": "暫無規則集"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS 預設開啟；僅在受控測試環境中關閉"
   },
   "ja-JP": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "「現在欠落している」とは、定義がベースラインには存在するが、この読み取り結果には表示されないことのみを意味します。 Janus Studio がそのようなスキーマ定義の削除をサポートするという意味ではありません。",
@@ -2652,6 +2652,7 @@
     "在新标签页打开": "Open in new tab",
     "载入": "ロード",
     "暂停物理布局": "物理レイアウトを一時停止する",
+    "暂无规则集": "まだルールが設定されていません",
     "暂无后台任务": "バックグラウンドタスクはまだありません",
     "暂无记录": "まだ記録がありません",
     "摘要仅展示 cp1、cp2；完整属性可在详情或查询中查看。": "概要には cp1 と cp2 のみが表示されます。完全な属性は詳細またはクエリで表示できます。",
@@ -2914,8 +2915,7 @@
     "VERTICES + EDGES": "頂点 + エッジ",
     "WebSocket 压缩": "WebSocket圧縮",
     "WS/WSS 使用 SASL PLAIN，HTTP/HTTPS 使用 Basic。JanusGraph 标准认证可直接使用。": "Uses SASL PLAIN for WS/WSS and Basic for HTTP/HTTPS. Works with standard JanusGraph authentication.",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS はデフォルトでオンになっています。管理されたテスト環境でのみオフになります",
-    "暂无规则集": "まだルールが設定されていません"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS はデフォルトでオンになっています。管理されたテスト環境でのみオフになります"
   },
   "ko-KR": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "\"현재 누락됨\"은 정의가 기준선에 존재하지만 이 읽기 결과에는 나타나지 않음을 의미합니다. 이는 Janus Studio가 그러한 스키마 정의 삭제를 지원한다는 의미는 아닙니다.",
@@ -4111,6 +4111,7 @@
     "在新标签页打开": "Open in new tab",
     "载入": "로드",
     "暂停物理布局": "물리적 레이아웃 일시중지",
+    "暂无规则集": "아직 규칙 세트가 없습니다.",
     "暂无后台任务": "아직 백그라운드 작업이 없습니다.",
     "暂无记录": "아직 기록이 없습니다",
     "摘要仅展示 cp1、cp2；完整属性可在详情或查询中查看。": "요약에는 cp1 및 cp2만 표시됩니다. 전체 속성은 세부정보나 쿼리에서 볼 수 있습니다.",
@@ -4373,8 +4374,7 @@
     "VERTICES + EDGES": "정점 + 가장자리",
     "WebSocket 压缩": "WebSocket 압축",
     "WS/WSS 使用 SASL PLAIN，HTTP/HTTPS 使用 Basic。JanusGraph 标准认证可直接使用。": "Uses SASL PLAIN for WS/WSS and Basic for HTTP/HTTPS. Works with standard JanusGraph authentication.",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS는 기본적으로 켜져 있습니다. 통제된 테스트 환경에서만 꺼짐",
-    "暂无规则集": "아직 규칙 세트가 없습니다."
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS는 기본적으로 켜져 있습니다. 통제된 테스트 환경에서만 꺼짐"
   },
   "de-DE": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "„Derzeit fehlt“ bedeutet nur, dass die Definition in der Baseline vorhanden ist, aber in diesem Leseergebnis nicht erscheint; Dies bedeutet nicht, dass Janus Studio das Löschen solcher Schemadefinitionen unterstützt.",
@@ -5570,6 +5570,7 @@
     "在新标签页打开": "Open in new tab",
     "载入": "Laden",
     "暂停物理布局": "Pausieren Sie das physische Layout",
+    "暂无规则集": "Noch kein Regelsatz",
     "暂无后台任务": "Noch keine Hintergrundaufgaben",
     "暂无记录": "Noch keine Aufzeichnung",
     "摘要仅展示 cp1、cp2；完整属性可在详情或查询中查看。": "In der Zusammenfassung werden nur cp1 und cp2 angezeigt. Die vollständigen Attribute können im Detail oder in der Abfrage angezeigt werden.",
@@ -5832,8 +5833,7 @@
     "VERTICES + EDGES": "Scheitelpunkte + Kanten",
     "WebSocket 压缩": "WebSocket-Komprimierung",
     "WS/WSS 使用 SASL PLAIN，HTTP/HTTPS 使用 Basic。JanusGraph 标准认证可直接使用。": "Uses SASL PLAIN for WS/WSS and Basic for HTTP/HTTPS. Works with standard JanusGraph authentication.",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS ist standardmäßig aktiviert; nur in kontrollierten Testumgebungen ausgeschaltet",
-    "暂无规则集": "Noch kein Regelsatz"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS ist standardmäßig aktiviert; nur in kontrollierten Testumgebungen ausgeschaltet"
   },
   "fr-FR": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "« Actuellement manquant » signifie uniquement que la définition existe dans la ligne de base mais n'apparaît pas dans ce résultat de lecture ; cela ne signifie pas que Janus Studio prend en charge la suppression de telles définitions de schéma.",
@@ -7029,6 +7029,7 @@
     "在新标签页打开": "Open in new tab",
     "载入": "Charger",
     "暂停物理布局": "Suspendre la disposition physique",
+    "暂无规则集": "Pas encore de règles",
     "暂无后台任务": "Aucune tâche en arrière-plan pour l'instant",
     "暂无记录": "Pas encore d'enregistrement",
     "摘要仅展示 cp1、cp2；完整属性可在详情或查询中查看。": "Le résumé affiche uniquement cp1 et cp2 ; les attributs complets peuvent être consultés dans les détails ou dans une requête.",
@@ -7291,8 +7292,7 @@
     "VERTICES + EDGES": "SOMMETS + BORDS",
     "WebSocket 压缩": "Compression WebSocket",
     "WS/WSS 使用 SASL PLAIN，HTTP/HTTPS 使用 Basic。JanusGraph 标准认证可直接使用。": "Uses SASL PLAIN for WS/WSS and Basic for HTTP/HTTPS. Works with standard JanusGraph authentication.",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS est activé par défaut ; uniquement désactivé dans des environnements de test contrôlés",
-    "暂无规则集": "Pas encore de règles"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS est activé par défaut ; uniquement désactivé dans des environnements de test contrôlés"
   },
   "es-ES": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "\"Actualmente faltante\" solo significa que la definición existe en la línea base pero no aparece en este resultado de lectura; Esto no significa que Janus Studio admita la eliminación de dichas definiciones de esquema.",
@@ -8488,6 +8488,7 @@
     "在新标签页打开": "Open in new tab",
     "载入": "Cargar",
     "暂停物理布局": "Pausar el diseño físico",
+    "暂无规则集": "Aún no hay reglas",
     "暂无后台任务": "Aún no hay tareas en segundo plano",
     "暂无记录": "Aún no hay registro",
     "摘要仅展示 cp1、cp2；完整属性可在详情或查询中查看。": "El resumen sólo muestra cp1 y cp2; Los atributos completos se pueden ver en detalles o consulta.",
@@ -8750,8 +8751,7 @@
     "VERTICES + EDGES": "VERTICES + ARISTAS",
     "WebSocket 压缩": "Compresión WebSocket",
     "WS/WSS 使用 SASL PLAIN，HTTP/HTTPS 使用 Basic。JanusGraph 标准认证可直接使用。": "Uses SASL PLAIN for WS/WSS and Basic for HTTP/HTTPS. Works with standard JanusGraph authentication.",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS está activado de forma predeterminada; sólo apagado en entornos de prueba controlados",
-    "暂无规则集": "Aún no hay reglas"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS está activado de forma predeterminada; sólo apagado en entornos de prueba controlados"
   },
   "pt-BR": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "\"Atualmente ausente\" significa apenas que a definição existe na linha de base, mas não aparece neste resultado de leitura; isso não significa que o Janus Studio suporta a exclusão de tais definições de esquema.",
@@ -9947,6 +9947,7 @@
     "在新标签页打开": "Open in new tab",
     "载入": "Carregar",
     "暂停物理布局": "Pausar layout físico",
+    "暂无规则集": "Ainda não há regras definidas",
     "暂无后台任务": "Ainda não há tarefas em segundo plano",
     "暂无记录": "Ainda não há registro",
     "摘要仅展示 cp1、cp2；完整属性可在详情或查询中查看。": "O resumo exibe apenas cp1 e cp2; os atributos completos podem ser visualizados em detalhes ou consulta.",
@@ -10209,8 +10210,7 @@
     "VERTICES + EDGES": "VÉRTICES + BORDAS",
     "WebSocket 压缩": "Compressão WebSocket",
     "WS/WSS 使用 SASL PLAIN，HTTP/HTTPS 使用 Basic。JanusGraph 标准认证可直接使用。": "Uses SASL PLAIN for WS/WSS and Basic for HTTP/HTTPS. Works with standard JanusGraph authentication.",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS está ativado por padrão; somente desativado em ambientes de teste controlados",
-    "暂无规则集": "Ainda não há regras definidas"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS está ativado por padrão; somente desativado em ambientes de teste controlados"
   },
   "it-IT": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "\"Attualmente mancante\" significa solo che la definizione esiste nella linea di base ma non appare in questo risultato di lettura; ciò non significa che Janus Studio supporti l'eliminazione di tali definizioni di schema.",
@@ -11406,6 +11406,7 @@
     "在新标签页打开": "Open in new tab",
     "载入": "Caricare",
     "暂停物理布局": "Metti in pausa il layout fisico",
+    "暂无规则集": "Nessuna regola ancora",
     "暂无后台任务": "Ancora nessuna attività in background",
     "暂无记录": "Nessun record ancora",
     "摘要仅展示 cp1、cp2；完整属性可在详情或查询中查看。": "Il riepilogo visualizza solo cp1 e cp2; gli attributi completi possono essere visualizzati nei dettagli o nella query.",
@@ -11668,8 +11669,7 @@
     "VERTICES + EDGES": "VERTICI + BORDI",
     "WebSocket 压缩": "Compressione WebSocket",
     "WS/WSS 使用 SASL PLAIN，HTTP/HTTPS 使用 Basic。JanusGraph 标准认证可直接使用。": "Uses SASL PLAIN for WS/WSS and Basic for HTTP/HTTPS. Works with standard JanusGraph authentication.",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS è attivo per impostazione predefinita; disattivato solo in ambienti di test controllati",
-    "暂无规则集": "Nessuna regola ancora"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS è attivo per impostazione predefinita; disattivato solo in ambienti di test controllati"
   },
   "ru-RU": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "«В настоящее время отсутствует» означает только то, что определение существует в базовой версии, но не отображается в этом результате чтения; это не означает, что Janus Studio поддерживает удаление таких определений схемы.",
@@ -12865,6 +12865,7 @@
     "在新标签页打开": "Open in new tab",
     "载入": "Загрузить",
     "暂停物理布局": "Приостановить физическую компоновку",
+    "暂无规则集": "Набора правил пока нет",
     "暂无后台任务": "Фоновых задач пока нет",
     "暂无记录": "Пока нет записей",
     "摘要仅展示 cp1、cp2；完整属性可在详情或查询中查看。": "В сводке отображаются только cp1 и cp2; полные атрибуты можно просмотреть подробно или запросить.",
@@ -13127,8 +13128,7 @@
     "VERTICES + EDGES": "ВЕРШИНЫ + КРАЯ",
     "WebSocket 压缩": "Сжатие веб-сокетов",
     "WS/WSS 使用 SASL PLAIN，HTTP/HTTPS 使用 Basic。JanusGraph 标准认证可直接使用。": "Uses SASL PLAIN for WS/WSS and Basic for HTTP/HTTPS. Works with standard JanusGraph authentication.",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS включен по умолчанию; отключено только в контролируемых средах тестирования",
-    "暂无规则集": "Набора правил пока нет"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS включен по умолчанию; отключено только в контролируемых средах тестирования"
   },
   "pl-PL": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "„Obecnie brak” oznacza jedynie, że definicja istnieje w wersji podstawowej, ale nie pojawia się w tym wyniku odczytu; nie oznacza to, że Janus Studio obsługuje usuwanie takich definicji schematów.",
@@ -14324,6 +14324,7 @@
     "在新标签页打开": "Open in new tab",
     "载入": "Załaduj",
     "暂停物理布局": "Wstrzymaj układ fizyczny",
+    "暂无规则集": "Nie ma jeszcze zestawu reguł",
     "暂无后台任务": "Nie ma jeszcze żadnych zadań w tle",
     "暂无记录": "Nie ma jeszcze żadnego rekordu",
     "摘要仅展示 cp1、cp2；完整属性可在详情或查询中查看。": "Podsumowanie wyświetla tylko cp1 i cp2; pełne atrybuty można wyświetlić w szczegółach lub w zapytaniu.",
@@ -14586,8 +14587,7 @@
     "VERTICES + EDGES": "Wierzchołki + Krawędzie",
     "WebSocket 压缩": "Kompresja WebSocket",
     "WS/WSS 使用 SASL PLAIN，HTTP/HTTPS 使用 Basic。JanusGraph 标准认证可直接使用。": "Uses SASL PLAIN for WS/WSS and Basic for HTTP/HTTPS. Works with standard JanusGraph authentication.",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS jest domyślnie włączony; wyłączone tylko w kontrolowanych środowiskach testowych",
-    "暂无规则集": "Nie ma jeszcze zestawu reguł"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS jest domyślnie włączony; wyłączone tylko w kontrolowanych środowiskach testowych"
   },
   "tr-TR": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "\"Şu anda eksik\" yalnızca tanımın taban çizgisinde mevcut olduğu ancak bu okuma sonucunda görünmediği anlamına gelir; bu, Janus Studio'nun bu tür Şema tanımlarının silinmesini desteklediği anlamına gelmez.",
@@ -15783,6 +15783,7 @@
     "在新标签页打开": "Open in new tab",
     "载入": "Yük",
     "暂停物理布局": "Fiziksel düzeni duraklat",
+    "暂无规则集": "Henüz kural seti yok",
     "暂无后台任务": "Henüz arka plan görevi yok",
     "暂无记录": "Henüz kayıt yok",
     "摘要仅展示 cp1、cp2；完整属性可在详情或查询中查看。": "Özet yalnızca cp1 ve cp2'yi görüntüler; özelliklerin tamamı ayrıntılarda veya sorguda görüntülenebilir.",
@@ -16045,8 +16046,7 @@
     "VERTICES + EDGES": "KÖŞELER + KENARLAR",
     "WebSocket 压缩": "WebSocket sıkıştırması",
     "WS/WSS 使用 SASL PLAIN，HTTP/HTTPS 使用 Basic。JanusGraph 标准认证可直接使用。": "Uses SASL PLAIN for WS/WSS and Basic for HTTP/HTTPS. Works with standard JanusGraph authentication.",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS varsayılan olarak açıktır; yalnızca kontrollü test ortamlarında kapalı",
-    "暂无规则集": "Henüz kural seti yok"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS varsayılan olarak açıktır; yalnızca kontrollü test ortamlarında kapalı"
   },
   "vi-VN": {
     "“当前缺失”仅表示该定义存在于基线、但未出现在本次读取结果中；不代表 Janus Studio 支持删除这类 Schema 定义。": "\"Hiện bị thiếu\" chỉ có nghĩa là định nghĩa tồn tại trong đường cơ sở nhưng không xuất hiện trong kết quả đọc này; điều đó không có nghĩa là Janus Studio hỗ trợ xóa các định nghĩa Schema như vậy.",
@@ -17242,6 +17242,7 @@
     "在新标签页打开": "Open in new tab",
     "载入": "Tải",
     "暂停物理布局": "Tạm dừng bố cục vật lý",
+    "暂无规则集": "Chưa có quy tắc nào",
     "暂无后台任务": "Chưa có tác vụ nền nào",
     "暂无记录": "Chưa có bản ghi nào",
     "摘要仅展示 cp1、cp2；完整属性可在详情或查询中查看。": "Tóm tắt chỉ hiển thị cp1 và cp2; các thuộc tính hoàn chỉnh có thể được xem chi tiết hoặc truy vấn.",
@@ -17504,7 +17505,6 @@
     "VERTICES + EDGES": "ĐỈNH + CẠNH",
     "WebSocket 压缩": "Nén WebSocket",
     "WS/WSS 使用 SASL PLAIN，HTTP/HTTPS 使用 Basic。JanusGraph 标准认证可直接使用。": "Uses SASL PLAIN for WS/WSS and Basic for HTTP/HTTPS. Works with standard JanusGraph authentication.",
-    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS được bật theo mặc định; chỉ tắt trong môi trường thử nghiệm được kiểm soát",
-    "暂无规则集": "Chưa có quy tắc nào"
+    "WSS/HTTPS 默认开启；仅在受控测试环境中关闭": "WSS/HTTPS được bật theo mặc định; chỉ tắt trong môi trường thử nghiệm được kiểm soát"
   }
 }

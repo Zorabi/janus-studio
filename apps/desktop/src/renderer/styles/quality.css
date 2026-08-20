@@ -70,7 +70,9 @@
 }
 
 .quality-notice > span { flex: 1; line-height: 1.55; }
-.quality-notice > button { border: 0; color: inherit; background: transparent; font-size: 20px; }
+.quality-notice > button { width: 32px; height: 32px; display: grid; flex: 0 0 auto; place-items: center; padding: 0; border: 0; border-radius: var(--radius-sm); color: inherit; background: transparent; }
+.quality-notice > button:hover,
+.quality-notice > button:focus-visible { background: color-mix(in srgb, currentColor 10%, transparent); }
 
 .quality-layout,
 .quality-history-layout {
@@ -316,7 +318,7 @@
 
 .quality-number-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 14px;
   margin: 22px 0 26px;
 }

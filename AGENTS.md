@@ -246,6 +246,7 @@
 - 问题诊断使用确定性规则引擎，不调用外部 AI 或上传诊断数据；结论必须包含严重度、置信度、证据和可执行建议。首批识别实例 ID 冲突、GraphSON 序列化、evaluationTimeout、Elasticsearch 分片上限、Schema 重名、索引生命周期、ConfiguredGraphFactory 残留和能力探测失败。ZIP 必须包含 `diagnostic-report.md`；离线复诊仅接受带 `summary.json` 的 ZIP，并限制压缩包大小、文件数量、单项和总解压体积。
 - 自动诊断和离线复诊结果通过 SQLite v12 `diagnostic_records` 持久化；同一故障刷新按来源、故障时间和结论指纹去重，不得重复累加。记录状态由用户显式在未读、已确认、已解决之间推进，支持重新打开与二次确认删除。默认保留最近 200 条且不超过 90 天，查看记录本身不得自动更改状态。
 - 数据质量检查已完成规则集、Schema 候选、友好校验、快速/全量执行、样本详情、完整导出、规则集与历史分页，以及危险删除确认。页面遵循摘要优先、按需展开和单一滚动容器约定。
+- Renderer 基础层为所有原生文本输入、搜索框、数字框、日期时间控件、`textarea` 和原生 `select` 提供低优先级主题化兜底；业务样式可以覆盖，但任何漏写样式的新字段都不得在深色主题回退成浏览器白底。数据质量执行预算使用自适应列，提示关闭入口使用 Lucide 并具备可访问名称。
 - i18n 消息目录当前为每种语言 1457 条，并会在生成时清理已从源码移除的废弃文案。翻译服务不可用时生成脚本保留英文 fallback 并正常完成，不能因远端限流阻断本地构建。
 
 ## 9. 开发与验证命令
@@ -261,7 +262,7 @@ pnpm build
 ```
 
 - `pnpm typecheck`：全部 workspace TypeScript 检查。
-- `pnpm test`：当前 221 项测试，其中 216 项本地通过，5 项真实环境测试在未配置环境时跳过。
+- `pnpm test`：当前 224 项测试，其中 219 项本地通过，5 项真实环境测试在未配置环境时跳过。
 - `pnpm build`：Electron Forge 生产打包。
 - macOS ARM64 打包输出：
   `apps/desktop/out/Janus Studio-darwin-arm64/Janus Studio.app`。
@@ -285,11 +286,12 @@ pnpm build
 
 - 当前代码基线：查询资产、诊断闭环、发布验收第二切片、企业连接基础设施、连接工作区组织和数据质量检查均已实现；以仓库最新提交为准。
 - 最近一次 `pnpm typecheck`：通过。
-- 最近一次 `pnpm test`：221 项，216 通过，5 个真实环境测试跳过，0 失败。
+- 最近一次 `pnpm test`：224 项，219 通过，5 个真实环境测试跳过，0 失败。
 - 最近一次 `pnpm build`：macOS ARM64 生产包生成成功。
 - 最近一次打包时间：2026-08-20。
 - 多节点 Binding 传播、真实 Drop、残留实例处理和关闭后自动重开语义已由用户验收。
 - 当前 macOS ARM64 生产包已重新生成并由用户启动验证；已在用户授权下对本地 JanusGraph 1.1.0 完成只读 WS/HTTP/认证/Binding/Management 与 CONNECT 代理回归，未修改图、Schema、容器或 Elasticsearch。
+- 数据质量七类有界规则已在用户授权下对本机 `127.0.0.1:8182` 的静态图与 ConfiguredGraphFactory 动态图完成只读真实连接验收；扫描上限为 100，未修改数据、Schema、图配置、容器或 Elasticsearch。
 
 ## 12. 后续路线
 

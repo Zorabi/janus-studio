@@ -29,3 +29,16 @@ test("highlights only the hovered Schema token remove button", () => {
   assert.match(styles, /\.schema-suggestion-chip > button:hover,/);
   assert.doesNotMatch(styles, /\.schema-suggestion-input:hover[^}]*button/s);
 });
+
+test("keeps execution budget fields aligned without a stranded third column", () => {
+  assert.match(
+    styles,
+    /\.quality-number-row\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit, minmax\(210px, 1fr\)\)/s,
+  );
+});
+
+test("uses scoped Lucide controls for dismissible quality notices", () => {
+  assert.match(page, /aria-label=\{t\("关闭", "Close"\)\}/);
+  assert.match(page, /<X size=\{17\}\/?>/);
+  assert.doesNotMatch(page, />×<\/button>/);
+});

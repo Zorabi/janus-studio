@@ -1,5 +1,5 @@
 import type { ConnectionSummary, QualityIssueExportFormat, QualityRule, QualityRuleKind, QualityRuleResult, QualityRuleSet, QualityRun, QualityRunDetail, QualitySample, SaveQualityRuleSetInput } from "@janusgraph/domain";
-import { AlertTriangle, BarChart3, Braces, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ClipboardCopy, Code2, Database, Eye, FileDown, FileJson2, Gauge, Layers3, ListChecks, LoaderCircle, Play, Plus, RefreshCw, RotateCcw, ScanSearch, ShieldCheck, Square, Table2, Timer, Trash2 } from "lucide-react";
+import { AlertTriangle, BarChart3, Braces, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ClipboardCopy, Code2, Database, Eye, FileDown, FileJson2, Gauge, Layers3, ListChecks, LoaderCircle, Play, Plus, RefreshCw, RotateCcw, ScanSearch, ShieldCheck, Square, Table2, Timer, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SelectControl } from "../../components/SelectControl";
 import { ConfirmDialog, Modal, PageHeader } from "../../components/ui";
@@ -295,7 +295,7 @@ export function QualityPage({ activeConnection, onOpenQuery, requestedRun }: { a
   return <section className="quality-page">
     <PageHeader eyebrow="DATA QUALITY" title={t("数据质量", "Data Quality")} description={t("使用可审计的只读规则检查静态图与 ConfiguredGraphFactory 动态图。", "Audit static and ConfiguredGraphFactory graphs with traceable read-only rules.")} actions={<button type="button" className="button secondary" onClick={() => void load()}><RefreshCw size={17}/>{t("刷新", "Refresh")}</button>} />
     {!activeConnection && <div className="quality-notice is-warning"><AlertTriangle size={18}/><span>{t("请先选择连接，再配置目标图与规则。", "Select a connection before configuring graph targets and rules.")}</span></div>}
-    {message && <div className={`quality-notice is-${message.tone}`}><ShieldCheck size={18}/><span>{message.text}</span><button onClick={() => setMessage(undefined)}>×</button></div>}
+    {message && <div className={`quality-notice is-${message.tone}`}>{message.tone === "error" ? <AlertTriangle size={18}/> : <Check size={18}/>}<span>{message.text}</span><button type="button" aria-label={t("关闭", "Close")} onClick={() => setMessage(undefined)}><X size={17}/></button></div>}
     <div className="quality-tabs" role="tablist">
       {(["rules", "run", "history"] as Tab[]).map((id) => <button type="button" key={id} className={tab === id ? "is-active" : ""} onClick={() => setTab(id)}>{id === "rules" ? t("规则集", "Rule sets") : id === "run" ? t("执行检查", "Run checks") : t("检查历史", "Run history")}</button>)}
     </div>
