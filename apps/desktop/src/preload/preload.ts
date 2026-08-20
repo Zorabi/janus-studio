@@ -119,6 +119,7 @@ const desktopApi: DesktopApi = {
     retry: (id) => ipcRenderer.invoke("quality:runs:retry", id),
     removeRun: (id) => ipcRenderer.invoke("quality:runs:remove", id),
     exportRun: (id) => ipcRenderer.invoke("quality:runs:export", id),
+    exportIssues: (input) => ipcRenderer.invoke("quality:runs:export-issues", input),
   },
 };
 

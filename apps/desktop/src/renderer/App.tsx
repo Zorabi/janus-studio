@@ -49,7 +49,7 @@ import {
 import { SchemaPage } from "./features/schema/SchemaPage";
 import { SettingsPage } from "./features/settings/SettingsPage";
 import { TransferPage } from "./features/transfer/TransferPage";
-import { QualityPage } from "./features/quality/QualityPage";
+import { QualityPage, type QualityQueryDraft } from "./features/quality/QualityPage";
 import { LocaleProvider, translate } from "./lib/i18n";
 import {
   connectionWithGraphContext,
@@ -201,14 +201,15 @@ export default function App() {
       setActiveQueryTabId(tab.id);
       setView("query");
     },
-    [
-      activeConnectionId,
-      activeQueryTab.connectionId,
-      queryTabs,
-      settings.defaultResultMode,
-    ],
+    [activeConnectionId, activeQueryTab.connectionId, queryTabs, settings.defaultResultMode],
   );
-
+  const openQualityQuery = useCallback((draft: QualityQueryDraft) => {
+    queryTabSequence.current = nextAvailableQuerySequence(queryTabs, queryTabSequence.current);
+    const connection = connections.find((item) => item.id === draft.connectionId);
+    const tab = createQueryTab(queryTabSequence.current, settings.defaultResultMode, connection ? draft.connectionId : activeConnectionId, draft.query);
+    Object.assign(tab, { title:draft.title, graphBindingOverride:draft.graphBinding, traversalSourceOverride:draft.graphAccess === "configured" ? `${draft.graphName}_traversal` : connection?.traversalSource ?? "", bindingsText:JSON.stringify(draft.bindings ?? {}, null, 2), bindingsEnabled:Boolean(draft.bindings && Object.keys(draft.bindings).length), readOnly:true });
+    setQueryTabs((current) => [...current, tab]); setActiveQueryTabId(tab.id); setView("query");
+  }, [activeConnectionId, connections, queryTabs, settings.defaultResultMode]);
   const openGraphQueryContext = useCallback((graph: DynamicGraphTarget, connectionId = activeConnectionId) => {
     queryTabSequence.current = nextAvailableQuerySequence(queryTabs, queryTabSequence.current);
     const tab = createGraphQueryTab(
@@ -1068,7 +1069,7 @@ export default function App() {
             notify={notify}
           />
         )}
-        {view === "quality" && <QualityPage activeConnection={activeConnection} onOpenQuery={addQueryTab} requestedRun={qualityRunRequest} />}
+        {view === "quality" && <QualityPage activeConnection={activeConnection} onOpenQuery={openQualityQuery} requestedRun={qualityRunRequest} />}
         {view === "diagnostics" && <DiagnosticsPage incident={diagnosticIncident} />}
         {view === "settings" && (
           <SettingsPage

@@ -41,6 +41,9 @@ one native desktop application.
 - **Schema and data tools** — Browse and manage labels, property keys, composite
   and mixed indexes, schema snapshots and diffs, safe additive schema
   imports/exports, whole-graph archives, and query-result exports.
+- **Data quality audits** — Define reusable, schema-aware rule sets, run bounded
+  or full read-only checks, inspect issue samples, and export complete CSV,
+  JSONL, JSON, or business-readable audit reports.
 - **Desktop-first experience** — Restore workspaces across restarts, search
   SQLite-backed history, choose from 14 interface languages, and customize
   themes, fonts, density, graph rendering, and shortcuts.

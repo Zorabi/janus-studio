@@ -16,11 +16,14 @@ test("builds a sorted schema catalog from Management API rows", () => {
     [
       { group: "propertyKeys", name: "name" },
       { group: "vertexLabels", name: "person" },
+      { group: "vertexLabels", name: "v10" },
+      { group: "vertexLabels", name: "v2" },
+      { group: "vertexLabels", name: "v1" },
     ],
     { group: "edgeLabels", name: "knows" },
     { group: "vertexLabels", name: "person" },
   ]), {
-    vertexLabels: ["person"],
+    vertexLabels: ["person", "v1", "v2", "v10"],
     edgeLabels: ["knows"],
     propertyKeys: ["name"],
   });

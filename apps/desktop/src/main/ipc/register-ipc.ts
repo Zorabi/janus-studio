@@ -15,6 +15,7 @@ import { DiagnosticRecordRepository } from "../storage/diagnostic-record-reposit
 import { AuthenticationProfileService } from "../services/authentication-profile-service";
 import { DataQualityService } from "../services/data-quality-service";
 import { StructuredLogger } from "../diagnostics/structured-logger";
+import { isTrustedIpcSender } from "./trusted-sender";
 import { redactDiagnosticValue } from "../diagnostics/redactor";
 import type { DiagnosticIncidentContext, DiagnosticLogListInput, SaveDiagnosticRecordInput } from "@janusgraph/domain";
 import {
@@ -43,6 +44,7 @@ import {
   queryRequestSchema,
   queryExportSchema,
   publishBackgroundTaskSchema,
+  exportQualityIssuesSchema,
   queryAssetIdSchema,
   queryHistoryMetadataListSchema,
   queryHistoryAssetListSchema,
@@ -77,7 +79,7 @@ import {
 } from "./schemas";
 
 type RegisterIpcOptions = {
-  window: BrowserWindow;
+  window: () => BrowserWindow | null;
   connectionService: ConnectionService;
   queryService: QueryService;
   historyRepository: HistoryRepository;
@@ -94,8 +96,8 @@ type RegisterIpcOptions = {
   dataQualityService: DataQualityService;
 };
 
-function assertTrustedSender(event: IpcMainInvokeEvent, window: BrowserWindow): void {
-  if (event.sender !== window.webContents) {
+function assertTrustedSender(event: IpcMainInvokeEvent, resolveWindow: () => BrowserWindow | null): void {
+  if (!isTrustedIpcSender(event.sender, resolveWindow())) {
     throw new Error("拒绝来自未知窗口的 IPC 请求");
   }
 }
@@ -166,11 +168,12 @@ export function registerIpcHandlers({
   dataQualityService,
 }: RegisterIpcOptions): void {
   const unsubscribeSshTunnel = connectionService.onSshTunnelChanged((connectionId, snapshot) => {
-    if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
-      window.webContents.send("connections:ssh-tunnel-changed", connectionId, snapshot);
+    const activeWindow = window();
+    if (activeWindow && !activeWindow.isDestroyed() && !activeWindow.webContents.isDestroyed()) {
+      activeWindow.webContents.send("connections:ssh-tunnel-changed", connectionId, snapshot);
     }
   });
-  window.once("closed", unsubscribeSshTunnel);
+  app.once("before-quit", unsubscribeSshTunnel);
 
   ipcMain.handle("runtime:platform", (event) => {
     assertTrustedSender(event, window);
@@ -596,5 +599,9 @@ export function registerIpcHandlers({
   ipcMain.handle("quality:runs:export", async (event, rawId: unknown) => {
     assertTrustedSender(event, window);
     return dataQualityService.exportRun(qualityRunIdSchema.parse(rawId));
+  });
+  ipcMain.handle("quality:runs:export-issues", async (event, rawInput: unknown) => {
+    assertTrustedSender(event, window);
+    return dataQualityService.exportIssues(exportQualityIssuesSchema.parse(rawInput));
   });
 }

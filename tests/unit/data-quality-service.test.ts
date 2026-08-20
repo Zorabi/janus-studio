@@ -108,3 +108,38 @@ test("quality execution enforces one full run per connection and two runs global
     assert.equal((await terminal(repository,second.id)).status,"succeeded");
   }finally{database.close();rmSync(directory,{recursive:true,force:true});}
 });
+
+test("complete issue export re-reads every issue instead of exporting saved samples", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "janus-quality-export-"));
+  const database = openApplicationDatabase(join(directory, "app.sqlite"));
+  try {
+    const repository = new QualityRepository(database);
+    const tasks = new BackgroundTaskRepository(database);
+    const connectionId = crypto.randomUUID();
+    const rule = { id:crypto.randomUUID(), name:"required cp1", kind:"required-property" as const, enabled:true, severity:"warning" as const, vertexLabel:"v1", propertyKeys:["cp1"] };
+    const set = repository.saveRuleSet({ name:"export", description:"", connectionId, graphName:"graph1", graphBinding:"graph1", graphAccess:"binding", rules:[rule] });
+    const now = new Date().toISOString();
+    const runId = crypto.randomUUID();
+    repository.createRun({ id:runId, ruleSetId:set.id, ruleSetName:set.name, connectionId, connectionName:"Docker", graphName:"graph1", graphBinding:"graph1", graphAccess:"binding", mode:"bounded", sampleLimit:1, scanLimit:10_000, status:"succeeded", stage:"completed", currentRule:1, totalRules:1, issueCount:2, checkedCount:2, message:"done", ruleSetSnapshot:structuredClone(set), createdAt:now, updatedAt:now, completedAt:now });
+    repository.saveResult({ id:crypto.randomUUID(), runId, ruleId:rule.id, ruleName:rule.name, ruleKind:rule.kind, severity:rule.severity, status:"issues", issueCount:2, checkedCount:2, coverageLimit:10_000, message:"issues", query:"read only", samples:[{id:1,label:"v1",values:{missing:"cp1"}}], startedAt:now, completedAt:now });
+    let calls = 0;
+    const queries = { execute:async()=>{calls+=1;return { executionId:crypto.randomUUID(), durationMs:1, items:[{ samples:calls===1?[{id:1,label:"v1",missing:"cp1",values:{name:"a"}},{id:2,label:"v1",missing:"cp1",values:{name:"b"}}]:[] }], consoleText:"", truncated:false, totalCount:1 };}, cancel:async()=>true };
+    const written:Record<string,unknown>[] = [];
+    let reportContent = "";
+    const files = {
+      saveDataFile:async(input:{content:string})=>{reportContent=input.content;return "/tmp/report.json";},
+      saveGeneratedRows:async(_name:string,_format:string,_columns:unknown,producer:(write:(rows:Record<string,unknown>[])=>Promise<void>)=>Promise<number>)=>{const exportedCount=await producer(async(rows)=>{written.push(...rows);});return {path:"/tmp/issues.csv",exportedCount};},
+    };
+    const service = new DataQualityService(repository,tasks,{profile:(id:string)=>profile(id)} as unknown as ConnectionService,queries as unknown as QueryService,files as unknown as FileService);
+    const output = await service.exportIssues({ runId, format:"csv" });
+    assert.equal(output.exportedCount, 2);
+    assert.equal(written.length, 2);
+    assert.deepEqual(written.map((row)=>row.id), [1,2]);
+    assert.equal(tasks.list().some((task)=>task.action==="export"&&task.status==="succeeded"), true);
+    assert.equal(await service.exportRun(runId), "/tmp/report.json");
+    const report = JSON.parse(reportContent);
+    assert.equal(report.format, "janus-studio.quality-report/v1");
+    assert.equal(report.summary.issueCount, 2);
+    assert.equal(report.run.results.length, 1);
+  } finally { database.close(); rmSync(directory,{recursive:true,force:true}); }
+});

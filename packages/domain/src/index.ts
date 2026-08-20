@@ -541,9 +541,19 @@ export type QualityRunStatus = "running" | "cancel_requested" | "succeeded" | "f
 export type QualityRuleResultStatus = "pending" | "running" | "passed" | "issues" | "failed" | "skipped" | "interrupted";
 
 export type QualitySample = {
-  id: string;
+  id: string | number;
   label: string;
   values: Record<string, string | number | boolean | null>;
+};
+
+export type QualityIssueExportFormat = "csv" | "jsonl" | "json";
+export type ExportQualityIssuesInput = {
+  runId: string;
+  format: QualityIssueExportFormat;
+};
+export type QualityIssueExportResult = {
+  path: string | null;
+  exportedCount: number;
 };
 
 export type QualityRuleResult = {
@@ -845,5 +855,6 @@ export type DesktopApi = {
     retry(id: string): Promise<QualityRun>;
     removeRun(id: string): Promise<void>;
     exportRun(id: string): Promise<string | null>;
+    exportIssues(input: ExportQualityIssuesInput): Promise<QualityIssueExportResult>;
   };
 };

@@ -473,6 +473,10 @@ const qualityRuleSchema = z.object({
 });
 
 export const qualityRuleSetIdSchema = z.string().uuid();
+export const exportQualityIssuesSchema = z.object({
+  runId: z.string().uuid(),
+  format: z.enum(["csv", "jsonl", "json"]),
+});
 export const saveQualityRuleSetSchema = z.object({
   id: qualityRuleSetIdSchema.optional(), name: qualityName, description: z.string().max(2_000), connectionId: connectionIdSchema,
   graphName: qualityName, graphBinding: z.string().trim().min(1).max(160), graphAccess: z.enum(["binding", "configured"]),

@@ -723,7 +723,10 @@ try { return __janusStudioManagement != null } finally { __janusStudioManagement
       };
       const stream = requestClient.stream(query, bindings, {
         evaluationTimeout: timeoutMs,
-        requestId: executionId,
+        // TinkerPop requires a UUID request id. Application execution ids can be
+        // semantic (for example a quality run and rule index), so keep those only
+        // for local cancellation and let the wire request use a valid UUID.
+        requestId: randomUUID(),
       });
       const collected = await withTimeout(
         (async (): Promise<CollectedItems> => {
@@ -750,6 +753,9 @@ try { return __janusStudioManagement != null } finally { __janusStudioManagement
       if (sessioned) {
         this.sessionClients.delete(sessionKey);
         await closeClientTransport(client);
+      }
+      if (isAuthenticationError(error)) {
+        throw new Error("Gremlin Server 认证失败（状态 407），请检查连接用户名、密码或认证 Profile", { cause: error });
       }
       throw error;
     } finally {

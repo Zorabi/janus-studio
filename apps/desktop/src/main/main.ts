@@ -162,6 +162,9 @@ function createWindow(): BrowserWindow {
       { errorCode },
     );
   });
+  window.once("closed", () => {
+    if (mainWindow === window) mainWindow = null;
+  });
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     void window.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
@@ -237,7 +240,7 @@ app.whenReady().then(async () => {
 
   mainWindow = createWindow();
   installApplicationMenu(mainWindow);
-  const fileService = new FileService(mainWindow);
+  const fileService = new FileService(() => mainWindow);
   const queryService = new QueryService(
     connectionService,
     gremlinService,
@@ -274,7 +277,7 @@ app.whenReady().then(async () => {
     fileService,
   );
   registerIpcHandlers({
-    window: mainWindow,
+    window: () => mainWindow,
     connectionService,
     queryService,
     historyRepository,
@@ -294,6 +297,7 @@ app.whenReady().then(async () => {
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       mainWindow = createWindow();
+      installApplicationMenu(mainWindow);
     }
   });
 });

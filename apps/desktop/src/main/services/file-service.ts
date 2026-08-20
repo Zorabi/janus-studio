@@ -45,12 +45,18 @@ export class FileService {
     sizeBytes?: number;
   }>();
 
-  constructor(private readonly window: BrowserWindow) {}
+  constructor(private readonly resolveWindow: () => BrowserWindow | null) {}
+
+  private window(): BrowserWindow {
+    const window = this.resolveWindow();
+    if (!window || window.isDestroyed()) throw new Error("主窗口已关闭，请重新打开后重试");
+    return window;
+  }
 
   async pickTlsFile(kind: "ca" | "certificate" | "private-key"): Promise<string | null> {
     const title = kind === "ca" ? "选择 CA 证书" : kind === "certificate" ? "选择客户端证书" : "选择客户端私钥";
     const extensions = kind === "private-key" ? ["key", "pem"] : ["pem", "crt", "cer"];
-    const result = await dialog.showOpenDialog(this.window, {
+    const result = await dialog.showOpenDialog(this.window(), {
       title,
       properties: ["openFile"],
       filters: [{ name: title, extensions }, { name: "所有文件", extensions: ["*"] }],
@@ -114,7 +120,7 @@ export class FileService {
 
   async stageDockerImport(containerId: string): Promise<DockerTransferTarget | null> {
     const target = validateDockerTarget(containerId);
-    const result = await dialog.showOpenDialog(this.window, {
+    const result = await dialog.showOpenDialog(this.window(), {
       title: "选择 TinkerPop GraphSON 整图文件",
       properties: ["openFile"],
       filters: [{ name: "TinkerPop GraphSON", extensions: ["json", "graphson"] }],
@@ -161,7 +167,7 @@ export class FileService {
   async finishDockerExport(transferId: string, suggestedName: string): Promise<string | null> {
     const transfer = this.dockerTransfers.get(transferId);
     if (!transfer || transfer.direction !== "export") throw new Error("Docker 导出任务不存在或已过期");
-    const result = await dialog.showSaveDialog(this.window, {
+    const result = await dialog.showSaveDialog(this.window(), {
       title: "保存 TinkerPop GraphSON 整图文件",
       defaultPath: suggestedName,
       filters: [{ name: "TinkerPop GraphSON", extensions: ["graphson", "json"] }],
@@ -198,7 +204,7 @@ export class FileService {
   }
 
   async pickDataFile(): Promise<PickedDataFile | null> {
-    const result = await dialog.showOpenDialog(this.window, {
+    const result = await dialog.showOpenDialog(this.window(), {
       title: "选择图数据文件",
       properties: ["openFile"],
       filters: [
@@ -225,7 +231,7 @@ export class FileService {
   }
 
   async saveDataFile(input: SaveDataFileInput): Promise<string | null> {
-    const result = await dialog.showSaveDialog(this.window, {
+    const result = await dialog.showSaveDialog(this.window(), {
       title:
         input.format === "json"
           ? "导出 JSON 数据"
@@ -246,7 +252,7 @@ export class FileService {
   }
 
   async saveResultFile(input: SaveResultFileInput): Promise<string | null> {
-    const result = await dialog.showSaveDialog(this.window, {
+    const result = await dialog.showSaveDialog(this.window(), {
       title: input.format === "csv" ? "导出 CSV 数据" : input.format === "jsonl" ? "导出 JSON Lines 数据" : "导出 JSON 数据",
       defaultPath: input.suggestedName,
       filters: input.format === "csv"
@@ -288,6 +294,50 @@ export class FileService {
     }
   }
 
+  async saveGeneratedRows(
+    suggestedName: string,
+    format: "json" | "jsonl" | "csv",
+    columns: Array<{ key: string; label: string }>,
+    producer: (writeRows: (rows: Record<string, unknown>[]) => Promise<void>) => Promise<number>,
+  ): Promise<{ path: string | null; exportedCount: number }> {
+    const result = await dialog.showSaveDialog(this.window(), {
+      title: format === "csv" ? "导出完整问题数据（CSV）" : format === "jsonl" ? "导出完整问题数据（JSON Lines）" : "导出完整问题数据（JSON）",
+      defaultPath: suggestedName,
+      filters: format === "csv"
+        ? [{ name: "CSV", extensions: ["csv"] }]
+        : format === "jsonl" ? [{ name: "JSON Lines", extensions: ["jsonl", "ndjson"] }] : [{ name: "JSON", extensions: ["json"] }],
+    });
+    if (result.canceled || !result.filePath) return { path: null, exportedCount: 0 };
+    const temporaryPath = `${result.filePath}.janus-studio-partial-${randomUUID()}`;
+    const stream = createWriteStream(temporaryPath, { encoding: "utf8" });
+    let first = true;
+    const write = async (value: string) => { if (!stream.write(value)) await once(stream, "drain"); };
+    const csvCell = (value: unknown) => {
+      const text = value == null ? "" : typeof value === "string" ? value : JSON.stringify(value);
+      return /[",\n\r]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+    };
+    try {
+      if (format === "json") await write("[\n");
+      if (format === "csv") await write(`\uFEFF${columns.map((column) => csvCell(column.label)).join(",")}\n`);
+      const exportedCount = await producer(async (rows) => {
+        for (const row of rows) {
+          if (format === "json") { await write(`${first ? "" : ",\n"}${JSON.stringify(row)}`); first = false; }
+          else if (format === "jsonl") await write(`${JSON.stringify(row)}\n`);
+          else await write(`${columns.map((column) => csvCell(row[column.key])).join(",")}\n`);
+        }
+      });
+      if (format === "json") await write("\n]\n");
+      stream.end();
+      await once(stream, "close");
+      await rename(temporaryPath, result.filePath);
+      return { path: result.filePath, exportedCount };
+    } catch (error) {
+      stream.destroy();
+      await unlink(temporaryPath).catch(() => undefined);
+      throw error;
+    }
+  }
+
   async saveGraphFile(input: SaveGraphFileInput): Promise<string | null> {
     const labels = {
       png: "PNG 图片",
@@ -295,7 +345,7 @@ export class FileService {
       svg: "SVG 矢量图",
       json: "JSON 图数据",
     } as const;
-    const result = await dialog.showSaveDialog(this.window, {
+    const result = await dialog.showSaveDialog(this.window(), {
       title: "导出拓扑图",
       defaultPath: input.suggestedName,
       filters: [{ name: labels[input.format], extensions: [input.format] }],
@@ -315,7 +365,7 @@ export class FileService {
     format: "json" | "jsonl",
     producer: (writeItems: (items: unknown[]) => Promise<void>) => Promise<{ totalCount: number; durationMs: number }>,
   ): Promise<{ path: string | null; totalCount: number; durationMs: number }> {
-    const result = await dialog.showSaveDialog(this.window, {
+    const result = await dialog.showSaveDialog(this.window(), {
       title: format === "jsonl" ? "流式导出完整 JSON Lines 结果" : "流式导出完整 JSON 结果",
       defaultPath: suggestedName,
       filters: format === "jsonl"
@@ -354,7 +404,7 @@ export class FileService {
   }
 
   async pickQueryFile(): Promise<PickedQueryFile | null> {
-    const result = await dialog.showOpenDialog(this.window, {
+    const result = await dialog.showOpenDialog(this.window(), {
       title: "打开 Gremlin 脚本",
       properties: ["openFile"],
       filters: [
@@ -376,7 +426,7 @@ export class FileService {
   }
 
   async saveQueryFile(input: SaveQueryFileInput): Promise<string | null> {
-    const result = await dialog.showSaveDialog(this.window, {
+    const result = await dialog.showSaveDialog(this.window(), {
       title: "保存 Gremlin 脚本",
       defaultPath: input.suggestedName.endsWith(".gremlin")
         ? input.suggestedName
@@ -392,7 +442,7 @@ export class FileService {
   }
 
   async pickSchemaFile(): Promise<PickedSchemaFile | null> {
-    const result = await dialog.showOpenDialog(this.window, {
+    const result = await dialog.showOpenDialog(this.window(), {
       title: "导入 Schema 定义",
       properties: ["openFile"],
       filters: [{ name: "Janus Studio Schema", extensions: ["json"] }],
@@ -410,7 +460,7 @@ export class FileService {
   }
 
   async saveSchemaFile(input: SaveSchemaFileInput): Promise<string | null> {
-    const result = await dialog.showSaveDialog(this.window, {
+    const result = await dialog.showSaveDialog(this.window(), {
       title: "导出 Schema 定义",
       defaultPath: input.suggestedName.endsWith(".json")
         ? input.suggestedName
@@ -423,7 +473,7 @@ export class FileService {
   }
 
   async pickConnectionArchive(): Promise<PickedConnectionArchive | null> {
-    const result = await dialog.showOpenDialog(this.window, {
+    const result = await dialog.showOpenDialog(this.window(), {
       title: "导入连接工作区",
       properties: ["openFile"],
       filters: [{ name: "Janus Studio 连接工作区", extensions: ["json"] }],
@@ -441,7 +491,7 @@ export class FileService {
   }
 
   async saveConnectionArchive(input: SaveConnectionArchiveInput): Promise<string | null> {
-    const result = await dialog.showSaveDialog(this.window, {
+    const result = await dialog.showSaveDialog(this.window(), {
       title: "导出连接工作区",
       defaultPath: input.suggestedName.endsWith(".json") ? input.suggestedName : `${input.suggestedName}.json`,
       filters: [{ name: "Janus Studio 连接工作区", extensions: ["json"] }],
@@ -452,7 +502,7 @@ export class FileService {
   }
 
   async saveDiagnosticBundle(entries: ZipArchiveEntry[], suggestedName: string): Promise<DiagnosticBundleResult> {
-    const result = await dialog.showSaveDialog(this.window, {
+    const result = await dialog.showSaveDialog(this.window(), {
       title: "生成问题诊断包",
       defaultPath: suggestedName.endsWith(".zip") ? suggestedName : `${suggestedName}.zip`,
       filters: [{ name: "Janus Studio 诊断包", extensions: ["zip"] }],
@@ -463,7 +513,7 @@ export class FileService {
   }
 
   async inspectDiagnosticBundle(): Promise<DiagnosticBundleInspectionResult | null> {
-    const result = await dialog.showOpenDialog(this.window, {
+    const result = await dialog.showOpenDialog(this.window(), {
       title: "选择 Janus Studio 问题诊断包",
       properties: ["openFile"],
       filters: [{ name: "Janus Studio 诊断包", extensions: ["zip"] }],

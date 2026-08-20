@@ -136,3 +136,19 @@ test("keeps Schema writes behind target confirmation and import review discovera
   assert.match(importDialog, /conversionPreviewWindowSize/);
   assert.doesNotMatch(importDialog, /<pre>\{conversionText\}<\/pre>|<textarea/);
 });
+
+test("keeps quality rule-set saves observable inside the editor", async () => {
+  const qualityPage = await readFile(`${rendererRoot}/features/quality/QualityPage.tsx`, "utf8");
+
+  assert.match(qualityPage, /<form className="quality-editor-shell" onSubmit=/);
+  assert.match(qualityPage, /type="submit" className="button primary"/);
+  assert.match(qualityPage, /savingRuleSet\?<LoaderCircle/);
+  assert.match(qualityPage, /className="quality-editor-feedback" role="alert"/);
+  assert.match(qualityPage, /friendlyQualitySaveError\(error\)/);
+  assert.match(qualityPage, /validateQualityRuleSet\(editing\)/);
+  assert.match(qualityPage, /className="quality-run-workbench"/);
+  assert.match(qualityPage, /查看完整数据/);
+  assert.match(qualityPage, /Schema 候选/);
+  assert.match(qualityPage, /重新读取目标图 Schema 候选/);
+  assert.doesNotMatch(qualityPage, /`V \$\{schemaCatalog\.vertexLabels\.length\}/);
+});

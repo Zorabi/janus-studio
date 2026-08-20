@@ -184,6 +184,7 @@ test("executes WSS Gremlin requests with mTLS client authentication", async () =
   });
   const webSockets = new WebSocketServer({ server, path: "/gremlin" });
   let authorizedConnections = 0;
+  const requestIds: string[] = [];
   webSockets.on("connection", (socket, request) => {
     if (request.socket.authorized) authorizedConnections += 1;
     socket.on("message", (raw) => {
@@ -192,6 +193,7 @@ test("executes WSS Gremlin requests with mTLS client authentication", async () =
       const requestBody = JSON.parse(message.subarray(mimeLength + 1).toString()) as {
         requestId: { "@value": string };
       };
+      requestIds.push(requestBody.requestId["@value"]);
       socket.send(JSON.stringify({
         requestId: requestBody.requestId["@value"],
         status: { code: 200, message: "", attributes: {} },
@@ -206,6 +208,21 @@ test("executes WSS Gremlin requests with mTLS client authentication", async () =
     assert.equal(report.success, true, JSON.stringify(report));
     assert.equal(report.stages.find((stage) => stage.stage === "tls")?.status, "passed");
     assert.ok(authorizedConnections >= 2);
+    await service.execute(
+      profile("wss", port, material),
+      credentials(),
+      "quality-run",
+      "quality:run-id:rule-0",
+      "1",
+      {},
+      5_000,
+      true,
+    );
+    assert.match(
+      requestIds.at(-1) ?? "",
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+      "semantic application execution ids must not be sent as Gremlin protocol request ids",
+    );
   } finally {
     await service.closeAll();
     for (const client of webSockets.clients) client.terminate();

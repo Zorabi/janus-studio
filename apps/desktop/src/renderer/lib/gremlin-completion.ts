@@ -19,6 +19,9 @@ export const EMPTY_SCHEMA_CATALOG: GremlinSchemaCatalog = {
   propertyKeys: [],
 };
 
+const naturalSchemaCompare = (left: string, right: string) =>
+  left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" });
+
 export function schemaRowsFromItems(items: unknown[]): Record<string, unknown>[] {
   const rows: Record<string, unknown>[] = [];
   const visit = (item: unknown) => {
@@ -44,9 +47,9 @@ export function schemaCatalogFromRows(items: unknown[]): GremlinSchemaCatalog {
     if (value.group === "propertyKeys") catalog.propertyKeys.push(value.name);
   }
   return {
-    vertexLabels: [...new Set(catalog.vertexLabels)].sort(),
-    edgeLabels: [...new Set(catalog.edgeLabels)].sort(),
-    propertyKeys: [...new Set(catalog.propertyKeys)].sort(),
+    vertexLabels: [...new Set(catalog.vertexLabels)].sort(naturalSchemaCompare),
+    edgeLabels: [...new Set(catalog.edgeLabels)].sort(naturalSchemaCompare),
+    propertyKeys: [...new Set(catalog.propertyKeys)].sort(naturalSchemaCompare),
   };
 }
 

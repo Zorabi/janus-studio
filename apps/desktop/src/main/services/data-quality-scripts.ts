@@ -16,6 +16,18 @@ function traversal(context: QualityScriptContext, body: string): string {
     ? `def __qualityGraph = ConfiguredGraphFactory.open(qualityGraphName)\ndef __qualityG = __qualityGraph.traversal()`
     : `def __qualityG = this.binding.hasVariable(qualityTraversalSource) ? this.binding.getVariable(qualityTraversalSource) : this.binding.getVariable(qualityGraphBinding).traversal()`;
   return `${source}
+def __qualityValues = { element ->
+  def values = [:]
+  def properties = element.properties()
+  try {
+    while (properties.hasNext() && values.size() < 24) {
+      def property = properties.next()
+      def raw = property.value()
+      values[property.key()] = raw == null || raw instanceof Number || raw instanceof Boolean || raw instanceof CharSequence ? raw : String.valueOf(raw)
+    }
+  } finally { try { properties.close() } catch (ignored) {} }
+  return values
+}
 try {
 ${body}
 } finally {
@@ -39,7 +51,7 @@ const scope = (context: QualityScriptContext, traversalText: string) =>
     ? traversalText.replace("__qualityG.V()", "__qualityG.V().limit(qualityScanLimit)").replace("__qualityG.E()", "__qualityG.E().limit(qualityScanLimit)")
     : traversalText;
 
-const sampleProjection = `.limit(qualitySampleLimit).project("id","label").by(T.id).by(T.label).toList()`;
+const sampleProjection = `.limit(qualitySampleLimit).map{ element -> [id:element.get().id(),label:element.get().label(),values:__qualityValues(element.get())] }.toList()`;
 
 export function buildQualityScript(rule: QualityRule, context: QualityScriptContext): QualityScript {
   const bindings: Record<string, unknown> = baseBindings(context);
@@ -76,11 +88,48 @@ export function buildQualityScript(rule: QualityRule, context: QualityScriptCont
   } else if (rule.kind === "distribution") {
     const vertex = rule.includeVertices !== false ? `${scope(context, "__qualityG.V()")}.groupCount().by(T.label).next()` : `[:]`;
     const edge = rule.includeEdges !== false ? `${scope(context, "__qualityG.E()")}.groupCount().by(T.label).next()` : `[:]`;
-    body = `  def __vertices=${vertex}\n  def __edges=${edge}\n  def __checked=__vertices.values().sum(0)+__edges.values().sum(0)\n  return [[checkedCount:__checked,issueCount:0,samples:[[id:"distribution",label:"overview",vertices:__vertices.toString(),edges:__edges.toString()]]]]`;
+    body = `  def __vertices=${vertex}\n  def __edges=${edge}\n  def __checked=__vertices.values().sum(0)+__edges.values().sum(0)\n  def __samples=[]\n  __vertices.each{ name,count -> __samples << [id:"vertex:"+name,label:"vertex",name:String.valueOf(name),count:count] }\n  __edges.each{ name,count -> __samples << [id:"edge:"+name,label:"edge",name:String.valueOf(name),count:count] }\n  return [[checkedCount:__checked,issueCount:0,samples:__samples]]`;
   } else {
     throw new Error(`规则 ${rule.kind} 使用客户端分批执行`);
   }
   return { query: traversal(context, body), bindings };
+}
+
+export function buildQualityIssueBatchScript(rule: QualityRule, context: QualityScriptContext, offset: number, batchSize: number): QualityScript {
+  const bindings: Record<string, unknown> = { ...baseBindings(context), qualityOffset: offset, qualityBatchSize: batchSize };
+  let issues: string;
+  let projection = `.range(qualityOffset, qualityOffset + qualityBatchSize).map{ element -> [id:element.get().id(),label:element.get().label(),values:__qualityValues(element.get())] }.toList()`;
+  if (rule.kind === "isolated-vertex") {
+    Object.assign(bindings, { qualityVertexLabels:rule.vertexLabels ?? [], qualityIgnoredEdgeLabels:rule.ignoredEdgeLabels ?? [] });
+    const base = scope(context, `__qualityG.V()${rule.vertexLabels?.length ? ".filter{ qualityVertexLabels.contains(it.get().label()) }" : ""}`);
+    issues = `${base}.filter{ v -> def edges=v.get().edges(Direction.BOTH); try { while(edges.hasNext()){ def e=edges.next(); if(!qualityIgnoredEdgeLabels.contains(e.label())) return false }; return true } finally { try{edges.close()}catch(ignored){} } }`;
+  } else if (rule.kind === "required-property") {
+    Object.assign(bindings, { qualityVertexLabel:rule.vertexLabel ?? "", qualityPropertyKeys:rule.propertyKeys ?? [] });
+    const base = scope(context, `__qualityG.V().hasLabel(qualityVertexLabel)`);
+    issues = `${base}.filter{ v -> qualityPropertyKeys.any{ k -> def it=v.get().properties(k); try{return !it.hasNext()}finally{try{it.close()}catch(ignored){}} } }`;
+    projection = `.range(qualityOffset, qualityOffset + qualityBatchSize).map{ v -> def vertex=v.get(); def missing=qualityPropertyKeys.findAll{ k -> def it=vertex.properties(k); try{return !it.hasNext()}finally{try{it.close()}catch(ignored){}} }; [id:vertex.id(),label:vertex.label(),missing:missing.join(", "),values:__qualityValues(vertex)] }.toList()`;
+  } else if (rule.kind === "property-domain") {
+    Object.assign(bindings, { qualityVertexLabel:rule.vertexLabel ?? "", qualityPropertyKey:rule.propertyKey ?? "", qualityAllowedValues:rule.allowedValues ?? [], qualityMinimum:rule.minimum ?? Number.MIN_SAFE_INTEGER, qualityMaximum:rule.maximum ?? Number.MAX_SAFE_INTEGER });
+    const base = scope(context, `__qualityG.V().hasLabel(qualityVertexLabel)`);
+    const invalid = rule.constraint === "number-range"
+      ? `if(p==null || !(p.value() instanceof Number)) return true; def n=((Number)p.value()).doubleValue(); return n<qualityMinimum || n>qualityMaximum`
+      : rule.constraint === "enum" ? `return p==null || !qualityAllowedValues.contains(String.valueOf(p.value()))` : `return p==null || String.valueOf(p.value()).trim().isEmpty()`;
+    issues = `${base}.filter{ v -> def it=v.get().properties(qualityPropertyKey); def p=null; try{p=it.hasNext()?it.next():null}finally{try{it.close()}catch(ignored){}}; ${invalid} }`;
+  } else if (rule.kind === "edge-endpoint") {
+    Object.assign(bindings, { qualityEdgeLabel:rule.edgeLabel ?? "", qualityOutLabels:rule.outVertexLabels ?? [], qualityInLabels:rule.inVertexLabels ?? [] });
+    const base = scope(context, `__qualityG.E().hasLabel(qualityEdgeLabel)`);
+    issues = `${base}.filter{ e -> def edge=e.get(); !qualityOutLabels.contains(edge.outVertex().label()) || !qualityInLabels.contains(edge.inVertex().label()) }`;
+    projection = `.range(qualityOffset, qualityOffset + qualityBatchSize).map{ e -> def edge=e.get(); [id:edge.id(),label:edge.label(),outLabel:edge.outVertex().label(),inLabel:edge.inVertex().label(),values:__qualityValues(edge)] }.toList()`;
+  } else if (rule.kind === "degree-range") {
+    Object.assign(bindings, { qualityVertexLabel:rule.vertexLabel ?? "", qualityEdgeLabel:rule.edgeLabel ?? "", qualityMinDegree:rule.minDegree ?? 0, qualityMaxDegree:rule.maxDegree ?? Number.MAX_SAFE_INTEGER });
+    const base = scope(context, `__qualityG.V().hasLabel(qualityVertexLabel)`);
+    const direction = rule.direction === "in" ? "IN" : rule.direction === "out" ? "OUT" : "BOTH";
+    const edgeArgs = rule.edgeLabel ? `Direction.${direction},qualityEdgeLabel` : `Direction.${direction}`;
+    issues = `${base}.filter{ v -> def it=v.get().edges(${edgeArgs}); long degree=0; try{while(it.hasNext()){it.next();degree++}}finally{try{it.close()}catch(ignored){}}; degree<qualityMinDegree || degree>qualityMaxDegree }`;
+  } else {
+    throw new Error(`规则 ${rule.kind} 不使用问题分页脚本`);
+  }
+  return { query: traversal(context, `  def __rows=${issues}${projection}\n  return [[samples:__rows]]`), bindings };
 }
 
 export function buildDuplicateBatchScript(rule: QualityRule, context: QualityScriptContext, offset: number, batchSize: number): QualityScript {

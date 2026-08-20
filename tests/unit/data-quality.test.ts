@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { isMutationQuery } from "../../packages/application/src/index.ts";
-import { buildDuplicateBatchScript, buildQualityScript } from "../../apps/desktop/src/main/services/data-quality-scripts.ts";
+import { buildDuplicateBatchScript, buildQualityIssueBatchScript, buildQualityScript } from "../../apps/desktop/src/main/services/data-quality-scripts.ts";
 import { openApplicationDatabase } from "../../apps/desktop/src/main/storage/database.ts";
 import { QualityRepository } from "../../apps/desktop/src/main/storage/quality-repository.ts";
 
@@ -25,6 +25,21 @@ test("all server-side quality scripts are read-only and bounded mode declares a 
     assert.match(script.query, /limit\(qualityScanLimit\)/);
     assert.doesNotMatch(script.query, /\.drop\(|\.property\(|\.commit\(/);
   }
+  const isolated = buildQualityScript({ id: crypto.randomUUID(), name: "isolated", kind: "isolated-vertex", enabled: true, severity: "warning" }, context);
+  assert.match(isolated.query, /values:__qualityValues/);
+  assert.match(isolated.query, /values\.size\(\) < 24/);
+  const distribution = buildQualityScript({ id:crypto.randomUUID(), name:"distribution", kind:"distribution", enabled:true, severity:"info" }, context);
+  assert.match(distribution.query, /label:"vertex"/);
+  assert.match(distribution.query, /label:"edge"/);
+});
+
+test("complete issue export pages the original read-only rule scope", () => {
+  const script = buildQualityIssueBatchScript({ id:crypto.randomUUID(), name:"required", kind:"required-property", enabled:true, severity:"warning", vertexLabel:"v1", propertyKeys:["cp1"] }, context, 1_000, 1_000);
+  assert.equal(isMutationQuery(script.query), false);
+  assert.match(script.query, /range\(qualityOffset, qualityOffset \+ qualityBatchSize\)/);
+  assert.match(script.query, /values:__qualityValues/);
+  assert.equal(script.bindings.qualityOffset, 1_000);
+  assert.equal(script.bindings.qualityBatchSize, 1_000);
 });
 
 test("duplicate checking reads fixed-size vertex batches without server groupCount", () => {

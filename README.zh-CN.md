@@ -35,6 +35,8 @@ JanusGraph 及兼容 Apache TinkerPop 的图数据库。它将 Gremlin 智能编
   PNG、JPG、SVG 或 JSON。
 - **Schema 与数据工具** — 浏览和管理 Label、Property Key、Composite/Mixed Index、
   Schema 快照与差异、安全的增量 Schema 导入导出、整图归档和查询结果导出。
+- **数据质量检查** — 创建可复用、Schema 感知的规则集，执行有界或全量只读检查，
+  查看问题样本，并导出完整 CSV、JSONL、JSON 或面向业务阅读的审计报告。
 - **桌面端体验** — 跨重启恢复工作区、搜索 SQLite 查询历史、选择 14 种界面语言，并自定义
   主题、字体、密度、图谱渲染和快捷键。
 - **凭据保护** — macOS 使用仅限当前用户访问的 AES-256-GCM 本地凭据库；Windows 和

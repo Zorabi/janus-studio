@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import type {
   BackgroundTask,
+  ExportQualityIssuesInput,
+  QualityIssueExportResult,
   QualityRule,
   QualityRuleResult,
   QualityRuleSet,
@@ -16,10 +18,11 @@ import { QualityRepository } from "../storage/quality-repository";
 import { ConnectionService } from "./connection-service";
 import { FileService } from "./file-service";
 import { QueryService } from "./query-service";
-import { buildDuplicateBatchScript, buildQualityScript, type QualityScriptContext } from "./data-quality-scripts";
+import { buildDuplicateBatchScript, buildQualityIssueBatchScript, buildQualityScript, type QualityScriptContext } from "./data-quality-scripts";
 
 const RUN_TIMEOUT_MAX = 86_400_000;
 const DUPLICATE_BATCH_SIZE = 2_000;
+const ISSUE_EXPORT_BATCH_SIZE = 1_000;
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "质量检查失败";
@@ -73,9 +76,13 @@ function samples(value: unknown, limit: number): QualitySample[] {
     const row = record(item);
     const values: QualitySample["values"] = {};
     for (const [key, raw] of Object.entries(row)) {
-      if (key !== "id" && key !== "label") values[key] = scalar(raw);
+      if (key === "values") {
+        for (const [nestedKey, nestedValue] of Object.entries(record(raw))) values[nestedKey] = scalar(nestedValue);
+      } else if (key !== "id" && key !== "label") values[key] = scalar(raw);
     }
-    return { id: String(row.id ?? index + 1), label: String(row.label ?? "result"), values };
+    const rawId = row.id ?? index + 1;
+    const id = typeof rawId === "string" || typeof rawId === "number" ? rawId : String(rawId);
+    return { id, label: String(row.label ?? "result"), values };
   });
 }
 
@@ -175,8 +182,124 @@ export class DataQualityService {
 
   async exportRun(id: string): Promise<string | null> {
     const detail = this.getRun(id);
-    const safe = { ...detail, results: detail.results.map(({ samples: rows, ...result }) => ({ ...result, samples: rows })) };
-    return this.files.saveDataFile({ suggestedName: `quality-${detail.graphName}-${detail.createdAt.slice(0, 10).replaceAll("-", "")}.json`, format: "json", content: JSON.stringify(safe, null, 2) });
+    const safe = {
+      format: "janus-studio.quality-report/v1",
+      summary: { status:detail.status, issueCount:detail.issueCount, checkedCount:detail.checkedCount, completedRules:detail.currentRule, totalRules:detail.totalRules },
+      run: { ...detail, results: detail.results.map(({ samples: rows, ...result }) => ({ ...result, samples: rows })) },
+    };
+    return this.files.saveDataFile({ suggestedName: `quality-report-${detail.graphName}-${detail.createdAt.slice(0, 10).replaceAll("-", "")}.json`, format: "json", content: JSON.stringify(safe, null, 2) });
+  }
+
+  async exportIssues(input: ExportQualityIssuesInput): Promise<QualityIssueExportResult> {
+    const detail = this.getRun(input.runId);
+    if (detail.status !== "succeeded") throw new Error("仅已完成的检查可以导出完整问题数据");
+    if (detail.issueCount === 0) throw new Error("本次检查没有问题数据；请导出审计报告查看检查范围与指标");
+    const taskId = randomUUID();
+    const extension = input.format === "jsonl" ? "jsonl" : input.format;
+    const date = detail.createdAt.slice(0, 10).replaceAll("-", "");
+    let taskStarted = false;
+    let exported = 0;
+    const publish = (status: BackgroundTask["status"], stage: string, message: string, current: number) => this.tasks.publish({
+      id: taskId, kind: "quality", action: "export", title: `完整问题数据 · ${detail.graphName}`,
+      connectionId: detail.connectionId, graphName: detail.graphName, status, stage, message,
+      progressCurrent: current, progressTotal: detail.issueCount, progressUnit: "issue", cancellable: false, retriable: false,
+    }, detail.connectionName);
+    try {
+      const output = await this.files.saveGeneratedRows(
+        `quality-issues-${detail.graphName}-${date}.${extension}`,
+        input.format,
+        [
+          { key:"ruleName", label:"规则" }, { key:"severity", label:"级别" }, { key:"elementType", label:"元素类型" },
+          { key:"id", label:"元素 ID" }, { key:"label", label:"标签" }, { key:"issueDetails", label:"问题说明" }, { key:"propertiesText", label:"属性快照" },
+        ],
+        async (writeRows) => {
+          taskStarted = true;
+          publish("running", "reading", "正在按原检查范围重新读取全部问题数据", 0);
+          for await (const batch of this.issueBatches(detail)) {
+            await writeRows(batch);
+            exported += batch.length;
+            publish("running", "writing", `已导出 ${exported.toLocaleString()} 条问题数据`, exported);
+          }
+          return exported;
+        },
+      );
+      if (output.path) publish("succeeded", "completed", `已导出 ${output.exportedCount.toLocaleString()} 条完整问题数据`, output.exportedCount);
+      return output;
+    } catch (error) {
+      if (taskStarted) publish("failed", "failed", errorMessage(error), exported);
+      throw error;
+    }
+  }
+
+  private async *issueBatches(detail: QualityRunDetail): AsyncGenerator<Record<string, unknown>[]> {
+    const rules = new Map(detail.ruleSetSnapshot.rules.map((rule) => [rule.id, rule]));
+    const profile = this.connections.profile(detail.connectionId);
+    const timeoutMs = Math.min(Math.max(profile.queryTimeoutMs, 60_000), RUN_TIMEOUT_MAX);
+    for (const result of detail.results) {
+      if (result.status !== "issues" || result.issueCount === 0 || result.ruleKind === "distribution") continue;
+      const rule = rules.get(result.ruleId);
+      if (!rule) continue;
+      if (rule.kind === "duplicate-vertex") {
+        yield* this.duplicateIssueBatches(detail, rule, timeoutMs);
+        continue;
+      }
+      let offset = 0;
+      while (true) {
+        const script = buildQualityIssueBatchScript(rule, this.context(detail), offset, ISSUE_EXPORT_BATCH_SIZE);
+        const response = await this.queries.execute({ connectionId:detail.connectionId, consoleId:`quality-export:${detail.id}`, executionId:randomUUID(), query:script.query, bindings:script.bindings,
+          recordHistory:false, timeoutMs, serverCancellation:true, traversalSource:detail.graphAccess === "binding" ? this.context(detail).traversalSource : undefined });
+        const batch = samples(responseRecord(response.items).samples, ISSUE_EXPORT_BATCH_SIZE);
+        if (batch.length) yield batch.map((sample) => this.issueExportRow(rule, sample));
+        offset += batch.length;
+        if (batch.length < ISSUE_EXPORT_BATCH_SIZE) break;
+      }
+    }
+  }
+
+  private async *duplicateIssueBatches(detail: QualityRunDetail, rule: QualityRule, timeoutMs: number): AsyncGenerator<Record<string, unknown>[]> {
+    const counts = new Map<string, number>();
+    const max = detail.mode === "bounded" ? detail.scanLimit : Number.MAX_SAFE_INTEGER;
+    const read = async (offset: number) => {
+      const batchSize = Math.min(DUPLICATE_BATCH_SIZE, max - offset);
+      const script = buildDuplicateBatchScript(rule, this.context(detail), offset, batchSize);
+      const response = await this.queries.execute({ connectionId:detail.connectionId, consoleId:`quality-export:${detail.id}`, executionId:randomUUID(), query:script.query, bindings:script.bindings,
+        recordHistory:false, timeoutMs, serverCancellation:true, traversalSource:detail.graphAccess === "binding" ? this.context(detail).traversalSource : undefined });
+      return { batchSize, rows: samples(responseRecord(response.items).samples, batchSize) };
+    };
+    let offset = 0;
+    while (offset < max) {
+      const { batchSize, rows } = await read(offset);
+      for (const sample of rows) {
+        if (rule.ignoreMissing && Object.values(sample.values).some((value) => value == null || value === "")) continue;
+        const signature = JSON.stringify((rule.propertyKeys ?? []).map((key) => sample.values[key] ?? null));
+        counts.set(signature, (counts.get(signature) ?? 0) + 1);
+      }
+      offset += rows.length;
+      if (rows.length < batchSize) break;
+    }
+    offset = 0;
+    while (offset < max) {
+      const { batchSize, rows } = await read(offset);
+      const issues = rows.filter((sample) => {
+        if (rule.ignoreMissing && Object.values(sample.values).some((value) => value == null || value === "")) return false;
+        const signature = JSON.stringify((rule.propertyKeys ?? []).map((key) => sample.values[key] ?? null));
+        return (counts.get(signature) ?? 0) > 1;
+      }).map((sample) => this.issueExportRow(rule, sample));
+      if (issues.length) yield issues;
+      offset += rows.length;
+      if (rows.length < batchSize) break;
+    }
+  }
+
+  private issueExportRow(rule: QualityRule, sample: QualitySample): Record<string, unknown> {
+    const detailKeys = new Set(["missing", "value", "outLabel", "inLabel"]);
+    const details = Object.entries(sample.values).filter(([key]) => detailKeys.has(key)).map(([key,value]) => `${key}: ${value ?? "null"}`).join("; ");
+    const properties = Object.fromEntries(Object.entries(sample.values).filter(([key]) => !detailKeys.has(key)));
+    return {
+      ruleName: rule.name, severity: rule.severity, ruleType: rule.kind,
+      elementType: rule.kind === "edge-endpoint" ? "edge" : "vertex", id: sample.id, label: sample.label,
+      issueDetails: details || rule.name, properties, propertiesText: Object.entries(properties).map(([key,value]) => `${key}=${value ?? "null"}`).join("; "),
+    };
   }
 
   private async execute(id: string, rawTimeout: number, resumeIndex: number): Promise<void> {
@@ -240,7 +363,7 @@ export class DataQualityService {
     const row = responseRecord(response.items);
     const checked = number(row.checkedCount);
     const issues = number(row.issueCount);
-    return this.makeResult(runId, rule, issues ? "issues" : "passed", issues, checked, samples(row.samples, run.sampleLimit), run.mode === "bounded" ? `有界结果：最多扫描 ${run.scanLimit} 个元素，不代表全图` : "全量规则执行完成", inlineQualityQuery(script.query, script.bindings), startedAt);
+    return this.makeResult(runId, rule, issues ? "issues" : "passed", issues, checked, samples(row.samples, rule.kind === "distribution" ? 10_000 : run.sampleLimit), run.mode === "bounded" ? `有界结果：最多扫描 ${run.scanLimit} 个元素，不代表全图` : "全量规则执行完成", inlineQualityQuery(script.query, script.bindings), startedAt);
   }
 
   private async executeDuplicate(run: QualityRun, rule: QualityRule, index: number, timeoutMs: number, startedAt: string): Promise<QualityRuleResult> {
@@ -284,7 +407,7 @@ export class DataQualityService {
     rows: QualitySample[], message: string, query: string, startedAt: string): QualityRuleResult {
     const run = this.repository.getRun(runId)!;
     return { id: randomUUID(), runId, ruleId: rule.id, ruleName: rule.name, ruleKind: rule.kind, severity: rule.severity, status,
-      issueCount, checkedCount, coverageLimit: run.mode === "bounded" ? run.scanLimit : 0, message, query, samples: rows.slice(0, run.sampleLimit), startedAt, completedAt: new Date().toISOString() };
+      issueCount, checkedCount, coverageLimit: run.mode === "bounded" ? run.scanLimit : 0, message, query, samples: rule.kind === "distribution" ? rows : rows.slice(0, run.sampleLimit), startedAt, completedAt: new Date().toISOString() };
   }
 
   private setExecution(runId: string, executionId: string): void {
