@@ -68,7 +68,7 @@ Prerequisites:
 
 ```bash
 git clone <repository-url>
-cd janusgraph-desktop-manager
+cd janus-studio
 pnpm install
 pnpm dev
 ```

@@ -100,7 +100,7 @@ macOS 生产包重新生成，未展示任何凭据。
 
 ```bash
 git clone <repository-url>
-cd janusgraph-desktop-manager
+cd janus-studio
 pnpm install
 pnpm dev
 ```
