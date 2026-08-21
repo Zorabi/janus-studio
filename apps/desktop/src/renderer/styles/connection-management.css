@@ -25,18 +25,22 @@
 
 .connection-search:focus-within {
   color: var(--acid);
-  border-color: color-mix(in srgb, var(--acid) 42%, var(--line));
+  border-color: color-mix(in srgb, var(--acid) 64%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--acid) 12%, transparent);
 }
 
-.connection-search input {
+.connection-search input,
+.connection-search input:focus,
+.connection-search input:focus-visible {
   width: 100%;
   min-width: 0;
   height: 44px;
   padding: 0;
-  border: 0;
-  outline: 0;
+  border: 0 !important;
+  outline: 0 !important;
   color: var(--bone);
   background: transparent;
+  box-shadow: none !important;
 }
 
 .connection-group-filter {

@@ -73,6 +73,34 @@ test("gives every native text field a theme-aware fallback surface", async () =>
   assert.match(foundation, /-webkit-text-fill-color:\s*var\(--bone\)/);
 });
 
+test("keeps the connection search focus ring on the complete control", async () => {
+  const styles = await readFile(`${rendererRoot}/styles/connection-management.css`, "utf8");
+
+  assert.match(
+    styles,
+    /\.connection-search:focus-within\s*\{[^}]*border-color:[^}]*box-shadow:/s,
+  );
+  assert.match(
+    styles,
+    /\.connection-search input,[\s\S]*?\.connection-search input:focus-visible\s*\{[^}]*border:\s*0\s*!important[^}]*outline:\s*0\s*!important[^}]*box-shadow:\s*none\s*!important/s,
+  );
+});
+
+test("keeps dynamic graph title actions complete inside the detail pane", async () => {
+  const styles = await readFile(`${rendererRoot}/styles/feature-pages.css`, "utf8");
+  const foundation = await readFile(`${rendererRoot}/styles/foundation.css`, "utf8");
+
+  assert.match(
+    styles,
+    /\.factory-graph-detail\s*>\s*header\s*\{\s*align-items:\s*center;\s*flex-wrap:\s*wrap;\s*\}/s,
+  );
+  assert.match(
+    styles,
+    /\.factory-detail-primary-actions\s*\{[^}]*flex:\s*1\s+1\s+540px[^}]*flex-wrap:\s*wrap[^}]*align-items:\s*center/s,
+  );
+  assert.match(foundation, /\.button\s*\{[^}]*align-items:\s*center[^}]*white-space:\s*nowrap/s);
+});
+
 test("keeps dynamic graph capability probing stable across parent renders", async () => {
   const page = await readFile(
     `${rendererRoot}/features/graph-factory/GraphFactoryPage.tsx`,

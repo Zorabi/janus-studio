@@ -772,7 +772,13 @@
   border-bottom: 1px solid var(--line);
   background: var(--surface-2);
 }
-
+.factory-graph-detail > header { align-items: center; flex-wrap: wrap; }
+.factory-graph-detail > header > div:first-child {
+  display: grid;
+  flex: 1 1 280px;
+  min-width: 0;
+  align-content: center;
+}
 .factory-template-panel h2,
 .factory-graphs-section h2,
 .factory-graph-detail h3 {
@@ -799,7 +805,8 @@
 
 .factory-detail-primary-actions {
   display: flex;
-  flex: 0 0 auto;
+  flex: 1 1 540px;
+  min-width: 0;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
@@ -930,6 +937,7 @@
 .factory-detail-title {
   display: flex;
   min-width: 0;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
@@ -1568,6 +1576,11 @@
   .factory-editor-actions,
   .factory-detail-primary-actions {
     justify-content: flex-start;
+  }
+
+  .factory-detail-primary-actions {
+    width: 100%;
+    flex-basis: auto;
   }
 
   .factory-graph-layout {

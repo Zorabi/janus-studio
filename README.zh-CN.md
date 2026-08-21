@@ -44,13 +44,33 @@ JanusGraph 及兼容 Apache TinkerPop 的图数据库。它将 Gremlin 智能编
 
 ## 应用截图
 
-**Gremlin 查询工作台**
+所有包含图上下文的截图均使用 `janus_studio_gods` 动态图：该图通过
+`ConfiguredGraphFactory` 创建，并使用 JanusGraph 官方 Graph of the Gods 示例
+初始化，包含 12 个顶点和 17 条边。整组截图由同一个连接本机 Docker 环境的
+macOS 生产包重新生成，未展示任何凭据。
 
-![Janus Studio Gremlin 查询工作台](docs/assets/screenshots/query-workbench.png)
-
-**偏好设置**
-
-![Janus Studio 偏好设置](docs/assets/screenshots/preferences.png)
+<table>
+  <tr>
+    <td width="50%"><strong>Gremlin 查询工作台</strong><br /><img src="docs/assets/screenshots/query-workbench.png" alt="展示 Graph of the Gods 拓扑的 Gremlin 查询工作台" width="100%" /></td>
+    <td width="50%"><strong>连接管理</strong><br /><img src="docs/assets/screenshots/connections.png" alt="配置为 janus_studio_gods 的 JanusGraph 连接管理工作区" width="100%" /></td>
+  </tr>
+  <tr>
+    <td width="50%"><strong>查询资产</strong><br /><img src="docs/assets/screenshots/query-assets.png" alt="janus_studio_gods 查询历史、Snippet、文件夹与标签" width="100%" /></td>
+    <td width="50%"><strong>ConfiguredGraphFactory 动态图</strong><br /><img src="docs/assets/screenshots/dynamic-graphs.png" alt="janus_studio_gods 的 ConfiguredGraphFactory 动态图管理" width="100%" /></td>
+  </tr>
+  <tr>
+    <td width="50%"><strong>Schema 管理</strong><br /><img src="docs/assets/screenshots/schema-management.png" alt="janus_studio_gods 的 Schema 标签、属性键与索引管理" width="100%" /></td>
+    <td width="50%"><strong>整图导入导出</strong><br /><img src="docs/assets/screenshots/data-transfer.png" alt="目标为 janus_studio_gods 的 GraphSON 迁移工作区" width="100%" /></td>
+  </tr>
+  <tr>
+    <td width="50%"><strong>数据质量检查</strong><br /><img src="docs/assets/screenshots/data-quality.png" alt="目标为 janus_studio_gods 的只读数据质量规则" width="100%" /></td>
+    <td width="50%"><strong>问题诊断</strong><br /><img src="docs/assets/screenshots/diagnostics.png" alt="基于证据的问题诊断与诊断记录" width="100%" /></td>
+  </tr>
+  <tr>
+    <td width="50%"><strong>偏好设置</strong><br /><img src="docs/assets/screenshots/preferences.png" alt="Janus Studio 偏好设置" width="100%" /></td>
+    <td width="50%"></td>
+  </tr>
+</table>
 
 ## 平台支持
 
@@ -147,8 +167,9 @@ design-system/          视觉系统与页面规则
 
 ### 数据迁移
 
-整图导入导出面向中小规模迁移，单个归档上限为 200 MB。生产级或超大规模迁移应使用
-JanusGraph Bulk Loading、Hadoop/ETL 或集群侧作业。
+Janus Studio 归档会自动分批处理图数据，不要求用户手工切割文件；大型图和长时间迁移可使用
+服务端 GraphSON 通道。生产级批量加载前，仍应评估 JanusGraph Batch Loading、Hadoop/ETL
+以及集群资源上限。
 
 ### 凭据安全
 

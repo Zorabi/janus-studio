@@ -53,13 +53,34 @@ one native desktop application.
 
 ## Screenshots
 
-**Gremlin query workbench**
+Every graph-aware screenshot uses `janus_studio_gods`, a dynamic graph created
+through `ConfiguredGraphFactory` and initialized with JanusGraph's Graph of the
+Gods example (12 vertices and 17 edges). The complete gallery was recaptured
+from the same packaged macOS build connected to a local Docker environment;
+credentials are not shown.
 
-![Gremlin query workbench in Janus Studio](docs/assets/screenshots/query-workbench.png)
-
-**Preferences**
-
-![Preferences in Janus Studio](docs/assets/screenshots/preferences.png)
+<table>
+  <tr>
+    <td width="50%"><strong>Gremlin query workbench</strong><br /><img src="docs/assets/screenshots/query-workbench.png" alt="Gremlin query workbench showing the Graph of the Gods topology" width="100%" /></td>
+    <td width="50%"><strong>Connection management</strong><br /><img src="docs/assets/screenshots/connections.png" alt="JanusGraph connection management workspace configured for janus_studio_gods" width="100%" /></td>
+  </tr>
+  <tr>
+    <td width="50%"><strong>Query assets</strong><br /><img src="docs/assets/screenshots/query-assets.png" alt="Query history for janus_studio_gods with snippets, folders, and tags" width="100%" /></td>
+    <td width="50%"><strong>ConfiguredGraphFactory</strong><br /><img src="docs/assets/screenshots/dynamic-graphs.png" alt="ConfiguredGraphFactory management for janus_studio_gods" width="100%" /></td>
+  </tr>
+  <tr>
+    <td width="50%"><strong>Schema management</strong><br /><img src="docs/assets/screenshots/schema-management.png" alt="Schema labels, property keys, and indexes for janus_studio_gods" width="100%" /></td>
+    <td width="50%"><strong>Whole-graph import and export</strong><br /><img src="docs/assets/screenshots/data-transfer.png" alt="GraphSON transfer workspace targeting janus_studio_gods" width="100%" /></td>
+  </tr>
+  <tr>
+    <td width="50%"><strong>Data quality audits</strong><br /><img src="docs/assets/screenshots/data-quality.png" alt="Read-only data quality rules targeting janus_studio_gods" width="100%" /></td>
+    <td width="50%"><strong>Troubleshooting</strong><br /><img src="docs/assets/screenshots/diagnostics.png" alt="Evidence-based troubleshooting and diagnostic records" width="100%" /></td>
+  </tr>
+  <tr>
+    <td width="50%"><strong>Preferences</strong><br /><img src="docs/assets/screenshots/preferences.png" alt="Janus Studio preferences" width="100%" /></td>
+    <td width="50%"></td>
+  </tr>
+</table>
 
 ## Platform support
 
@@ -167,9 +188,11 @@ queries.
 
 ### Data migration
 
-Whole-graph import and export are intended for small and medium-sized migrations,
-with a 200 MB archive limit. For production-scale migration, use JanusGraph bulk
-loading, Hadoop/ETL, or a cluster-side job.
+Janus Studio archives split and process graph data in batches without requiring
+users to divide files manually. Server-side GraphSON transfer is available for
+large graphs and long-running migrations. For production-scale loading, review
+JanusGraph batch-loading, Hadoop/ETL, and cluster resource limits before running
+the job.
 
 ### Credentials
 
