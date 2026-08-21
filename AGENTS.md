@@ -4,7 +4,7 @@
 
 - 产品名称：Janus Studio。
 - Slogan：`A Modern Desktop IDE for JanusGraph & Apache TinkerPop`。
-- 项目目录：`<repository-root>`。
+- 项目目录：仓库根目录（下文使用 `<repository-root>` 表示）。
 - 产品形态：基于 Electron 的 JanusGraph/TinkerPop 跨平台桌面 IDE，目标平台为 macOS、Windows 和 Linux。
 - 当前版本：`0.2.0`。
 - 本文件是后续 Agent 的项目级上下文。开始开发前先阅读本文件，再检查当前代码，不能仅凭历史描述判断实现状态。

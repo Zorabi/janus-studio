@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { AuthenticationProfileRepository } from "../../apps/desktop/src/main/storage/authentication-profile-repository.ts";
@@ -11,7 +12,7 @@ import { buildDuplicateBatchScript, buildQualityScript } from "../../apps/deskto
 import { GremlinService } from "../../apps/desktop/src/main/services/gremlin-service.ts";
 
 const live = process.env.JANUSGRAPH_QUALITY_LIVE === "1";
-const userData = process.env.JANUS_STUDIO_USER_DATA ?? "~/Library/Application Support/Janus Studio";
+const userData = process.env.JANUS_STUDIO_USER_DATA ?? join(homedir(), "Library", "Application Support", "Janus Studio");
 
 test("runs every bounded read-only quality rule against local static and configured graphs", { skip: !live }, async () => {
   const database = openApplicationDatabase(join(userData, "janusgraph-desktop.sqlite"));
