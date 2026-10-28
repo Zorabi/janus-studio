@@ -1,221 +1,129 @@
-<div align="center">
-
 # Janus Studio
 
-**A Modern Desktop IDE for JanusGraph & Apache TinkerPop**
+Janus Studio 是用于连接图数据库、执行 Gremlin 查询、查看拓扑和管理 JanusGraph 的跨平台桌面 IDE。
 
-[English](README.md) · [简体中文](README.zh-CN.md)
+![版本](https://img.shields.io/badge/version-0.2.0-4B5563)
+[![许可证：AGPL-3.0-only](https://img.shields.io/badge/license-AGPL--3.0--only-663399)](LICENSE)
 
-![Version](https://img.shields.io/badge/version-0.2.0-9ACD32?style=flat-square)
-![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-4B5563?style=flat-square)
-![Electron](https://img.shields.io/badge/Electron-37-47848F?style=flat-square&logo=electron&logoColor=white)
-![License](https://img.shields.io/badge/license-AGPL--3.0--only-663399?style=flat-square)
+应用不内置图数据库或示例数据，需要可访问的 JanusGraph 或兼容 Apache TinkerPop 的 Gremlin 服务；Schema、动态图和部分迁移功能依赖 JanusGraph 服务端能力及权限。
 
-<img src="apps/desktop/src/renderer/assets/janus-studio.png" alt="Janus Studio project artwork" width="100%" />
+## 功能
 
-</div>
+- **连接管理**：多连接、分组与标签，支持 WS/WSS、HTTP/HTTPS、认证、TLS、代理和 SSH 隧道，以及分阶段连接测试。
+- **查询工作台**：Gremlin 高亮、Schema 补全、参数绑定、多标签页、文件读写、Explain/Profile 和会话事务；工作区可在重启后恢复。
+- **结果与拓扑**：标量、表格、JSON、控制台和原始响应视图；多种图布局、属性详情、布局保存，以及 PNG/JPG/SVG/JSON 拓扑导出和 JSON/JSONL/CSV 结果导出。
+- **Schema 与动态图**：Label、Property Key、Composite/Mixed Index 管理，Schema 导入导出、快照比较，以及 ConfiguredGraphFactory 配置与实例管理。
+- **整图迁移**：Janus Studio 归档与服务端 GraphSON 导入导出，持久化任务进度和显式停止、重试。
+- **查询资产与数据质量**：历史、Snippet、文件夹和标签；可复用的只读检查规则、问题样本与完整审计结果导出。
+- **设置与诊断**：深色、浅色和系统主题，多语言、字体和快捷键设置，以及本地问题诊断和脱敏诊断包。
 
-Janus Studio is a cross-platform desktop workbench for connecting to,
-querying, visualizing, and managing JanusGraph and Apache TinkerPop-compatible
-graph databases. It combines a Gremlin-aware editor, multiple result views,
-interactive graph exploration, schema tools, and local workspace persistence in
-one native desktop application.
+## 效果预览
 
-> [!NOTE]
-> The application does not include a bundled graph database or sample data. A
-> reachable JanusGraph or TinkerPop-compatible server is required for live use.
+查询工作台：编辑 Gremlin，并在同一工作区查看查询结果和图拓扑。
 
-## Highlights
+![Gremlin 查询工作台与 Graph of the Gods 示例拓扑](docs/assets/screenshots/query-workbench.png)
 
-- **Connection management** — Manage multiple WS, WSS, HTTP, and HTTPS
-  connections with authentication, TLS, custom headers, traversal sources, and
-  sessionless or sessioned clients.
-- **Gremlin workspace** — Use a Monaco-based editor with Gremlin highlighting,
-  schema-aware completion, formatting, query tabs, parameter bindings,
-  favorites, Explain, Profile, transactions, and configurable shortcuts.
-- **Purpose-built result views** — Inspect results as an interactive topology,
-  virtualized table, structured JSON, Gremlin console output, or raw response.
-- **Graph visualization** — Explore force-directed, hierarchical, radial, and
-  grid layouts; inspect element properties; save layouts; and export PNG, JPG,
-  SVG, or JSON.
-- **Schema and data tools** — Browse and manage labels, property keys, composite
-  and mixed indexes, schema snapshots and diffs, safe additive schema
-  imports/exports, whole-graph archives, and query-result exports.
-- **Data quality audits** — Define reusable, schema-aware rule sets, run bounded
-  or full read-only checks, inspect issue samples, and export complete CSV,
-  JSONL, JSON, or business-readable audit reports.
-- **Desktop-first experience** — Restore workspaces across restarts, search
-  SQLite-backed history, choose from 14 interface languages, and customize
-  themes, fonts, density, graph rendering, and shortcuts.
-- **Credential protection** — Use a current-user-only AES-256-GCM vault on
-  macOS; prefer operating-system key facilities on Windows and Linux with an
-  encrypted local fallback.
+<details>
+<summary>Schema 管理：查看定义、创建属性与索引、导入导出和比较快照</summary>
 
-## Screenshots
+![Schema 定义列表与属性、索引创建表单](docs/assets/screenshots/schema-management.png)
 
-Every graph-aware screenshot uses `janus_studio_gods`, a dynamic graph created
-through `ConfiguredGraphFactory` and initialized with JanusGraph's Graph of the
-Gods example (12 vertices and 17 edges). The complete gallery was recaptured
-from the same packaged macOS build connected to a local Docker environment;
-credentials are not shown.
+</details>
 
-<table>
-  <tr>
-    <td width="50%"><strong>Gremlin query workbench</strong><br /><img src="docs/assets/screenshots/query-workbench.png" alt="Gremlin query workbench showing the Graph of the Gods topology" width="100%" /></td>
-    <td width="50%"><strong>Connection management</strong><br /><img src="docs/assets/screenshots/connections.png" alt="JanusGraph connection management workspace configured for janus_studio_gods" width="100%" /></td>
-  </tr>
-  <tr>
-    <td width="50%"><strong>Query assets</strong><br /><img src="docs/assets/screenshots/query-assets.png" alt="Query history for janus_studio_gods with snippets, folders, and tags" width="100%" /></td>
-    <td width="50%"><strong>ConfiguredGraphFactory</strong><br /><img src="docs/assets/screenshots/dynamic-graphs.png" alt="ConfiguredGraphFactory management for janus_studio_gods" width="100%" /></td>
-  </tr>
-  <tr>
-    <td width="50%"><strong>Schema management</strong><br /><img src="docs/assets/screenshots/schema-management.png" alt="Schema labels, property keys, and indexes for janus_studio_gods" width="100%" /></td>
-    <td width="50%"><strong>Whole-graph import and export</strong><br /><img src="docs/assets/screenshots/data-transfer.png" alt="GraphSON transfer workspace targeting janus_studio_gods" width="100%" /></td>
-  </tr>
-  <tr>
-    <td width="50%"><strong>Data quality audits</strong><br /><img src="docs/assets/screenshots/data-quality.png" alt="Read-only data quality rules targeting janus_studio_gods" width="100%" /></td>
-    <td width="50%"><strong>Troubleshooting</strong><br /><img src="docs/assets/screenshots/diagnostics.png" alt="Evidence-based troubleshooting and diagnostic records" width="100%" /></td>
-  </tr>
-  <tr>
-    <td width="50%"><strong>Preferences</strong><br /><img src="docs/assets/screenshots/preferences.png" alt="Janus Studio preferences" width="100%" /></td>
-    <td width="50%"></td>
-  </tr>
-</table>
+## 安装与快速开始
 
-## Platform support
+### 获取应用
 
-| Platform | CI target | Package |
+仓库配置的构建目标如下；该表表示打包配置，不代表每个平台均已完成实际安装验收。
+
+| 平台 | 架构 | 安装包格式 |
 | --- | --- | --- |
-| macOS | Apple Silicon (arm64) | ZIP application bundle |
-| Windows | x64 | Squirrel installer |
-| Linux | x64 | DEB and RPM packages |
+| macOS | Apple Silicon（arm64）、Intel（x64） | ZIP 应用包 |
+| Windows | x64 | Squirrel 安装程序 |
+| Linux | x64 | DEB、RPM |
 
-Compatibility tests cover JanusGraph 1.1.0 and 1.0.0 over WebSocket, sessioned
-WebSocket, and HTTP transports.
+可在 [GitHub Releases](https://github.com/Zorabi/janus-studio/releases) 查看已发布的版本及附件；若无对应制品，请从源码构建。安装前查看该版本的发布说明与验证信息，未完成平台验证的测试包不应视为正式发行版。
 
-## Install a release
+### 从源码运行
 
-Download the package for your platform from the
-[latest GitHub release](../../releases/latest). Release builds may be unsigned
-unless the maintainers have configured the platform signing credentials. Your
-operating system can therefore display a warning for development or test
-artifacts.
-
-## Run from source
-
-### Prerequisites
-
-- Node.js 22.x (the repository pins `22.17.0` in `.nvmrc`)
-- pnpm 8.11.0
-- Git
-
-### Development
+需要 Git、Node.js 22.x（至少 22.17.0，见 [.nvmrc](.nvmrc)）和 pnpm 8.11.0。
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/Zorabi/janus-studio.git
 cd janus-studio
-pnpm install
+pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-If Electron downloads are slow on your network, set a mirror for the individual
-command without changing the project configuration:
+### 首次查询
 
-```bash
-ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ pnpm install
+1. 新建连接，填写服务器地址、认证信息和服务端配置的 Traversal Source；使用连接测试检查可达性及权限。
+2. 进入查询工作台，选择连接；使用动态图时，先选择目标图并核对图上下文。
+3. 输入以下只读查询并点击“运行查询”，在拓扑、表格或 JSON 视图查看结果。
+
+```groovy
+g.V().limit(20)
 ```
 
-## Build and verify
+示例假定 Traversal Source 为 `g`；空图会返回空结果，不会自动创建示例数据。
+
+## 使用说明与兼容性
+
+| 场景 | 条件与边界 |
+| --- | --- |
+| JanusGraph 版本 | CI 兼容测试配置覆盖 1.0.0、1.1.0 的 WS、Sessioned WS 和 HTTP；其他版本需自行验证。 |
+| 其他 TinkerPop 服务 | 可使用兼容的 Gremlin 查询通道；JanusGraph 专属管理功能不能据此推定可用。 |
+| 跨查询事务 | 需要 WS/WSS 的 Sessioned 模式；在同一查询标签页显式开启、提交或回滚。 |
+| Schema 导入 | 先审阅变更计划，再输入完整目标图名；1.1 官方 JSON 专属字段在 1.0 中可能需要人工审阅。 |
+| 整图迁移 | 服务端 GraphSON 需要本机 Docker 中转或服务器绝对路径；导入中断不会回滚已写入的数据。 |
+| 停止任务 | HTTP(S) 只能停止客户端等待，不能保证服务端执行终止；WS/WSS 的中断能力取决于任务通道和服务端。 |
+| 动态图管理 | 依赖 ConfiguredGraphFactory 配置、权限与集群状态；关闭当前节点引用后，服务端可能自动重新加载。 |
+
+参数绑定需在查询标签页启用，并填写 JSON 对象，例如 `{"vertexId": 123}`；查询中直接使用 `g.V(vertexId)`。快捷键可在偏好设置中查看和修改。
+
+清空数据、Drop 和 Schema 变更前应核对连接与目标图。生产连接支持写入保护，危险操作要求输入完整图名确认。更多边界见[发布已知限制](docs/发布已知限制.md)，企业网络配置见[企业连接与认证](docs/企业连接与认证.md)。
+
+## 开发与测试
+
+项目使用 pnpm workspace，桌面端基于 Electron Forge、Vite、React、TypeScript 和 Monaco Editor。
+
+| 目录 | 职责 |
+| --- | --- |
+| `apps/desktop/src/main` | 主进程、连接、IPC、存储、文件与后台任务 |
+| `apps/desktop/src/preload` | 安全的进程间 API 桥接 |
+| `apps/desktop/src/renderer` | 界面、编辑器与图画布 |
+| `packages/domain` | 领域类型与共享契约 |
+| `packages/application` | 应用规则与数据转换 |
+| `tests` | 单元、集成、兼容与打包应用测试 |
+
+在仓库根目录执行：
 
 ```bash
-# Generate localized message catalogs after changing user-visible UI text
-pnpm i18n:generate
-
-# Type-check every workspace package
 pnpm typecheck
-
-# Run unit and integration tests
 pnpm test
-
-# Create an unpacked application for the current platform
 pnpm build
-
-# Create distributable packages for the current platform
-pnpm make
 ```
 
-Four live JanusGraph integration tests are skipped when their environment is not
-configured. The regular test suite does not require a real database connection.
+`pnpm test` 中的真实环境用例默认跳过，不需要连接现有数据库。`pnpm build` 为当前平台生成应用，输出在 `apps/desktop/out/`；例如 macOS ARM64 为 `apps/desktop/out/Janus Studio-darwin-arm64/Janus Studio.app`。`pnpm make` 生成可分发制品，输出在 `apps/desktop/out/make/`；Linux 打包还需 `fakeroot` 和 RPM 工具。
 
-## Project structure
+修改用户可见界面文字后运行 `pnpm i18n:generate`。需要验证数据库兼容性时，可单独运行以下命令；它会通过 Docker Compose 创建测试服务、执行测试，并清理测试容器和卷：
 
-```text
-apps/desktop/
-  src/main/             Electron main process, IPC, clients, and file operations
-  src/preload/          Secure renderer API bridge
-  src/renderer/         React UI, Gremlin editor, graph canvas, and settings
-packages/domain/        Domain models and desktop API contracts
-packages/application/   Framework-independent application rules and transforms
-tests/                  Unit, integration, compatibility, and packaged-app tests
-docs/                   Architecture and release documentation
-design-system/          Visual system and page-specific rules
+```bash
+pnpm test:compat
 ```
 
-The three workspace packages are layers of one product, not separate apps:
+该命令默认测试 JanusGraph 1.1.0，可通过 `JANUSGRAPH_VERSION` 环境变量指定 1.0.0。打包应用与真实连接测试的前提见[贡献指南](CONTRIBUTING.zh-CN.md)；架构说明见[需求分析与架构设计](docs/需求分析与架构设计.md)。
 
-- `@janusgraph/domain` defines framework-independent models and the shared
-  desktop API contract.
-- `@janusgraph/application` contains reusable, testable application rules and
-  depends only on `domain`.
-- `@janusgraph/desktop` is the Electron application and depends on both inner
-  layers.
+## 参与贡献
 
-Dependencies point inward: `domain ← application ← desktop`. See the
-[contributing guide](CONTRIBUTING.md#why-there-are-three-workspaces) for package
-boundaries and examples of where changes belong.
+提交 Issue 前请搜索已有问题，提供应用版本、操作系统、服务端版本、复现步骤与脱敏错误信息。可通过应用的问题诊断入口生成诊断包，分享前请检查内容，不要附带凭据或真实业务数据。
 
-The workspace uses Electron Forge, Vite, React, TypeScript, Monaco Editor,
-Lucide, the official Gremlin JavaScript driver, and SQLite-backed local storage.
+代码贡献请先阅读[贡献指南](CONTRIBUTING.zh-CN.md)，保持改动聚焦，并附上相关验证结果。发布流程见[发布文档](docs/发布与签名.md)。
 
-## Usage notes
+## 许可证
 
-### Sessioned transactions
+SPDX：`AGPL-3.0-only`。第三方依赖保留各自的版权与授权条款。
 
-Cross-query transactions require a WS/WSS connection configured in **Sessioned**
-mode. Open a transaction from the query tab, then commit or roll it back from the
-same tab. Sessionless and HTTP(S) requests cannot preserve a transaction across
-queries.
+Copyright (c) 2026 dongx。
 
-### Data migration
-
-Janus Studio archives split and process graph data in batches without requiring
-users to divide files manually. Server-side GraphSON transfer is available for
-large graphs and long-running migrations. For production-scale loading, review
-JanusGraph batch-loading, Hadoop/ETL, and cluster resource limits before running
-the job.
-
-### Credentials
-
-Never include passwords, encryption keys, or complete authentication headers in
-bug reports. If a credential created by an older build can no longer be
-decrypted, edit the connection and enter its password again to migrate it to the
-current credential format.
-
-## Documentation
-
-- [Requirements and architecture (Chinese)](docs/需求分析与架构设计.md)
-- [Design system](design-system/janusgraph-desktop/MASTER.md)
-- [Workbench design rules](design-system/janusgraph-desktop/pages/workbench.md)
-- [Release, signing, and updates (Chinese)](docs/发布与签名.md)
-- [Contributing guide](CONTRIBUTING.md)
-
-## Contributing
-
-Issues and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for
-workspace boundaries, development workflow, project invariants, verification,
-commit style, and the pull request checklist. A
-[Simplified Chinese version](CONTRIBUTING.zh-CN.md) is also available.
-
-## License
-
-Licensed under the [GNU Affero General Public License v3.0 only](LICENSE).
+本项目基于 [GNU Affero General Public License v3.0](LICENSE) 发布。
